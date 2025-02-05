@@ -1,4 +1,4 @@
-<img src="linkedin_image.jpg" width="70" height="70" alt="Your Photo Placeholder">
+<img src="linkedin_image.jpg" width="90" height="90" alt="Your Photo Placeholder" style="display: block; margin: 0 auto;"><br>
 
 Welcome to all things data and various other things!
 
