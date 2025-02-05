@@ -101,7 +101,7 @@ Here are some of my blog posts:
 ## Contact
 
 - Email: [raphael.ribard@gmail.com](mailto:raphael.ribard@example.com)
-- LinkedIn: [Raphael LinkedIn Profile](www.linkedin.com/in/raphaelribard)
+- LinkedIn: [Raphael LinkedIn Profile](https://www.linkedin.com/in/raphaelribard/)
 - GitHub: [Raphael GitHub Profile](https://github.com/raphaelribard)
 
 <!-- You can use the [editor on GitHub](htt)ps://github.com/raphaelribard/raphaelribard.github.io/edit/main/index.md) to maintain and preview the content for your website in Markdown files.
