@@ -1,4 +1,4 @@
-# gem "minima"
+gem "minima"
 # gem "webrick"
 gem "github-pages", group: :jekyll_plugins
-gem "webrick", "~> 1.7"
+# gem "webrick", "~> 1.7"
