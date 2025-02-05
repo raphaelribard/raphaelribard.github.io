@@ -1,6 +1,5 @@
 <img src="linkedin_image.jpg" width="70" height="70" alt="Your Photo Placeholder">
 
-# Raphael Ribard 
 Welcome to all things data and various other things!
 
 
