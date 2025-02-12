@@ -85,7 +85,7 @@ Here are some of my blog posts:
 
 - Specialization: Energy
 
-### **Bachelor's Degree in Electrical and Mechanical Engineering**  
+### **Master's Degree in Electrical and Mechanical Engineering**  
 **Arts et Métiers - École Nationale Supérieure d'Arts et Métiers (ENSAM)**  
 **Bordeaux Area, France**  
 **September 2008 - September 2010**
