@@ -23,7 +23,7 @@ Here are some of my blog posts:
 **Crewe, England, United Kingdom**  
 **January 2020 - Present**
 
-- Developing time series models/classifiers in the cloud (AWS and Azure) to deliver value to our clients (car insurers)
+- Developing time series models/classifiers (CNN, ConvLSTM) in the cloud (AWS and Azure) to deliver value to our clients (car insurers)
 - Utilizing XGBoost, LightGBM, Keras + TensorFlow, and PyTorch for model development
 - Leading cross-functional teams and driving projects from conception to deployment
 
@@ -89,6 +89,7 @@ Here are some of my blog posts:
 **Arts et Métiers - École Nationale Supérieure d'Arts et Métiers (ENSAM)**  
 **Bordeaux Area, France**  
 **September 2008 - September 2010**
+- Gold medal: 8th/1118 students
 
 ---
 
