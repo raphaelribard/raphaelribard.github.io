@@ -78,6 +78,10 @@ Senior Data Scientist with lead-level end-to-end delivery experience across mode
     <dd>Git, Docker, Jenkins, Flask, Django</dd>
   </div>
   <div>
+    <dt>Mobile / Edge</dt>
+    <dd>Kotlin Multiplatform, TensorFlow Lite, Edge AI</dd>
+  </div>
+  <div>
     <dt>Visualization</dt>
     <dd>Tableau, Power BI</dd>
   </div>
