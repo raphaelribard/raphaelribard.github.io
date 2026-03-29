@@ -2,8 +2,7 @@ title: Raphael Ribard
 description: Senior Data Scientist — ML, cloud (AWS & Azure), and data engineering
 url: https://raphaelribard.github.io
 show_downloads: false
-
-# Optional: set `logo: /your-photo.jpg` after adding the image to the repo (sidebar avatar).
+logo: /linkedin_image.jpg
 
 remote_theme: pages-themes/minimal@v0.2.0
 plugins:
