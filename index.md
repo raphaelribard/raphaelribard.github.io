@@ -63,11 +63,11 @@ Senior Data Scientist with lead-level end-to-end delivery experience across mode
 <dl class="skill-grid">
   <div>
     <dt>Languages</dt>
-    <dd>Python, R, SQL, C++, C, Java</dd>
+    <dd>Python, R, SQL, Kotlin (Multiplatform), C++, C, Java</dd>
   </div>
   <div>
     <dt>ML / DL</dt>
-    <dd>TensorFlow, Keras, PyTorch, XGBoost, LightGBM, scikit-learn, CatBoost, FastAI</dd>
+    <dd>TensorFlow, TensorFlow Lite, Keras, PyTorch, XGBoost, LightGBM, scikit-learn, CatBoost, FastAI</dd>
   </div>
   <div>
     <dt>Data &amp; cloud</dt>
