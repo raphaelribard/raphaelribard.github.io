@@ -1,0 +1,111 @@
+---
+---
+
+@import "{{ site.theme }}";
+
+$accent: #0d47a1;
+$text-muted: #5c5c5c;
+
+body {
+  font-family: "IBM Plex Sans", "Noto Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 15px;
+  line-height: 1.65;
+  color: #3d3d3d;
+}
+
+a {
+  color: $accent;
+
+  &:hover,
+  &:focus {
+    color: #082a5e;
+    font-weight: inherit;
+    text-decoration: underline;
+  }
+}
+
+section {
+  h2 {
+    margin-top: 2.25rem;
+    padding-bottom: 0.35rem;
+    border-bottom: 1px solid #e8e8e8;
+    font-size: 1.35rem;
+    letter-spacing: -0.02em;
+  }
+
+  h2:first-child {
+    margin-top: 0;
+  }
+
+  h3 {
+    font-size: 1.05rem;
+    margin-bottom: 0.35rem;
+    color: #1a1a1a;
+  }
+}
+
+.lead {
+  font-size: 1.05rem;
+  line-height: 1.7;
+  color: $text-muted;
+  margin-bottom: 1.75rem;
+  padding: 1rem 1.1rem;
+  background: #f7f9fc;
+  border-left: 3px solid $accent;
+  border-radius: 0 4px 4px 0;
+}
+
+.role-meta {
+  font-size: 0.9rem;
+  color: $text-muted;
+  margin: -0.25rem 0 0.85rem;
+  line-height: 1.5;
+}
+
+.role-meta strong {
+  color: #333;
+  font-weight: 600;
+}
+
+.skill-grid {
+  display: grid;
+  gap: 0.65rem 1.25rem;
+  margin: 0 0 1rem;
+
+  @media (min-width: 520px) {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.skill-grid dt {
+  margin: 0;
+  padding: 0;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #888;
+  font-weight: 600;
+}
+
+.skill-grid dd {
+  margin: 0.15rem 0 0;
+  padding: 0;
+  color: #333;
+}
+
+.contact-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+
+  li {
+    margin-bottom: 0.5rem;
+    padding-left: 0;
+  }
+}
+
+.note-muted {
+  font-size: 0.92rem;
+  color: $text-muted;
+  font-style: italic;
+}
