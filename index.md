@@ -2,11 +2,13 @@
 layout: default
 ---
 
-<p class="lead">Senior Data Scientist building production ML and deep learning systems on AWS and Azure. Background in electrical engineering and R&amp;D; experience from IoT and banking to insurance telematics.</p>
+<p class="lead">Senior Data Scientist delivering production ML systems on AWS and Azure, with strong focus on Edge AI and MLOps. Proven in lead-level ownership of cross-functional delivery, from model design to deployment across insurance telematics, banking, and IoT.</p>
+
+<p><strong>Core strengths:</strong> Technical leadership · ML strategy &amp; delivery · Edge AI &amp; MLOps · Time-series modelling · Stakeholder collaboration · Team mentoring</p>
 
 ## Summary
 
-Experienced senior data scientist with a track record of shipping models end to end: from research and training (TensorFlow, PyTorch, gradient boosting) through CI/CD and cloud deployment. Comfortable leading cross-functional work and mentoring. Interested in crash risk, marketing personalization, and IoT-style sensing problems.
+Senior Data Scientist with lead-level end-to-end delivery experience across model research, experimentation, productionization, and cloud deployment. Hands-on with TensorFlow, PyTorch, and gradient boosting, combined with practical CI/CD and MLOps workflows. Recognized for leading delivery teams, mentoring data scientists, and translating business goals into production ML outcomes.
 
 ---
 
@@ -22,38 +24,37 @@ Experienced senior data scientist with a track record of shipping models end to 
 
 <p class="role-meta"><strong>IMS</strong> (Insurance &amp; Mobility Solutions) · Crewe, UK · Jan 2020 – present</p>
 
-- Time series and video-based models (e.g. CNN, ConvLSTM) on AWS and Azure for insurance clients
-- XGBoost, LightGBM, Keras, TensorFlow, and PyTorch for modelling and experimentation
-- Lead initiatives across teams from idea through deployment
+- Led cross-functional delivery of ML initiatives from problem framing to production deployment for insurance clients
+- Designed and deployed innovative 1D CNN and ConvLSTM approaches on telemetry time-series data on AWS and Azure
+- Worked with Kotlin Multiplatform applications integrating TensorFlow Lite models for Edge AI use cases
 
 ### Lead Data Scientist
 
 <p class="role-meta"><strong>AND Digital</strong> · Manchester, UK · Jul 2019 – Jan 2020</p>
 
-- Delivered ML use cases at scale with the cloud practice for large clients
-- Led data science workstreams and mentored junior colleagues
+- Led data science workstreams to deliver cloud-based ML use cases at scale for major clients
+- Coached junior team members and supported capability growth within delivery teams
 
 ### Data Scientist
 
 <p class="role-meta"><strong>Capgemini</strong> · Liverpool, UK · Jun 2018 – Jun 2019</p>
 
-- Built ML and big-data solutions for banking clients
-- Digital marketing and personalization with XGBoost, scikit-learn, CatBoost, LightGBM, TensorFlow, Keras, PyTorch
-- HDFS and on-premises clusters
+- Built machine-learning and big-data solutions for banking clients, including personalization and digital marketing models
+- Worked with XGBoost, scikit-learn, CatBoost, LightGBM, TensorFlow, Keras, and PyTorch on HDFS and on-premises clusters
 
 ### Lead Electrical Engineer
 
 <p class="role-meta"><strong>RATP</strong> · Paris, France · Mar 2016 – Jun 2018</p>
 
-- Led a team of three on electrical tests and measurements on the rail network
-- Compliance with electrical safety standards; connected measurement and IoT-style data collection
+- Led a team of three engineers on electrical testing and measurement across the rail network
+- Developed predictive maintenance models and connected measurement workflows to improve reliability and proactive operations
 
 ### R&amp;D Equipment Engineer
 
 <p class="role-meta"><strong>CGG</strong> · Paris, France · Oct 2012 – Feb 2016</p>
 
-- Piezoelectric sensors and high-voltage sources for seismic applications
-- Collaboration with international experts; control and industrial safety design
+- Applied signal processing and developed 3D subsurface imagery to monitor oil fields and support preventive accident modelling
+- Collaborated with international experts on control systems and industrial safety design
 
 ---
 
