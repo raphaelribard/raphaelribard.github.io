@@ -109,3 +109,61 @@ section {
   color: $text-muted;
   font-style: italic;
 }
+
+// Sidebar: small avatar beside title + tagline (theme order is h1 → img → p)
+$avatar-size: 88px;
+
+header:has(> img) {
+  display: grid;
+  grid-template-columns: $avatar-size minmax(0, 1fr);
+  column-gap: 1rem;
+  row-gap: 0.25rem;
+  align-items: start;
+}
+
+header > img {
+  width: $avatar-size;
+  height: $avatar-size;
+  max-width: $avatar-size;
+  margin: 0;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 1px solid #e5e5e5;
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  align-self: start;
+}
+
+header > h1 {
+  grid-column: 2;
+  grid-row: 1;
+  margin-bottom: 0.25rem;
+}
+
+header > p:not(.view) {
+  grid-column: 2;
+  grid-row: 2;
+  margin-bottom: 0.5rem;
+}
+
+header > p.view {
+  grid-column: 2;
+  grid-row: 3;
+}
+
+header > ul.downloads {
+  grid-column: 2;
+  grid-row: 4;
+}
+
+@media print, screen and (max-width: 960px) {
+  header:has(> img) {
+    grid-template-columns: 72px minmax(0, 1fr);
+  }
+
+  header > img {
+    width: 72px;
+    height: 72px;
+    max-width: 72px;
+  }
+}
