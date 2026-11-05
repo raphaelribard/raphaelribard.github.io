@@ -118,11 +118,11 @@ input[type=url]{width:100%;background:var(--soft);color:var(--ink);border:1px so
   <canvas id="map" aria-label="Map of the Atlantic with the Route du Rhum fleet"></canvas>
   <header class="ov top">
     <div class="title">
-      <span class="live"><i></i><span id="mode">Simulation</span></span>
+      <span class="live"><i></i><span id="mode">Live</span></span>
       <h1>Route du Rhum</h1>
       <p>Saint-Malo → Pointe-à-Pitre · 3 542 nm</p>
     </div>
-    <div class="clock"><small id="clkL">Race time</small><b id="clock">--</b></div>
+    <div class="clock"><small id="clkL">Last update</small><b id="clock">--</b></div>
   </header>
   <nav class="ov filters" id="filters" aria-label="Class filter"></nav>
   <div class="ov tools">
@@ -133,22 +133,13 @@ input[type=url]{width:100%;background:var(--soft);color:var(--ink);border:1px so
   <section id="dock" class="glass" aria-label="Racers"><div id="body"></div></section>
   <div id="modal" hidden>
     <div class="sheet pad">
-      <h2>Import positions</h2>
-      <p>This page cannot reach the race website on its own. Paste a position report (JSON or CSV) or choose a file. Every import adds to the trajectories, and speed and course are worked out from consecutive positions when missing.</p>
-      <label class="flab" for="feedUrl">Live feed URL (JSON)</label>
+      <h2>Feed settings</h2>
+      <p>Configure the Cloudflare live data source URL below.</p>
+      <label class="flab" for="feedUrl">Cloudflare Live JSON URL</label>
       <input id="feedUrl" type="url" inputmode="url" autocomplete="off" spellcheck="false">
       <label class="flab" for="boatsUrl">Boat names URL (optional)</label>
       <input id="boatsUrl" type="url" inputmode="url" autocomplete="off" spellcheck="false">
-      <div class="btns"><button class="btn" id="bFeed">Use this feed</button><button class="btn" id="bReset">Reset to default</button></div>
-      <p class="fn">Positions are read from an unofficial relay, not from the race organisers. They update about once an hour. This page is not affiliated with the Route du Rhum.</p>
-      <label class="flab" for="ta">Or paste positions by hand</label>
-      <textarea id="ta" spellcheck="false" placeholder='[{"name":"Boat","class":"IMOCA","lat":44.8,"lon":-9.1,"sog":16.2,"cog":215,"ts":"2026-11-02T20:00:00Z"}]'></textarea>
-      <div class="btns">
-        <button class="btn p" id="bApply">Apply</button>
-        <label class="btn" for="file">Choose file</label><input id="file" type="file" accept=".json,.csv,.txt" hidden>
-        <button class="btn" id="bDemo">Back to simulation</button>
-        <button class="btn" id="bClose">Close</button>
-      </div>
+      <div class="btns"><button class="btn p" id="bFeed">Save &amp; Reload</button><button class="btn" id="bReset">Reset default</button><button class="btn" id="bClose">Close</button></div>
       <div id="msg" role="status"></div>
     </div>
   </div>
@@ -237,22 +228,12 @@ function along(d,off){
   lat+=off*Math.cos(h*D2R)/60;lon+=off*Math.sin(h*D2R)/(60*Math.cos(lat*D2R));
   return {lat:lat,lon:lon};
 }
-function rng(s){return function(){s|=0;s=s+0x6D2B79F5|0;var t=Math.imul(s^s>>>15,1|s);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
 
-/* simulated fleet (fictional boats) */
-var demo=[];
-(function(){
-  var r=rng(2026),spec={ULT:[5,26,31],OCF:[6,18,22],IMO:[10,15,18],C40:[14,10.5,13],VIN:[6,7,9.5]};
-  CLASSES.forEach(function(c){var s=spec[c.k];for(var n=1;n<=s[0];n++){
-    demo.push({id:c.k+n,name:c.n+' '+n,cls:c.k,base:s[1]+(s[2]-s[1])*r(),amp:6+r()*10,w:.35+r()*.5,ph:r()*6.28,off:(r()-.5)*160,offAmp:30+r()*50,op:r()*6});
-  }});
-})();
-function demoPos(b,t){var d=b.base*t+b.amp*Math.sin(t*b.w+b.ph);return along(d,b.off+b.offAmp*Math.sin(t/7+b.op));}
-
-/* state */
-var mode='demo',imp={},boats=[],sel=null,filter='ALL',trails=true,listOpen=false;
+/* state & global storage for live data (matching collector logic) */
+var hist={updated:0,tracks:{},ranks:{}},boats=[],sel=null,filter='ALL',trails=true,listOpen=false;
 var cv=document.getElementById('map'),ctx=cv.getContext('2d'),W=0,H=0,dpr=1;
 var v={lon:-30,my:my(34),k:6},css=null,tickN=0;
+
 function readCss(){shadeCache={};var s=getComputedStyle(document.documentElement);css={};['--sea1','--sea2','--land','--landline','--grat','--ink','--mute','--hot','--sel','--bg','--ult','--ocf','--imo','--c40','--vin','--oth'].forEach(function(n){css[n]=s.getPropertyValue(n).trim();});}
 function varOf(cls){var c=CLASSES.filter(function(x){return x.k===cls})[0];return c?c.v:'--oth';}
 function colOf(cls){return css[varOf(cls)];}
@@ -277,32 +258,79 @@ function blSvg(b,w){var q=bl(b),id='bc'+(++bid);return '<svg class="bl" width="'
 function pad(n){return (n<10?'0':'')+n;}
 function vis(b){return filter==='ALL'||b.cls===filter;}
 
+/* Helper mappings for classes from name or data */
+function inferClass(name, cls) {
+  var s = String(cls || name || '').toLowerCase();
+  if (/ult/.test(s)) return 'ULT';
+  if (/fifty|ocf|\b50\b|multi ?50/.test(s)) return 'OCF';
+  if (/imoca|imo/.test(s)) return 'IMO';
+  if (/40/.test(s)) return 'C40';
+  return 'VIN';
+}
+
+/* Compute state based on the accumulated Cloudflare history structure */
 function compute(){
-  var now=Date.now(),t=(now-START)/3600000,list=[];
-  if(mode==='demo'){
-    demo.forEach(function(b){
-      var p=demoPos(b,t),q=demoPos(b,t+1/60),p1=demoPos(b,Math.max(0,t-24));
-      var tr=[];for(var k=Math.min(t,40);k>=0;k-=.5){tr.push(demoPos(b,t-k));}tr.push(p);
-      list.push({id:b.id,name:b.name,cls:b.cls,lat:p.lat,lon:p.lon,sog:hav(p.lat,p.lon,q.lat,q.lon)*60,cog:brg(p.lat,p.lon,q.lat,q.lon),trail:tr,d24:t>=24?hav(p1.lat,p1.lon,p.lat,p.lon):null,ts:now});
+  var list=[];
+  var ids = Object.keys(hist.tracks || {});
+  
+  ids.forEach(function(id){
+    var trackPts = hist.tracks[id] || [];
+    if (!trackPts.length) return;
+    var L = trackPts[trackPts.length - 1]; // [t, lat, lon, sog, cog] or similar
+    var P = trackPts.length > 1 ? trackPts[trackPts.length - 2] : null;
+    
+    var lat = L[1], lon = L[2], sog = L[3] || 0, cog = L[4] || 0;
+    var ts = L[0] * 1000;
+    
+    // Check rank info if available
+    var rankInfo = hist.ranks && hist.ranks[id];
+    var dtl = 0;
+    if (rankInfo && rankInfo.length) {
+      dtl = rankInfo[rankInfo.length - 1][2] || 0;
+    }
+    
+    var name = 'Boat ' + id;
+    var boatCls = inferClass(id);
+    
+    // Calculate 24h distance if possible
+    var d24 = null;
+    for (var i = trackPts.length - 1; i >= 0; i--){
+      if (L[0] - trackPts[i][0] >= 23 * 3600) {
+        d24 = hav(trackPts[i][1], trackPts[i][2], lat, lon);
+        break;
+      }
+    }
+    
+    // Simplify trail for rendering
+    var simplifiedTrail = trackPts.map(function(pt){ return {lat: pt[1], lon: pt[2]}; });
+
+    list.push({
+      id: id,
+      name: name,
+      cls: boatCls,
+      lat: lat,
+      lon: lon,
+      sog: sog,
+      cog: cog,
+      trail: simplifiedTrail,
+      dtf: dtl,
+      d24: d24,
+      ts: ts
     });
-  }else{
-    Object.keys(imp).forEach(function(id){
-      var b=imp[id],h=b.hist,L=h[h.length-1],P=h.length>1?h[h.length-2]:null,sog=L.sog,cog=L.cog;
-      if(P){var dt=(L.t-P.t)/3600000;if(sog==null&&dt>0)sog=hav(P.lat,P.lon,L.lat,L.lon)/dt;if(cog==null)cog=brg(P.lat,P.lon,L.lat,L.lon);}
-      var d24=null;for(var i=h.length-1;i>=0;i--){if(L.t-h[i].t>=23*3600000){d24=hav(h[i].lat,h[i].lon,L.lat,L.lon);break;}}
-      list.push({id:id,name:b.name,boat:b.boat,color:b.color,cls:b.cls,lat:L.lat,lon:L.lon,sog:sog,cog:cog,trail:thin(h),d24:d24,ts:L.t});
-    });
-  }
-  list.forEach(function(b){b.dtf=hav(b.lat,b.lon,FIN.lat,FIN.lon);b.brgF=brg(b.lat,b.lon,FIN.lat,FIN.lon);b.vmg=(b.sog!=null&&b.cog!=null)?b.sog*Math.cos((b.cog-b.brgF)*D2R):null;});
+  });
+
   var byc={};list.forEach(function(b){(byc[b.cls]=byc[b.cls]||[]).push(b);});
   Object.keys(byc).forEach(function(k){byc[k].sort(function(a,b){return a.id<b.id?-1:a.id>b.id?1:0;}).forEach(function(b,i){b.si=i;});});
   list.sort(function(a,b){return a.dtf-b.dtf;});
   var cc={};list.forEach(function(b,i){b.rank=i+1;cc[b.cls]=(cc[b.cls]||0)+1;b.crank=cc[b.cls];});
   boats=list;
+  
   var el=document.getElementById('clock');
-  if(mode==='demo'){var m=Math.max(0,Math.floor(t*60));el.textContent='D+'+Math.floor(m/1440)+'  '+pad(Math.floor(m%1440/60))+':'+pad(m%60);}
-  else if(list.length){var last=Math.max.apply(null,list.map(function(b){return b.ts;}));el.textContent=new Date(last).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}).replace(',','');}
-  document.getElementById('mode').textContent=mode==='demo'?'Simulation':(manual?'Imported data':'Live feed');
+  if(hist.updated){
+    el.textContent=new Date(hist.updated * 1000).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}).replace(',','');
+  } else {
+    el.textContent='--';
+  }
 }
 
 /* drawing */
@@ -348,14 +376,6 @@ function draw(){
   vl.forEach(function(b,i){
     var x=X(b.lon),y=Y(b.lat);if(x<-60||y<-60||x>W+60||y>H+60)return;
     var on=hasSel&&sel.id===b.id,c=colB(b),a=(b.cog==null?0:b.cog)*D2R,dx=Math.sin(a),dy=-Math.cos(a),dim=hasSel&&!on;
-    if(!on&&v.k<10){
-      var bw0=hasSel?12:15,wl0=8+Math.min(1,(b.sog||0)/30)*14,cc=colB(b);ctx.globalAlpha=dim?.45:1;
-      var g0=ctx.createLinearGradient(x,y,x-dx*wl0,y-dy*wl0);g0.addColorStop(0,hexA(cc,.9));g0.addColorStop(1,hexA(cc,0));
-      ctx.strokeStyle=g0;ctx.lineWidth=3;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x-dx*wl0,y-dy*wl0);ctx.stroke();
-      drawBl(b,x-bw0/2,y-bw0*28/48,bw0);
-      var tx=x+dx*(bw0*.75+3),ty=y+dy*(bw0*.75+3);ctx.fillStyle=css['--ink'];ctx.beginPath();ctx.moveTo(tx+dx*4,ty+dy*4);ctx.lineTo(tx-dx*2+dy*3.2,ty-dy*2-dx*3.2);ctx.lineTo(tx-dx*2-dy*3.2,ty-dy*2+dx*3.2);ctx.closePath();ctx.fill();
-      ctx.globalAlpha=1;if(!hasSel&&i<3)label(b.name,x+bw0*.7+4,y-bw0*.5,12,css['--ink']);return;
-    }
     var bt=BOATP[b.cls]||BOATP.IMO,len=bt.len*zf*(on?1.3:1),sc=len/100,sp=Math.min(1,(b.sog||0)/30);
     ctx.globalAlpha=dim?.4:1;
     var wl=len*(.9+sp*1.8),sx=x-dx*len*.5,sy=y-dy*len*.5,nx=-dy,ny=dx;
@@ -397,7 +417,7 @@ function pick(px,py){var best=null,bd=30;boats.forEach(function(b){if(!vis(b))re
 function select(b,center){sel=b?{id:b.id}:null;listOpen=false;if(b&&center!==false){v.k=Math.max(v.k,11);v.lon=b.lon;v.my=my(b.lat)-110/v.k;}renderDock();draw();}
 function fit(){
   var l=boats.filter(vis);if(!l.length)return;
-  var a=[FIN.lat,48.7,FIN.lon,-2];l.forEach(function(b){a[0]=Math.min(a[0],b.lat);a[1]=Math.max(a[1],b.lat);a[2]=Math.min(a[2],b.lon);a[3]=Math.max(a[3],b.lon);});
+  var a=[FIN.lat,48.7,FIN.1,-2];l.forEach(function(b){a[0]=Math.min(a[0],b.lat);a[1]=Math.max(a[1],b.lat);a[2]=Math.min(a[2],b.lon);a[3]=Math.max(a[3],b.lon);});
   var top=170,bot=250,hv=Math.max(120,H-top-bot),mc=(my(a[0])+my(a[1]))/2;
   var kx=(W-48)/(a[3]-a[2]||1),ky=hv/(my(a[1])-my(a[0])||1);
   v.k=Math.max(3,Math.min(60,Math.min(kx,ky)));v.lon=(a[2]+a[3])/2;v.my=mc-(bot-top)/2/v.k;draw();
@@ -417,9 +437,9 @@ function renderDock(){
   if(b){
     var c=colB(b),vl=boats.filter(vis);
     h='<div class="pad"><div class="dtl-h" style="--c:'+c+'">'+blSvg(b,32)+'<h3>'+esc(b.name)+'</h3><button class="x" id="xs" aria-label="Close">×</button></div>'+
-    '<p class="sub">'+(b.boat?esc(b.boat)+' · ':'')+'P'+b.rank+' overall · P'+b.crank+' '+esc(clsName(b.cls))+(b.d24!=null?' · '+f0(b.d24)+' nm in 24 h':'')+'</p>'+
-    '<div class="hero" style="--c:'+c+'"><div class="speed"><b>'+f1(b.sog)+'</b><span>KN</span></div>'+dial(b,c)+'</div>'+
-    '<div class="stats">'+stat('Course',dg(b.cog),'°')+stat('To finish',dg(b.brgF),'°')+stat('Distance',f0(b.dtf),'nm')+stat('VMG',f1(b.vmg),'kn')+'</div></div>';
+    '<p class="sub">P'+b.rank+' overall · P'+b.crank+' '+esc(clsName(b.cls))+(b.d24!=null?' · '+f0(b.d24)+' nm in 24 h':'')+'</p>'+
+    '<div class="hero" style="--c:'+c+'"><div class="speed"><b>'+f1(b.sog)+'</b><span>KN</span></div></div>'+
+    '<div class="stats">'+stat('Course',dg(b.cog),'°')+stat('Distance',f0(b.dtf),'nm')+'</div></div>';
   }else if(listOpen){
     var vl2=boats.filter(vis);
     h='<div class="pad dhd"><h2>All racers · '+vl2.length+'</h2><button class="link" id="bAll">Close</button></div><div class="pad list" style="max-height:52vh">';
@@ -435,19 +455,6 @@ function renderDock(){
   var sc2=bodyEl.querySelector('.cards'),l2=bodyEl.querySelector('.list');if(sc2)sc2.scrollLeft=sl;if(l2)l2.scrollTop=st;
 }
 function stat(l,v,u){return '<div class="stat"><label>'+l+'</label><b>'+v+'<u>'+u+'</u></b></div>';}
-function boatSvg(cls,c){var bt=BOATP[cls]||BOATP.IMO,o='';bt.parts.forEach(function(q){var t=q[0],d=q[1];
-  if(t==='beam')o+='<path d="'+d+'" fill="none" stroke="'+c+'" stroke-width="2.6" stroke-linecap="round"/>';
-  else if(t==='foil')o+='<path d="'+d+'" fill="none" stroke="'+c+'" stroke-width="3.2" stroke-linecap="round"/>';
-  else if(t==='hull')o+='<path d="'+d+'" fill="'+c+'" stroke="var(--bg)" stroke-width="1.4"/>';
-  else if(t==='hi')o+='<path d="'+d+'" fill="rgba(255,255,255,.32)"/>';
-  else o+='<path d="'+d+'" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/>';});return o;}
-function dial(b,c){
-  var ticks='';for(var i=0;i<36;i++){var big=i%9===0;ticks+='<line x1="50" y1="'+(big?4:6)+'" x2="50" y2="'+(big?11:9)+'" transform="rotate('+(i*10)+' 50 50)" stroke="var(--mute)" stroke-width="'+(big?1.6:1)+'"/>';}
-  return '<svg class="dial" viewBox="0 0 100 100" role="img" aria-label="Course '+dg(b.cog)+' degrees"><circle cx="50" cy="50" r="46" fill="var(--soft)" stroke="var(--line)"/>'+ticks+
-  '<text x="50" y="25" text-anchor="middle" font-size="9" font-weight="700" fill="var(--mute)" font-family="Barlow Condensed,sans-serif">N</text>'+
-  '<g transform="rotate('+(b.brgF||0)+' 50 50)"><circle cx="50" cy="13" r="3.6" fill="none" stroke="var(--hot)" stroke-width="1.8"/></g>'+
-  '<g transform="rotate('+(b.cog||0)+' 50 50)"><g transform="translate(50 50) scale(.4)">'+boatSvg(b.cls,c)+'</g></g></svg>';
-}
 bodyEl.addEventListener('click',function(e){
   var t=e.target.closest('button');if(!t)return;
   if(t.id==='xs'){select(null);return;}
@@ -464,148 +471,83 @@ function buildFilters(){
 fEl.addEventListener('click',function(e){var b=e.target.closest('.chip');if(!b)return;filter=b.dataset.k;if(sel){var s=boats.filter(function(x){return x.id===sel.id;})[0];if(s&&!vis(s))sel=null;}buildFilters();renderDock();draw();});
 var bT=document.getElementById('bTrail');bT.onclick=function(){trails=!trails;bT.setAttribute('aria-pressed',trails);draw();};
 document.getElementById('bFit').onclick=fit;
-var modal=document.getElementById('modal'),ta=document.getElementById('ta'),msg=document.getElementById('msg');
+
+var modal=document.getElementById('modal'),msg=document.getElementById('msg');
 document.getElementById('bData').onclick=function(){modal.hidden=false;};
 document.getElementById('bClose').onclick=function(){modal.hidden=true;};
-document.getElementById('bDemo').onclick=function(){mode='demo';imp={};sel=null;manual=false;firstLoad=true;document.getElementById('clkL').textContent='Race time';msg.textContent='';tick(true);fit();loadFeed(true);};
-document.getElementById('file').onchange=function(e){var f=e.target.files[0];if(!f)return;var r=new FileReader();r.onload=function(){ta.value=r.result;};r.readAsText(f);};
-document.getElementById('bApply').onclick=function(){
-  try{var n=ingest(ta.value);msg.textContent=n+' positions imported.';mode='imp';manual=true;document.getElementById('clkL').textContent='Last position';sel=null;tick(true);fit();setTimeout(function(){modal.hidden=true;msg.textContent='';},700);}
-  catch(err){msg.textContent=err.message;}
+
+/* Direct live Cloudflare feed integration */
+var DEFAULT_LIVE_URL='https://route-du-rhum-live.andamarco.workers.dev/live.json';
+var feedUrl=localStorage.getItem('rdr_live_url')||DEFAULT_LIVE_URL;
+document.getElementById('feedUrl').value=feedUrl;
+
+function loadCloudflareFeed(){
+  fetch(feedUrl+'?v='+Date.now())
+    .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
+    .then(function(raw){
+      var rep=raw?.reports;
+      if(!rep||!rep.history||!rep.history[0]){
+        throw new Error('Invalid feed structure');
+      }
+      var h=rep.history[0];
+      var cols=rep.columns;
+      var ix=function(k){return cols.indexOf(k);};
+      var date=Date.parse(h.date)/1000;
+      
+      const r5 = function(v){return Math.round(v * 1e5) / 1e5;};
+      const r1 = function(v){return Math.round(v * 10) / 10;};
+      
+      if(h.lines){
+        h.lines.forEach(function(line){
+          var id=String(line[ix('boat')]);
+          var track=(line[ix('track')]||[])
+            .filter(function(p){return Array.isArray(p)&&p.length>=3;})
+            .map(function(p){return [p[0], r5(p[1]), r5(p[2]), r1(p[3]??0)];});
+          
+          if(!hist.tracks[id]) hist.tracks[id]=[];
+          // Merge history logic matching worker script
+          var m = new Map(hist.tracks[id].map(function(p){return [p[0], p];}));
+          for(var p of track) m.set(p[0], p);
+          hist.tracks[id] = [...m.values()].sort(function(x, y){return x[0]-y[0];});
+          
+          var rank = line[ix('rank')];
+          if(rank){
+            if(!hist.ranks[id]) hist.ranks[id]=[];
+            hist.ranks[id].push([date, rank, r1(line[ix('dtl')]??0)]);
+          }
+        });
+      }
+      hist.updated = Math.max(hist.updated||0, date);
+      
+      compute();
+      draw();
+      renderDock();
+      msg.textContent='Feed updated successfully.';
+    })
+    .catch(function(err){
+      msg.textContent='Error loading feed: '+err.message;
+    });
+}
+
+document.getElementById('bFeed').onclick=function(){
+  var u=document.getElementById('feedUrl').value.trim();
+  if(!u)return;
+  feedUrl=u;
+  localStorage.setItem('rdr_live_url', u);
+  loadCloudflareFeed();
+};
+document.getElementById('bReset').onclick=function(){
+  feedUrl=DEFAULT_LIVE_URL;
+  localStorage.removeItem('rdr_live_url');
+  document.getElementById('feedUrl').value=DEFAULT_LIVE_URL;
+  loadCloudflareFeed();
 };
 
-/* import */
-function clsOf(s){s=String(s||'').toLowerCase();if(/vint|rhum/.test(s))return'VIN';if(/ult/.test(s))return'ULT';if(/fifty|ocf|\b50\b|multi ?50/.test(s))return'OCF';if(/imoca|imo/.test(s))return'IMO';if(/40/.test(s))return'C40';if(/vint|rhum|mono|multi/.test(s))return'VIN';return'OTH';}
-function num(x){if(x==null||x==='')return null;var n=parseFloat(String(x).replace(',','.'));return isNaN(n)?null:n;}
-function pick1(o,keys){for(var i=0;i<keys.length;i++){if(o[keys[i]]!=null&&o[keys[i]]!=='')return o[keys[i]];}return null;}
-function parseCsv(t){var L=t.trim().split(/\r?\n/),sep=L[0].indexOf(';')>-1?';':',',h=L[0].split(sep).map(function(s){return s.trim().toLowerCase();});return L.slice(1).map(function(l){var c=l.split(sep),o={};h.forEach(function(k,i){o[k]=(c[i]||'').trim();});return o;});}
-function ingest(txt){
-  txt=txt.trim();if(!txt)throw new Error('Nothing to import.');
-  var rows;if(txt[0]==='['||txt[0]==='{'){var j=JSON.parse(txt);rows=Array.isArray(j)?j:(j.boats||j.positions||j.data||[]);}else rows=parseCsv(txt);
-  var n=0;if(mode==='demo')imp={};
-  rows.forEach(function(o){
-    var k={};Object.keys(o).forEach(function(x){k[x.toLowerCase()]=o[x];});
-    var lat=num(pick1(k,['lat','latitude'])),lon=num(pick1(k,['lon','lng','long','longitude']));
-    if(lat==null||lon==null)return;
-    var name=pick1(k,['name','boat','skipper','id','sail']),id=String(pick1(k,['id','sail','name','boat','skipper'])||('b'+n));
-    var ts=pick1(k,['ts','time','timestamp','date','datetime']),t=ts?Date.parse(ts):NaN;if(isNaN(t))t=Date.now();
-    var b=imp[id]||(imp[id]={id:id,name:String(name||id),cls:clsOf(pick1(k,['class','classe','category','cat'])),boat:pick1(k,['boatname'])||'',color:pick1(k,['color','colour'])||'',hist:[]});
-    var h=b.hist;if(h.length&&h[h.length-1].t>=t&&h[h.length-1].lat===lat&&h[h.length-1].lon===lon)return;
-    h.push({t:t,lat:lat,lon:lon,sog:num(pick1(k,['sog','speed','vitesse','kn'])),cog:num(pick1(k,['cog','course','cap','heading','hdg']))});
-    h.sort(function(a,c){return a.t-c.t;});n++;
-  });
-  if(!n)throw new Error('No rows with lat and lon found.');
-  return n;
-}
+buildFilters();
+resize();
+loadCloudflareFeed();
+setInterval(loadCloudflareFeed, 300000); // Refresh every 5 mins
 
-
-/* ---------- live feed ---------- */
-var FEED_DEFAULT='https://raw.githubusercontent.com/AugTop/rhum-tracker/main/data/history.json';
-function lsGet(k){try{return localStorage.getItem(k);}catch(e){return null;}}
-function lsSet(k,v){try{v==null?localStorage.removeItem(k):localStorage.setItem(k,v);}catch(e){}}
-var feedUrl=lsGet('rdr_feed')||FEED_DEFAULT,manual=false,firstLoad=true,lastOk=0;
-var K={name:['name','boat','bateau','skipper','nom','label','title'],id:['id','sail','voile','bib','mmsi','boatid','boat_id','slug'],cls:['class','classe','category','cat','classes','division'],
- ts:['ts','time','timestamp','date','datetime','t','updated','utc','at','dt'],lat:['lat','latitude'],lon:['lon','lng','long','longitude'],
- sog:['sog','speed','vitesse','kn','kts','nds','knots'],cog:['cog','course','cap','heading','hdg','bearing']};
-var CONT_KEYS=/^(boats|positions|data|history|snapshots|track|tracks|points|fleet|entries|skippers|items|results|features|properties)$/i;
-function lk(o){var r={};Object.keys(o).forEach(function(k){r[k.toLowerCase()]=o[k];});return r;}
-function gv(o,keys){for(var i=0;i<keys.length;i++){var v=o[keys[i]];if(v!=null&&typeof v!=='object')return v;}return null;}
-function toIso(v){if(v==null||v==='')return null;var s=String(v),n=/^\d+(\.\d+)?$/.test(s)?parseFloat(s):NaN,d=!isNaN(n)?new Date(n<1e11?n*1000:n):new Date(s);return isNaN(d.getTime())?null:d.toISOString();}
-function pair(c){if(!Array.isArray(c)||c.length<2||typeof c[0]==='object')return null;var a=num(c[0]),b=num(c[1]);if(a==null||b==null)return null;return (Math.abs(a)>90||(a<0&&b>0))?[b,a]:[a,b];}
-function coordOf(o){
-  var lat=num(gv(o,K.lat)),lon=num(gv(o,K.lon));if(lat!=null&&lon!=null)return [lat,lon];
-  var ks=['position','pos','coords','coordinates','location','geometry','latlon','latlng'];
-  for(var i=0;i<ks.length;i++){var c=o[ks[i]];if(c==null)continue;var p=pair(c);if(p)return p;
-    if(typeof c==='object'&&!Array.isArray(c)){var r=coordOf(lk(c));if(r)return r;if(c.coordinates){p=pair(c.coordinates);if(p)return p;}}}
-  return null;
-}
-function walk(n,ctx,out,d){
-  if(d>7||n==null||out.length>300000)return;
-  if(Array.isArray(n)){for(var i=0;i<n.length;i++){if(n[i]&&typeof n[i]==='object')walk(n[i],ctx,out,d+1);}return;}
-  if(typeof n!=='object')return;
-  var o=lk(n),c={id:ctx.id,name:ctx.name,cls:ctx.cls,ts:ctx.ts};
-  ['properties','props','attributes','attrs'].forEach(function(pk){var pv=o[pk];if(pv&&typeof pv==='object'&&!Array.isArray(pv))o=Object.assign({},lk(pv),o);});
-  var nm=gv(o,K.name),id=gv(o,K.id),cl=gv(o,K.cls),t=toIso(gv(o,K.ts));
-  if(nm!=null)c.name=String(nm);if(id!=null)c.id=String(id);if(cl!=null)c.cls=String(cl);if(t)c.ts=t;
-  var co=coordOf(o);
-  if(co){var nid=c.id||c.name;if(nid)out.push({id:nid,name:c.name||nid,'class':c.cls||'',lat:co[0],lon:co[1],sog:gv(o,K.sog),cog:gv(o,K.cog),ts:c.ts||null});return;}
-  Object.keys(n).forEach(function(k){
-    var v=n[k];if(!v||typeof v!=='object')return;
-    var c2={id:c.id,name:c.name,cls:c.cls,ts:c.ts},iso=/^\d{4}-\d\d-\d\d|^\d{9,13}$/.test(k)?toIso(k):null;
-    if(iso)c2.ts=iso;
-    else if(!c2.id&&!CONT_KEYS.test(k)&&K.name.concat(K.id,K.cls,K.ts).indexOf(k.toLowerCase())<0){c2.id=k;if(!c2.name)c2.name=k;}
-    walk(v,c2,out,d+1);
-  });
-}
-var BOATS_DEFAULT='https://cdn.jsdelivr.net/gh/AugTop/rhum-tracker@main/src/lib/boats.ts';
-var boatsUrl=lsGet('rdr_boats')||BOATS_DEFAULT,BOATS={},boatsInfo='';
-function parseBoatsLoose(txt){
-  var map={},st=[],i,c;
-  for(i=0;i<txt.length;i++){c=txt.charAt(i);if(c==='{')st.push(i);else if(c==='}'&&st.length){var s0=st.pop(),t=txt.slice(s0+1,i);
-    while(/\{[^{}]*\}/.test(t))t=t.replace(/\{[^{}]*\}/g,'');
-    var idm=/(?:^|[\s,])['"]?(?:id|num|number|bateau|sail|voile)['"]?\s*:\s*['"]?([A-Za-z0-9_-]+)['"]?/.exec(t);if(!idm)continue;
-    var sk=fld(t,['skipper','nom','sailor']),nm=fld(t,['name','boat','bateau','boatName']),cl=fld(t,['class','classe','category','cat','cls','division']);
-    if(sk||nm)map[idm[1]]={name:sk||nm,boat:nm||'',cls:cl||''};}}
-  return map;
-}
-function fld(t,keys){for(var i=0;i<keys.length;i++){var r=new RegExp('(?:^|[\\s,])[\'"]?'+keys[i]+'[\'"]?\\s*:\\s*([\'"`])(.*?)\\1').exec(t);if(r)return r[2];}return null;}
-
-var SLR="(?:'(?:[^'\\\\]|\\\\.)*'|\"(?:[^\"\\\\]|\\\\.)*\"|`(?:[^`\\\\]|\\\\.)*`)";
-var callRe=new RegExp('\\bb\\(\\s*('+SLR+')\\s*,\\s*('+SLR+')\\s*,\\s*('+SLR+')\\s*,\\s*('+SLR+')\\s*,\\s*('+SLR+')(?:\\s*,\\s*('+SLR+'))?\\s*\\)','g');
-function unq(x){return x.slice(1,-1).replace(/\\(.)/g,'$1');}
-function parseBoats(txt){
-  var map={},m;callRe.lastIndex=0;
-  while((m=callRe.exec(txt))){map[unq(m[1])]={name:unq(m[5]),boat:unq(m[2]),cls:unq(m[3]),color:unq(m[4])};}
-  return Object.keys(map).length?map:parseBoatsLoose(txt);
-}
-function classNear(id){
-  var n=parseFloat(id),best=null,bd=1e9;if(isNaN(n))return '';
-  Object.keys(BOATS).forEach(function(k){var d=Math.abs(parseFloat(k)-n);if(!isNaN(d)&&BOATS[k].cls&&(d<bd||(d===bd&&parseFloat(k)>parseFloat(best)))){bd=d;best=k;}});
-  return best?BOATS[best].cls:'';
-}
-function tracksRows(j){
-  var T=j&&j.tracks;if(!T||typeof T!=='object'||Array.isArray(T))return null;var rows=[];
-  Object.keys(T).forEach(function(id){var a=T[id];if(!Array.isArray(a))return;var m=BOATS[id];
-    a.forEach(function(p){if(Array.isArray(p)&&p.length>=3){var la=num(p[1]),lo=num(p[2]);if(la!=null&&lo!=null)rows.push({id:id,name:m?m.name:'Boat '+id,boatname:m?m.boat:'','class':m?m.cls:classNear(id),color:m?m.color:'',lat:la,lon:lo,ts:toIso(p[0])});}});});
-  return rows.length?rows:null;
-}
-function ingestFeed(txt){
-  var j;try{j=JSON.parse(txt);}catch(e){throw new Error('The feed is not valid JSON. Start of response: '+txt.slice(0,160).replace(/\s+/g,' '));}
-  var rows=tracksRows(j);if(!rows){rows=[];walk(j,{},rows,0);}
-  if(!rows.length)throw new Error('No positions recognised. Start of response: '+txt.slice(0,220).replace(/\s+/g,' '));
-  imp={};return ingest(JSON.stringify(rows));
-}
-function loadBoats(){
-  if(Object.keys(BOATS).length||!boatsUrl)return Promise.resolve();
-  return fetch(boatsUrl).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.text();}).then(function(t){BOATS=parseBoats(t);boatsInfo=Object.keys(BOATS).length?(Object.keys(BOATS).length+' boat names read.'):'boat list found but no names recognised.';}).catch(function(e){boatsInfo='boat names unavailable ('+(e&&e.message?e.message:'error')+').';});
-}
-function setStatus(t){document.getElementById('mode').textContent=t;}
-function loadFeed(force){
-  if(manual&&!force)return;
-  var url=feedUrl+(feedUrl.indexOf('?')>-1?'&':'?')+'_='+Date.now();
-  return loadBoats().then(function(){return fetch(url,{cache:'no-store'});}).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status+' on the feed URL.');return r.text();}).then(function(txt){
-    var n=ingestFeed(txt);mode='imp';manual=false;lastOk=Date.now();
-    var mt=Object.keys(imp).filter(function(id){return BOATS[id];}).length;
-    msg.textContent=n+' positions loaded for '+Object.keys(imp).length+' boats; '+mt+' matched a name. '+boatsInfo;
-    document.getElementById('clkL').textContent='Last position';
-    var first=firstLoad;firstLoad=false;tick(true);if(first)fit();
-  }).catch(function(err){
-    if(mode==='demo')setStatus('Simulation · feed unavailable');else setStatus('Feed error · showing last data');
-    msg.textContent=(err&&err.message?err.message:'Feed unreachable.')+'  (feed: '+feedUrl+')';
-  });
-}
-document.getElementById('feedUrl').value=feedUrl;document.getElementById('boatsUrl').value=boatsUrl;
-document.getElementById('bFeed').onclick=function(){var u=document.getElementById('feedUrl').value.trim();if(!u)return;feedUrl=u;lsSet('rdr_feed',u===FEED_DEFAULT?null:u);var bu=document.getElementById('boatsUrl').value.trim();if(bu!==boatsUrl){boatsUrl=bu;BOATS={};lsSet('rdr_boats',bu===BOATS_DEFAULT?null:bu);}firstLoad=true;msg.textContent='Loading…';loadFeed(true);};
-document.getElementById('bReset').onclick=function(){feedUrl=FEED_DEFAULT;lsSet('rdr_feed',null);boatsUrl=BOATS_DEFAULT;BOATS={};lsSet('rdr_boats',null);document.getElementById('feedUrl').value=FEED_DEFAULT;document.getElementById('boatsUrl').value=BOATS_DEFAULT;firstLoad=true;msg.textContent='Loading…';loadFeed(true);};
-
-function thin(h){var st=Math.max(1,Math.ceil(h.length/140)),o=[];for(var i=0;i<h.length;i+=st)o.push({lat:h[i].lat,lon:h[i].lon});var L=h[h.length-1];if(o[o.length-1].lat!==L.lat||o[o.length-1].lon!==L.lon)o.push({lat:L.lat,lon:L.lon});return o;}
-function tick(full){compute();readCss();tickN++;if(full||sel||tickN%5===0)renderDock();draw();}
-window.addEventListener('resize',function(){resize();});
-if(window.matchMedia)window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',function(){setTimeout(function(){readCss();draw();renderDock();},60);});
-new MutationObserver(function(){setTimeout(function(){readCss();draw();},60);}).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
-buildFilters();compute();readCss();resize();fit();renderDock();loadFeed(true);setInterval(function(){loadFeed(false);},300000);
-setInterval(function(){if(mode==='demo'&&document.visibilityState==='visible'&&!Object.keys(ptrs).length)tick(false);},1000);
 })();
 </script>
-
 </body></html>
