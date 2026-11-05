@@ -500,10 +500,11 @@ function ingest(txt){
 
 
 /* ---------- live feed ---------- */
-var FEED_DEFAULT='https://raw.githubusercontent.com/AugTop/rhum-tracker/main/data/history.json';
+var FEED_DEFAULT='https://route-du-rhum-live.andamarco.workers.dev/live.json';
 function lsGet(k){try{return localStorage.getItem(k);}catch(e){return null;}}
 function lsSet(k,v){try{v==null?localStorage.removeItem(k):localStorage.setItem(k,v);}catch(e){}}
 var feedUrl=lsGet('rdr_feed')||FEED_DEFAULT,manual=false,firstLoad=true,lastOk=0;
+if(feedUrl==='https://raw.githubusercontent.com/AugTop/rhum-tracker/main/data/history.json'){feedUrl=FEED_DEFAULT;lsSet('rdr_feed',null);}
 var K={name:['name','boat','bateau','skipper','nom','label','title'],id:['id','sail','voile','bib','mmsi','boatid','boat_id','slug'],cls:['class','classe','category','cat','classes','division'],
  ts:['ts','time','timestamp','date','datetime','t','updated','utc','at','dt'],lat:['lat','latitude'],lon:['lon','lng','long','longitude'],
  sog:['sog','speed','vitesse','kn','kts','nds','knots'],cog:['cog','course','cap','heading','hdg','bearing']};
@@ -569,9 +570,35 @@ function tracksRows(j){
     a.forEach(function(p){if(Array.isArray(p)&&p.length>=3){var la=num(p[1]),lo=num(p[2]);if(la!=null&&lo!=null)rows.push({id:id,name:m?m.name:'Boat '+id,boatname:m?m.boat:'','class':m?m.cls:classNear(id),color:m?m.color:'',lat:la,lon:lo,ts:toIso(p[0])});}});});
   return rows.length?rows:null;
 }
+/* Geovoile relay format: {reports:{columns:[...],history:[{date,lines:[[...]]}]}} */
+function geovoileRows(j){
+  var rep=j&&j.reports;if(!rep||!Array.isArray(rep.columns)||!Array.isArray(rep.history))return null;
+  var cols=rep.columns,ix=function(k){return cols.indexOf(k);};
+  var bi=ix('boat'),ti=ix('track'),ni=ix('name'),si=ix('skipper'),bni=ix('boatname'),ci=ix('class'),cli=ix('classe'),di=ix('division'),
+      hi=ix('heading'),spi=ix('speed');
+  if(bi<0||ti<0)return null;
+  var rows=[];
+  rep.history.forEach(function(h){
+    if(!h||!Array.isArray(h.lines))return;
+    h.lines.forEach(function(line){
+      if(!Array.isArray(line))return;
+      var id=String(line[bi]),nm=ni>-1&&line[ni]!=null?String(line[ni]):(si>-1&&line[si]!=null?String(line[si]):''),
+        bn=bni>-1&&line[bni]!=null?String(line[bni]):'',cl=ci>-1&&line[ci]!=null?String(line[ci]):(cli>-1&&line[cli]!=null?String(line[cli]):(di>-1&&line[di]!=null?String(line[di]):''));
+      var m=BOATS[id];if(m){if(!nm)nm=m.name;if(!bn)bn=m.boat;if(!cl)cl=m.cls;}
+      var sog=spi>-1?num(line[spi]):null,cog=hi>-1?num(line[hi]):null;
+      (line[ti]||[]).forEach(function(p){
+        if(!Array.isArray(p)||p.length<3)return;
+        var ts=num(p[0]),la=num(p[1]),lo=num(p[2]);
+        if(la==null||lo==null)return;
+        rows.push({id:id,name:nm,boatname:bn,'class':cl,lat:la,lon:lo,sog:sog,cog:cog,ts:ts==null?null:toIso(ts)});
+      });
+    });
+  });
+  return rows.length?rows:null;
+}
 function ingestFeed(txt){
   var j;try{j=JSON.parse(txt);}catch(e){throw new Error('The feed is not valid JSON. Start of response: '+txt.slice(0,160).replace(/\s+/g,' '));}
-  var rows=tracksRows(j);if(!rows){rows=[];walk(j,{},rows,0);}
+  var rows=geovoileRows(j)||tracksRows(j);if(!rows){rows=[];walk(j,{},rows,0);}
   if(!rows.length)throw new Error('No positions recognised. Start of response: '+txt.slice(0,220).replace(/\s+/g,' '));
   imp={};return ingest(JSON.stringify(rows));
 }
