@@ -596,10 +596,29 @@ function geovoileRows(j){
   });
   return rows.length?rows:null;
 }
-function ingestFeed(txt){
+/* Browser-side accumulated history: the live feed only carries the latest point
+   per boat, so trails are built up locally (localStorage) across polls/visits. */
+var HIST_KEY='rdr_hist_v1',HIST_WARM='https://raw.githubusercontent.com/AugTop/rhum-tracker/main/data/history.json';
+function histLoad(){try{return JSON.parse(lsGet(HIST_KEY)||'null');}catch(e){return null;}}
+function histSave(){try{var o={};Object.keys(imp).forEach(function(id){var b=imp[id],h=b.hist;if(!h.length)return;
+  var pts=h.length<=700?h:h.filter(function(p,i){return i%2===0||i>h.length-300;});
+  o[id]={n:b.name,b:b.boat,c:b.cls,col:b.color,h:pts.map(function(p){return [p.t,p.lat,p.lon,p.sog,p.cog];})};});
+  lsSet(HIST_KEY,JSON.stringify(o));}catch(e){/* quota full: keep going without persistence */}}
+function histRows(){var o=histLoad(),rows=[];if(!o)return rows;
+  Object.keys(o).forEach(function(id){var e=o[id];(e.h||[]).forEach(function(p){
+    rows.push({id:id,name:e.n,boatname:e.b,'class':e.c,color:e.col,lat:p[1],lon:p[2],sog:p[3],cog:p[4],ts:new Date(p[0]).toISOString()});});});
+  return rows;}
+function baseRows(){
+  /* full race history from the GitHub collector, re-fetched every poll */
+  return fetch(HIST_WARM+'?_='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.text():'';}).then(function(t){
+    if(!t)return [];try{return tracksRows(JSON.parse(t))||[];}catch(e){return [];}
+  }).catch(function(){return [];});
+}
+function ingestFeed(txt,base){
   var j;try{j=JSON.parse(txt);}catch(e){throw new Error('The feed is not valid JSON. Start of response: '+txt.slice(0,160).replace(/\s+/g,' '));}
   var rows=geovoileRows(j)||tracksRows(j);if(!rows){rows=[];walk(j,{},rows,0);}
   if(!rows.length)throw new Error('No positions recognised. Start of response: '+txt.slice(0,220).replace(/\s+/g,' '));
+  if(base&&base.length)rows=base.concat(rows);
   imp={};return ingest(JSON.stringify(rows));
 }
 function loadBoats(){
@@ -610,12 +629,15 @@ function setStatus(t){document.getElementById('mode').textContent=t;}
 function loadFeed(force){
   if(manual&&!force)return;
   var url=feedUrl+(feedUrl.indexOf('?')>-1?'&':'?')+'_='+Date.now();
-  return loadBoats().then(function(){return fetch(url,{cache:'no-store'});}).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status+' on the feed URL.');return r.text();}).then(function(txt){
-    var n=ingestFeed(txt);mode='imp';manual=false;lastOk=Date.now();
+  return loadBoats().then(function(){return baseRows();}).then(function(base){
+    return fetch(url,{cache:'no-store'}).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status+' on the feed URL.');return r.text();}).then(function(txt){
+    /* base = full history since the start, local store = points newer than the last collector run */
+    var n=ingestFeed(txt,base.concat(histRows()));mode='imp';manual=false;lastOk=Date.now();histSave();
     var mt=Object.keys(imp).filter(function(id){return BOATS[id];}).length;
     msg.textContent=n+' positions loaded for '+Object.keys(imp).length+' boats; '+mt+' matched a name. '+boatsInfo;
     document.getElementById('clkL').textContent='Last position';
     var first=firstLoad;firstLoad=false;tick(true);if(first)fit();
+    });
   }).catch(function(err){
     if(mode==='demo')setStatus('Simulation · feed unavailable');else setStatus('Feed error · showing last data');
     msg.textContent=(err&&err.message?err.message:'Feed unreachable.')+'  (feed: '+feedUrl+')';
