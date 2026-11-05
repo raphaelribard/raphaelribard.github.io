@@ -137,6 +137,8 @@ input[type=url]{width:100%;background:var(--soft);color:var(--ink);border:1px so
       <p>This page cannot reach the race website on its own. Paste a position report (JSON or CSV) or choose a file. Every import adds to the trajectories, and speed and course are worked out from consecutive positions when missing.</p>
       <label class="flab" for="feedUrl">Live feed URL (JSON)</label>
       <input id="feedUrl" type="url" inputmode="url" autocomplete="off" spellcheck="false">
+      <label class="flab" for="boatsUrl">Boat names URL (optional)</label>
+      <input id="boatsUrl" type="url" inputmode="url" autocomplete="off" spellcheck="false">
       <div class="btns"><button class="btn" id="bFeed">Use this feed</button><button class="btn" id="bReset">Reset to default</button></div>
       <p class="fn">Positions are read from an unofficial relay, not from the race organisers. They update about once an hour. This page is not affiliated with the Route du Rhum.</p>
       <label class="flab" for="ta">Or paste positions by hand</label>
@@ -298,7 +300,7 @@ function compute(){
   var el=document.getElementById('clock');
   if(mode==='demo'){var m=Math.max(0,Math.floor(t*60));el.textContent='D+'+Math.floor(m/1440)+'  '+pad(Math.floor(m%1440/60))+':'+pad(m%60);}
   else if(list.length){var last=Math.max.apply(null,list.map(function(b){return b.ts;}));el.textContent=new Date(last).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}).replace(',','');}
-  document.getElementById('mode').textContent=mode==='demo'?'Simulation':'Imported data';
+  document.getElementById('mode').textContent=mode==='demo'?'Simulation':(manual?'Imported data':'Live feed');
 }
 
 /* drawing */
@@ -471,7 +473,7 @@ document.getElementById('bApply').onclick=function(){
 };
 
 /* import */
-function clsOf(s){s=String(s||'').toLowerCase();if(/ult/.test(s))return'ULT';if(/fifty|ocf|\b50\b/.test(s))return'OCF';if(/imoca|imo/.test(s))return'IMO';if(/40/.test(s))return'C40';if(/vint/.test(s))return'VIN';return'OTH';}
+function clsOf(s){s=String(s||'').toLowerCase();if(/ult/.test(s))return'ULT';if(/fifty|ocf|\b50\b|multi ?50/.test(s))return'OCF';if(/imoca|imo/.test(s))return'IMO';if(/40/.test(s))return'C40';if(/vint|rhum|mono|multi/.test(s))return'VIN';return'OTH';}
 function num(x){if(x==null||x==='')return null;var n=parseFloat(String(x).replace(',','.'));return isNaN(n)?null:n;}
 function pick1(o,keys){for(var i=0;i<keys.length;i++){if(o[keys[i]]!=null&&o[keys[i]]!=='')return o[keys[i]];}return null;}
 function parseCsv(t){var L=t.trim().split(/\r?\n/),sep=L[0].indexOf(';')>-1?';':',',h=L[0].split(sep).map(function(s){return s.trim().toLowerCase();});return L.slice(1).map(function(l){var c=l.split(sep),o={};h.forEach(function(k,i){o[k]=(c[i]||'').trim();});return o;});}
@@ -533,18 +535,42 @@ function walk(n,ctx,out,d){
     walk(v,c2,out,d+1);
   });
 }
+var BOATS_DEFAULT='https://cdn.jsdelivr.net/gh/AugTop/rhum-tracker@main/src/lib/boats.ts';
+var boatsUrl=lsGet('rdr_boats')||BOATS_DEFAULT,BOATS={},boatsInfo='';
+function parseBoats(txt){
+  var map={},st=[],i,c;
+  for(i=0;i<txt.length;i++){c=txt.charAt(i);if(c==='{')st.push(i);else if(c==='}'&&st.length){var s0=st.pop(),t=txt.slice(s0+1,i);
+    while(/\{[^{}]*\}/.test(t))t=t.replace(/\{[^{}]*\}/g,'');
+    var idm=/(?:^|[\s,])['"]?(?:id|num|number|bateau|sail|voile)['"]?\s*:\s*['"]?([A-Za-z0-9_-]+)['"]?/.exec(t);if(!idm)continue;
+    var sk=fld(t,['skipper','nom','sailor']),nm=fld(t,['name','boat','bateau','boatName']),cl=fld(t,['class','classe','category','cat','cls','division']);
+    if(sk||nm)map[idm[1]]={name:sk||nm,boat:nm||'',cls:cl||''};}}
+  return map;
+}
+function fld(t,keys){for(var i=0;i<keys.length;i++){var r=new RegExp('(?:^|[\\s,])[\'"]?'+keys[i]+'[\'"]?\\s*:\\s*([\'"`])(.*?)\\1').exec(t);if(r)return r[2];}return null;}
+function tracksRows(j){
+  var T=j&&j.tracks;if(!T||typeof T!=='object'||Array.isArray(T))return null;var rows=[];
+  Object.keys(T).forEach(function(id){var a=T[id];if(!Array.isArray(a))return;var m=BOATS[id];
+    a.forEach(function(p){if(Array.isArray(p)&&p.length>=3){var la=num(p[1]),lo=num(p[2]);if(la!=null&&lo!=null)rows.push({id:id,name:m?m.name:'Boat '+id,'class':m?m.cls:'',lat:la,lon:lo,ts:toIso(p[0])});}});});
+  return rows.length?rows:null;
+}
 function ingestFeed(txt){
   var j;try{j=JSON.parse(txt);}catch(e){throw new Error('The feed is not valid JSON. Start of response: '+txt.slice(0,160).replace(/\s+/g,' '));}
-  var rows=[];walk(j,{},rows,0);
+  var rows=tracksRows(j);if(!rows){rows=[];walk(j,{},rows,0);}
   if(!rows.length)throw new Error('No positions recognised. Start of response: '+txt.slice(0,220).replace(/\s+/g,' '));
   imp={};return ingest(JSON.stringify(rows));
+}
+function loadBoats(){
+  if(Object.keys(BOATS).length||!boatsUrl)return Promise.resolve();
+  return fetch(boatsUrl).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.text();}).then(function(t){BOATS=parseBoats(t);boatsInfo=Object.keys(BOATS).length?(Object.keys(BOATS).length+' boat names read.'):'boat list found but no names recognised.';}).catch(function(e){boatsInfo='boat names unavailable ('+(e&&e.message?e.message:'error')+').';});
 }
 function setStatus(t){document.getElementById('mode').textContent=t;}
 function loadFeed(force){
   if(manual&&!force)return;
   var url=feedUrl+(feedUrl.indexOf('?')>-1?'&':'?')+'_='+Date.now();
-  return fetch(url,{cache:'no-store'}).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status+' on the feed URL.');return r.text();}).then(function(txt){
-    var n=ingestFeed(txt);mode='imp';manual=false;lastOk=Date.now();msg.textContent=n+' positions loaded.';
+  return loadBoats().then(function(){return fetch(url,{cache:'no-store'});}).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status+' on the feed URL.');return r.text();}).then(function(txt){
+    var n=ingestFeed(txt);mode='imp';manual=false;lastOk=Date.now();
+    var mt=Object.keys(imp).filter(function(id){return BOATS[id];}).length;
+    msg.textContent=n+' positions loaded for '+Object.keys(imp).length+' boats; '+mt+' matched a name. '+boatsInfo;
     document.getElementById('clkL').textContent='Last position';
     var first=firstLoad;firstLoad=false;tick(true);if(first)fit();
   }).catch(function(err){
@@ -552,9 +578,9 @@ function loadFeed(force){
     msg.textContent=(err&&err.message?err.message:'Feed unreachable.')+'  (feed: '+feedUrl+')';
   });
 }
-document.getElementById('feedUrl').value=feedUrl;
-document.getElementById('bFeed').onclick=function(){var u=document.getElementById('feedUrl').value.trim();if(!u)return;feedUrl=u;lsSet('rdr_feed',u===FEED_DEFAULT?null:u);firstLoad=true;msg.textContent='Loading…';loadFeed(true);};
-document.getElementById('bReset').onclick=function(){feedUrl=FEED_DEFAULT;lsSet('rdr_feed',null);document.getElementById('feedUrl').value=FEED_DEFAULT;firstLoad=true;msg.textContent='Loading…';loadFeed(true);};
+document.getElementById('feedUrl').value=feedUrl;document.getElementById('boatsUrl').value=boatsUrl;
+document.getElementById('bFeed').onclick=function(){var u=document.getElementById('feedUrl').value.trim();if(!u)return;feedUrl=u;lsSet('rdr_feed',u===FEED_DEFAULT?null:u);var bu=document.getElementById('boatsUrl').value.trim();if(bu!==boatsUrl){boatsUrl=bu;BOATS={};lsSet('rdr_boats',bu===BOATS_DEFAULT?null:bu);}firstLoad=true;msg.textContent='Loading…';loadFeed(true);};
+document.getElementById('bReset').onclick=function(){feedUrl=FEED_DEFAULT;lsSet('rdr_feed',null);boatsUrl=BOATS_DEFAULT;BOATS={};lsSet('rdr_boats',null);document.getElementById('feedUrl').value=FEED_DEFAULT;document.getElementById('boatsUrl').value=BOATS_DEFAULT;firstLoad=true;msg.textContent='Loading…';loadFeed(true);};
 
 function thin(h){var st=Math.max(1,Math.ceil(h.length/140)),o=[];for(var i=0;i<h.length;i+=st)o.push({lat:h[i].lat,lon:h[i].lon});var L=h[h.length-1];if(o[o.length-1].lat!==L.lat||o[o.length-1].lon!==L.lon)o.push({lat:L.lat,lon:L.lon});return o;}
 function tick(full){compute();readCss();tickN++;if(full||sel||tickN%5===0)renderDock();draw();}
