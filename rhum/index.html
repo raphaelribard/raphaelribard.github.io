@@ -269,7 +269,9 @@ var SHIELD='M2 1.5 H22 V14 C22 21 17.5 25.5 12 27.5 C6.5 25.5 2 21 2 14 Z';
 var DIV=['M0 0 H24 V8.5 H0 Z','M12 0 H24 V30 H12 Z','M0 14 H24 V30 H0 Z','M24 0 V30 H0 Z','M0 15 L12 7 L24 15 V21 L12 13 L0 21 Z','M10 0 H14 V30 H10 Z M0 11 H24 V15 H0 Z','M0 0 L4 0 L24 24 L24 28 L20 28 L0 4 Z M24 0 L20 0 L0 24 L0 28 L4 28 L24 4 Z','M12 0 H24 V14 H12 Z M0 14 H12 V30 H0 Z','M0 11 H24 V17 H0 Z'];
 var SHP=new Path2D(SHIELD),DIVP=DIV.map(function(d){return new Path2D(d);}),bid=0;
 function lum(h){h=h.replace('#','');return (.299*parseInt(h.substr(0,2),16)+.587*parseInt(h.substr(2,2),16)+.114*parseInt(h.substr(4,2),16))/255;}
-function bl(b){var f=colOf(b.cls),i=b.si||0,t=lum(f)>.55?'#1B1220':'#F6EBD6',t2=t==='#1B1220'?'#F6EBD6':'#1B1220';return {f:f,t:Math.floor(i/9)%2?t2:t,d:i%9};}
+function hexD(a,b){a=a.replace('#','');b=b.replace('#','');var d=0;for(var i=0;i<3;i++){var x=parseInt(a.substr(i*2,2),16)-parseInt(b.substr(i*2,2),16);d+=x*x;}return Math.sqrt(d);}
+function bl(b){var f=colOf(b.cls),i=b.si||0,t=lum(f)>.55?'#1B1220':'#F6EBD6',t2=t==='#1B1220'?'#F6EBD6':'#1B1220',tt=Math.floor(i/9)%2?t2:t;
+  if(/^#[0-9a-f]{6}$/i.test(b.color||'')&&hexD(b.color,f)>110)tt=b.color;return {f:f,t:tt,d:i%9};}
 function drawBl(b,x,y,w){var q=bl(b),sc=w/24;ctx.save();ctx.translate(x,y);ctx.scale(sc,sc);ctx.shadowBlur=0;ctx.fillStyle=q.f;ctx.fill(SHP);ctx.save();ctx.clip(SHP);ctx.fillStyle=q.t;ctx.fill(DIVP[q.d]);ctx.restore();ctx.lineJoin='round';ctx.lineWidth=2.2;ctx.strokeStyle=css['--sea2'];ctx.stroke(SHP);ctx.lineWidth=1.1;ctx.strokeStyle=css['--ink'];ctx.stroke(SHP);ctx.restore();}
 function blSvg(b,w){var q=bl(b),id='bc'+(++bid);return '<svg class="bl" width="'+w+'" height="'+Math.round(w*28/24)+'" viewBox="0 0 24 28" aria-hidden="true"><defs><clipPath id="'+id+'"><path d="'+SHIELD+'"/></clipPath></defs><path d="'+SHIELD+'" fill="'+q.f+'"/><g clip-path="url(#'+id+')"><path d="'+DIV[q.d]+'" fill="'+q.t+'"/></g><path d="'+SHIELD+'" fill="none" stroke="var(--ink)" stroke-width="1.2"/></svg>';}
 function pad(n){return (n<10?'0':'')+n;}
@@ -288,7 +290,7 @@ function compute(){
       var b=imp[id],h=b.hist,L=h[h.length-1],P=h.length>1?h[h.length-2]:null,sog=L.sog,cog=L.cog;
       if(P){var dt=(L.t-P.t)/3600000;if(sog==null&&dt>0)sog=hav(P.lat,P.lon,L.lat,L.lon)/dt;if(cog==null)cog=brg(P.lat,P.lon,L.lat,L.lon);}
       var d24=null;for(var i=h.length-1;i>=0;i--){if(L.t-h[i].t>=23*3600000){d24=hav(h[i].lat,h[i].lon,L.lat,L.lon);break;}}
-      list.push({id:id,name:b.name,cls:b.cls,lat:L.lat,lon:L.lon,sog:sog,cog:cog,trail:thin(h),d24:d24,ts:L.t});
+      list.push({id:id,name:b.name,boat:b.boat,color:b.color,cls:b.cls,lat:L.lat,lon:L.lon,sog:sog,cog:cog,trail:thin(h),d24:d24,ts:L.t});
     });
   }
   list.forEach(function(b){b.dtf=hav(b.lat,b.lon,FIN.lat,FIN.lon);b.brgF=brg(b.lat,b.lon,FIN.lat,FIN.lon);b.vmg=(b.sog!=null&&b.cog!=null)?b.sog*Math.cos((b.cog-b.brgF)*D2R):null;});
@@ -415,7 +417,7 @@ function renderDock(){
   if(b){
     var c=colB(b),vl=boats.filter(vis);
     h='<div class="pad"><div class="dtl-h" style="--c:'+c+'">'+blSvg(b,32)+'<h3>'+esc(b.name)+'</h3><button class="x" id="xs" aria-label="Close">×</button></div>'+
-    '<p class="sub">P'+b.rank+' overall · P'+b.crank+' '+esc(clsName(b.cls))+(b.d24!=null?' · '+f0(b.d24)+' nm in 24 h':'')+'</p>'+
+    '<p class="sub">'+(b.boat?esc(b.boat)+' · ':'')+'P'+b.rank+' overall · P'+b.crank+' '+esc(clsName(b.cls))+(b.d24!=null?' · '+f0(b.d24)+' nm in 24 h':'')+'</p>'+
     '<div class="hero" style="--c:'+c+'"><div class="speed"><b>'+f1(b.sog)+'</b><span>KN</span></div>'+dial(b,c)+'</div>'+
     '<div class="stats">'+stat('Course',dg(b.cog),'°')+stat('To finish',dg(b.brgF),'°')+stat('Distance',f0(b.dtf),'nm')+stat('VMG',f1(b.vmg),'kn')+'</div></div>';
   }else if(listOpen){
@@ -473,7 +475,7 @@ document.getElementById('bApply').onclick=function(){
 };
 
 /* import */
-function clsOf(s){s=String(s||'').toLowerCase();if(/ult/.test(s))return'ULT';if(/fifty|ocf|\b50\b|multi ?50/.test(s))return'OCF';if(/imoca|imo/.test(s))return'IMO';if(/40/.test(s))return'C40';if(/vint|rhum|mono|multi/.test(s))return'VIN';return'OTH';}
+function clsOf(s){s=String(s||'').toLowerCase();if(/vint|rhum/.test(s))return'VIN';if(/ult/.test(s))return'ULT';if(/fifty|ocf|\b50\b|multi ?50/.test(s))return'OCF';if(/imoca|imo/.test(s))return'IMO';if(/40/.test(s))return'C40';if(/vint|rhum|mono|multi/.test(s))return'VIN';return'OTH';}
 function num(x){if(x==null||x==='')return null;var n=parseFloat(String(x).replace(',','.'));return isNaN(n)?null:n;}
 function pick1(o,keys){for(var i=0;i<keys.length;i++){if(o[keys[i]]!=null&&o[keys[i]]!=='')return o[keys[i]];}return null;}
 function parseCsv(t){var L=t.trim().split(/\r?\n/),sep=L[0].indexOf(';')>-1?';':',',h=L[0].split(sep).map(function(s){return s.trim().toLowerCase();});return L.slice(1).map(function(l){var c=l.split(sep),o={};h.forEach(function(k,i){o[k]=(c[i]||'').trim();});return o;});}
@@ -487,7 +489,7 @@ function ingest(txt){
     if(lat==null||lon==null)return;
     var name=pick1(k,['name','boat','skipper','id','sail']),id=String(pick1(k,['id','sail','name','boat','skipper'])||('b'+n));
     var ts=pick1(k,['ts','time','timestamp','date','datetime']),t=ts?Date.parse(ts):NaN;if(isNaN(t))t=Date.now();
-    var b=imp[id]||(imp[id]={id:id,name:String(name||id),cls:clsOf(pick1(k,['class','classe','category','cat'])),hist:[]});
+    var b=imp[id]||(imp[id]={id:id,name:String(name||id),cls:clsOf(pick1(k,['class','classe','category','cat'])),boat:pick1(k,['boatname'])||'',color:pick1(k,['color','colour'])||'',hist:[]});
     var h=b.hist;if(h.length&&h[h.length-1].t>=t&&h[h.length-1].lat===lat&&h[h.length-1].lon===lon)return;
     h.push({t:t,lat:lat,lon:lon,sog:num(pick1(k,['sog','speed','vitesse','kn'])),cog:num(pick1(k,['cog','course','cap','heading','hdg']))});
     h.sort(function(a,c){return a.t-c.t;});n++;
@@ -537,7 +539,7 @@ function walk(n,ctx,out,d){
 }
 var BOATS_DEFAULT='https://cdn.jsdelivr.net/gh/AugTop/rhum-tracker@main/src/lib/boats.ts';
 var boatsUrl=lsGet('rdr_boats')||BOATS_DEFAULT,BOATS={},boatsInfo='';
-function parseBoats(txt){
+function parseBoatsLoose(txt){
   var map={},st=[],i,c;
   for(i=0;i<txt.length;i++){c=txt.charAt(i);if(c==='{')st.push(i);else if(c==='}'&&st.length){var s0=st.pop(),t=txt.slice(s0+1,i);
     while(/\{[^{}]*\}/.test(t))t=t.replace(/\{[^{}]*\}/g,'');
@@ -547,10 +549,24 @@ function parseBoats(txt){
   return map;
 }
 function fld(t,keys){for(var i=0;i<keys.length;i++){var r=new RegExp('(?:^|[\\s,])[\'"]?'+keys[i]+'[\'"]?\\s*:\\s*([\'"`])(.*?)\\1').exec(t);if(r)return r[2];}return null;}
+
+var SLR="(?:'(?:[^'\\\\]|\\\\.)*'|\"(?:[^\"\\\\]|\\\\.)*\"|`(?:[^`\\\\]|\\\\.)*`)";
+var callRe=new RegExp('\\bb\\(\\s*('+SLR+')\\s*,\\s*('+SLR+')\\s*,\\s*('+SLR+')\\s*,\\s*('+SLR+')\\s*,\\s*('+SLR+')(?:\\s*,\\s*('+SLR+'))?\\s*\\)','g');
+function unq(x){return x.slice(1,-1).replace(/\\(.)/g,'$1');}
+function parseBoats(txt){
+  var map={},m;callRe.lastIndex=0;
+  while((m=callRe.exec(txt))){map[unq(m[1])]={name:unq(m[5]),boat:unq(m[2]),cls:unq(m[3]),color:unq(m[4])};}
+  return Object.keys(map).length?map:parseBoatsLoose(txt);
+}
+function classNear(id){
+  var n=parseFloat(id),best=null,bd=1e9;if(isNaN(n))return '';
+  Object.keys(BOATS).forEach(function(k){var d=Math.abs(parseFloat(k)-n);if(!isNaN(d)&&BOATS[k].cls&&(d<bd||(d===bd&&parseFloat(k)>parseFloat(best)))){bd=d;best=k;}});
+  return best?BOATS[best].cls:'';
+}
 function tracksRows(j){
   var T=j&&j.tracks;if(!T||typeof T!=='object'||Array.isArray(T))return null;var rows=[];
   Object.keys(T).forEach(function(id){var a=T[id];if(!Array.isArray(a))return;var m=BOATS[id];
-    a.forEach(function(p){if(Array.isArray(p)&&p.length>=3){var la=num(p[1]),lo=num(p[2]);if(la!=null&&lo!=null)rows.push({id:id,name:m?m.name:'Boat '+id,'class':m?m.cls:'',lat:la,lon:lo,ts:toIso(p[0])});}});});
+    a.forEach(function(p){if(Array.isArray(p)&&p.length>=3){var la=num(p[1]),lo=num(p[2]);if(la!=null&&lo!=null)rows.push({id:id,name:m?m.name:'Boat '+id,boatname:m?m.boat:'','class':m?m.cls:classNear(id),color:m?m.color:'',lat:la,lon:lo,ts:toIso(p[0])});}});});
   return rows.length?rows:null;
 }
 function ingestFeed(txt){
