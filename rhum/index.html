@@ -62,6 +62,10 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-acti
 .tl{display:flex;align-items:center;gap:10px;padding-bottom:10px}
 .tl button{border:1px solid var(--line);background:var(--soft);color:var(--ink);border-radius:999px;font:700 12px var(--f-body);letter-spacing:.06em;padding:8px 12px;min-width:44px}
 .mv #body{display:none}
+#wLeg{position:absolute;left:16px;z-index:2;pointer-events:none;display:grid;grid-template-columns:repeat(4,1fr);gap:0;width:150px;font:600 10px var(--f-body);color:var(--ink);text-shadow:0 0 3px var(--bg)}
+#wLeg[hidden]{display:none}
+#wLeg i{grid-column:1/-1;height:6px;border-radius:3px;margin-bottom:2px;background:linear-gradient(90deg,rgba(40,170,200,.5),rgba(40,190,120,.8),rgba(170,210,60,.9),rgba(250,190,40,.95),rgba(250,120,40,1),rgba(240,60,60,1),rgba(190,40,160,1))}
+#wLeg span:last-child{text-align:right}
 .spd{display:none;justify-content:space-between;align-items:center;gap:8px;padding-bottom:8px;white-space:nowrap}
 .mv .spd:not([hidden]){display:flex}
 .spd b{font:italic 700 15px var(--f-disp);letter-spacing:.06em;text-transform:uppercase;overflow:hidden;text-overflow:ellipsis}
@@ -153,6 +157,7 @@ input[type=url]{width:100%;background:var(--soft);color:var(--ink);border:1px so
     <button class="tbtn glass" id="bFit" aria-label="Fit fleet"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
     <button class="tbtn glass" id="bData" aria-label="Import positions"><svg viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg></button>
   </div>
+  <div id="wLeg" hidden><i></i><span>0</span><span>10</span><span>20</span><span>30+ kn</span></div>
   <section id="dock" class="glass" aria-label="Racers"><div class="spd pad" id="tSpd" hidden></div><div class="tl pad" id="tl" hidden><button id="tPlay" aria-label="Replay the race">&#9654;</button><button id="tSp" aria-label="Replay speed">&times;1</button><div class="tm"><div class="tl2"><span id="tA">D1</span><b id="tD">--</b><span id="tB">D1</span></div><input type="range" id="tR" min="0" max="2000" step="1" value="2000" aria-label="Race time"></div><button id="tLive" aria-label="Back to live">LIVE</button></div><div id="body"></div></section>
   <div id="modal" hidden>
     <div class="sheet pad">
@@ -389,12 +394,12 @@ function resize(){dpr=window.devicePixelRatio||1;W=cv.clientWidth;H=cv.clientHei
 function poly(pts){ctx.beginPath();pts.forEach(function(p,i){var x=X(p[1]),y=Y(p[0]);i?ctx.lineTo(x,y):ctx.moveTo(x,y);});}
 function label(txt,x,y,size,col,align){ctx.font='italic 700 '+size+'px "Barlow Condensed","Arial Narrow",sans-serif';ctx.textAlign=align||'left';ctx.lineWidth=4;ctx.strokeStyle=css['--labline'];ctx.lineJoin='round';ctx.strokeText(txt,x,y);ctx.fillStyle=col;ctx.fillText(txt,x,y);}
 /* ---------- wind (Open-Meteo model data, hourly) ---------- */
-var WIND=null,windOn=(lsGet('rdr_wind')!=='0'),WLA=[10,18,26,34,42,50],WLO=[-66,-58,-50,-42,-34,-26,-18,-10,-2],WBAD=false;
+var WIND=null,windOn=(lsGet('rdr_wind')!=='0'),WLA=[10,18,26,34,42,50,58],WLO=[-66,-58,-50,-42,-34,-26,-18,-10,-2],WBAD=false;
 var WCOL=['rgba(255,255,255,.5)','rgba(225,248,255,.72)','rgba(255,236,150,.82)','rgba(255,170,80,.9)','rgba(255,90,70,.95)'];
 function loadWind(){
   if(WIND&&Date.now()-WIND.fetched<108e5)return;
-  var c=null;try{c=JSON.parse(lsGet('rdr_wind_v1')||'null');}catch(e){}
-  if(c&&Date.now()-c.fetched<72e5&&c.t0<=(TL.t0||Infinity)/1000+3600){WIND=c;setWindBtn();draw();return;}
+  var c=null;try{c=JSON.parse(lsGet('rdr_wind_v2')||'null');}catch(e){}
+  if(c&&Date.now()-c.fetched<72e5&&c.t0<=(TL.t0||Infinity)/1000+3600){WIND=c;setWindBtn();draw();wStart();return;}
   var la=[],lo=[];WLA.forEach(function(a){WLO.forEach(function(b){la.push(a);lo.push(b);});});
   var days=Math.min(90,Math.ceil((Date.now()-(TL.t0||Date.now()-6*864e5))/864e5)+2);
   var url='https://api.open-meteo.com/v1/forecast?latitude='+la.join(',')+'&longitude='+lo.join(',')+'&hourly=wind_speed_10m,wind_direction_10m&wind_speed_unit=kn&timeformat=unixtime&past_days='+days+'&forecast_days=2';
@@ -402,10 +407,11 @@ function loadWind(){
     if(!Array.isArray(j))j=[j];var t=j[0].hourly.time,n=t.length,U=[],V=[];
     j.forEach(function(L){var u=new Array(n),w=new Array(n),sp=L.hourly.wind_speed_10m,di=L.hourly.wind_direction_10m;
       for(var i=0;i<n;i++){var a=(di[i]||0)*D2R,k=sp[i]||0;u[i]=+(-k*Math.sin(a)).toFixed(1);w[i]=+(-k*Math.cos(a)).toFixed(1);}U.push(u);V.push(w);});
-    WIND={t0:t[0],n:n,U:U,V:V,fetched:Date.now()};WBAD=false;lsSet('rdr_wind_v1',JSON.stringify(WIND));setWindBtn();draw();
+    WIND={t0:t[0],n:n,U:U,V:V,fetched:Date.now()};WBAD=false;lsSet('rdr_wind_v2',JSON.stringify(WIND));setWindBtn();draw();wStart();
   }).catch(function(){WBAD=true;setWindBtn();});
 }
-function setWindBtn(){var b=document.getElementById('bWind');b.setAttribute('aria-pressed',windOn);b.style.opacity=(WBAD&&!WIND)?.45:1;b.setAttribute('aria-label',(WBAD&&!WIND)?'Wind data unavailable':'Toggle wind');}
+function setLeg(){var l=document.getElementById('wLeg'),dk=document.getElementById('dock');l.hidden=!(windOn&&WIND);l.style.bottom=(dk.offsetHeight+8)+'px';}
+function setWindBtn(){setLeg();var b=document.getElementById('bWind');b.setAttribute('aria-pressed',windOn);b.style.opacity=(WBAD&&!WIND)?.45:1;b.setAttribute('aria-label',(WBAD&&!WIND)?'Wind data unavailable':'Toggle wind');}
 function windAt(lat,lon,T){
   if(!WIND)return null;
   var h=(T/1000-WIND.t0)/3600;h=Math.max(0,Math.min(WIND.n-1.001,h));var i0=Math.floor(h),f=h-i0;
@@ -418,18 +424,40 @@ function windAt(lat,lon,T){
 }
 var CPT=['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
 function wtime(){return rp?rp.t:(TL.t1||Date.now());}
-function drawWind(){
-  if(!windOn||!WIND)return;var T=wtime(),S=v.k>30?46:40,x,y;
-  ctx.save();ctx.lineCap='round';ctx.lineJoin='round';ctx.lineWidth=1.5;
-  for(y=S/2;y<H;y+=S){var lat=myInv(v.my-(y-H/2)/v.k);if(lat<4||lat>56)continue;
-    for(x=S/2;x<W;x+=S){var lon=v.lon+(x-W/2)/v.k;if(lon<-72||lon>6)continue;
-      var w=windAt(lat,lon,T);if(!w)continue;var sp=w.spd,len=7+Math.min(sp,40)*.42,ux=w.u/(sp||1),uy=-w.v/(sp||1),
-        bin=sp<8?0:sp<16?1:sp<24?2:sp<32?3:4,x0=x-ux*len/2,y0=y-uy*len/2,x1=x+ux*len/2,y1=y+uy*len/2,hx=-uy,hy=ux;
-      ctx.strokeStyle=WCOL[bin];ctx.beginPath();ctx.moveTo(x0,y0);ctx.lineTo(x1,y1);
-      ctx.moveTo(x1,y1);ctx.lineTo(x1-ux*4.2+hx*2.6,y1-uy*4.2+hy*2.6);ctx.moveTo(x1,y1);ctx.lineTo(x1-ux*4.2-hx*2.6,y1-uy*4.2-hy*2.6);ctx.stroke();}}
-  ctx.restore();
+var WST=[[0,60,120,230,0],[4,40,170,200,.22],[8,40,190,120,.4],[12,170,210,60,.5],[17,250,190,40,.55],[22,250,120,40,.6],[28,240,60,60,.66],[36,190,40,160,.72]];
+function wramp(sp,o){var i=1;while(i<WST.length-1&&sp>WST[i][0])i++;var A=WST[i-1],B=WST[i],f=Math.max(0,Math.min(1,(sp-A[0])/(B[0]-A[0])));
+  o[0]=A[1]+(B[1]-A[1])*f;o[1]=A[2]+(B[2]-A[2])*f;o[2]=A[3]+(B[3]-A[3])*f;o[3]=(A[4]+(B[4]-A[4])*f)*205;}
+var HC=document.createElement('canvas'),HX=HC.getContext('2d'),PT=[],PTL=0,PTN=0;
+function drawHeat(T){
+  var cs=8,cw=Math.ceil(W/cs),ch=Math.ceil(H/cs);if(HC.width!==cw||HC.height!==ch){HC.width=cw;HC.height=ch;}
+  var im=HX.createImageData(cw,ch),d=im.data,o=[0,0,0,0],x,y,i=0;
+  for(y=0;y<ch;y++){var lat=myInv(v.my-((y+.5)*cs-H/2)/v.k);
+    for(x=0;x<cw;x++,i+=4){var lon=v.lon+((x+.5)*cs-W/2)/v.k;
+      if(lat<2||lat>60||lon<-75||lon>8){d[i+3]=0;continue;}
+      var w=windAt(lat,lon,T);wramp(w.spd,o);d[i]=o[0];d[i+1]=o[1];d[i+2]=o[2];d[i+3]=o[3];}}
+  HX.putImageData(im,0,0);ctx.save();ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';ctx.drawImage(HC,0,0,cw*cs,ch*cs);ctx.restore();
 }
-function draw(){
+function spawn(p){p.x=v.lon+(Math.random()-.5)*W/v.k;p.y=v.my+(Math.random()-.5)*H/v.k;p.a=0;p.life=50+Math.random()*60;p.h=[];}
+function drawParticles(T){
+  var now=performance.now(),dt=Math.min(.05,(now-(PTL||now))/1000);PTL=now;
+  var n=Math.min(1100,Math.round(W*H/420));while(PT.length<n){var q={};spawn(q);q.a=Math.random()*q.life;PT.push(q);}if(PT.length>n)PT.length=n;
+  ctx.save();ctx.lineCap='round';ctx.lineWidth=1.25;ctx.strokeStyle='rgba(255,255,255,.55)';ctx.beginPath();
+  for(var i=0;i<PT.length;i++){var p=PT[i],lat=myInv(p.y),w=windAt(lat,p.x,T);
+    if(!w||p.a++>p.life||Math.abs(p.x-v.lon)>W/v.k*.62||Math.abs(p.y-v.my)>H/v.k*.62){spawn(p);continue;}
+    var c=2.2*dt/v.k;p.x+=w.u*c;p.y+=w.v*c;
+    p.h.push(p.x,p.y);if(p.h.length>18)p.h.splice(0,2);
+    if(p.h.length>=4){var hh=p.h;ctx.moveTo(W/2+(hh[0]-v.lon)*v.k,H/2-(hh[1]-v.my)*v.k);for(var j=2;j<hh.length;j+=2)ctx.lineTo(W/2+(hh[j]-v.lon)*v.k,H/2-(hh[j+1]-v.my)*v.k);}}
+  ctx.stroke();ctx.restore();
+}
+function drawWind(){
+  if(!windOn||!WIND)return;var T=wtime();drawHeat(T);drawParticles(T);
+}
+var wLoopOn=false,wLast=0;
+function wLoop(now){if(!windOn||!WIND||document.hidden){wLoopOn=false;return;}
+  if(now-wLast>30&&!(rp&&rp.playing)){wLast=now;draw();}requestAnimationFrame(wLoop);}
+function wStart(){if(!wLoopOn&&windOn&&WIND){wLoopOn=true;requestAnimationFrame(wLoop);}}
+document.addEventListener('visibilitychange',function(){if(!document.hidden)wStart();});
+function draw(){if(WIND&&windOn)setLeg();
   if(!css)readCss();
   ctx.setTransform(dpr,0,0,dpr,0,0);
   var g=ctx.createRadialGradient(W*.5,H*.38,0,W*.5,H*.38,Math.max(W,H)*.85);g.addColorStop(0,css['--sea1']);g.addColorStop(1,css['--sea2']);
@@ -584,7 +612,7 @@ function buildFilters(){
   fEl.innerHTML=all.map(function(c){return '<button class="chip glass" data-k="'+c.k+'" aria-pressed="'+(filter===c.k)+'" style="'+(c.v?'--c:var('+c.v+')':'')+'">'+(c.v?'<i></i>':'')+c.s+'</button>';}).join('');
 }
 fEl.addEventListener('click',function(e){var b=e.target.closest('.chip');if(!b)return;filter=b.dataset.k;if(sel){var s=boats.filter(function(x){return x.id===sel.id;})[0];if(s&&!vis(s))sel=null;}buildFilters();renderDock();draw();});
-document.getElementById('bWind').onclick=function(){windOn=!windOn;lsSet('rdr_wind',windOn?'1':'0');setWindBtn();if(windOn&&!WIND)loadWind();draw();};
+document.getElementById('bWind').onclick=function(){windOn=!windOn;lsSet('rdr_wind',windOn?'1':'0');setWindBtn();if(windOn&&!WIND)loadWind();wStart();draw();};
 var bT=document.getElementById('bTrail');bT.onclick=function(){trails=!trails;bT.setAttribute('aria-pressed',trails);draw();};
 document.getElementById('bFit').onclick=fit;
 var modal=document.getElementById('modal'),ta=document.getElementById('ta'),msg=document.getElementById('msg');
