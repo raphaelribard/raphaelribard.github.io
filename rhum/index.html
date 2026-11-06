@@ -445,8 +445,8 @@ function drawParticles(T){
   var hp=[[],[]];
   for(var i=0;i<PT.length;i++){var p=PT[i],lat=myInv(p.y),w=windAt(lat,p.x,T);
     if(!w||p.a++>p.life||Math.abs(p.x-v.lon)>W/v.k*.62||Math.abs(p.y-v.my)>H/v.k*.62){spawn(p);continue;}
-    var c=3.4*dt/v.k;p.x+=w.u*c;p.y+=w.v*c;
-    p.h.push(p.x,p.y);if(p.h.length>30)p.h.splice(0,2);
+    var c=4.2*dt/v.k;p.x+=w.u*c;p.y+=w.v*c;
+    p.h.push(p.x,p.y);if(p.h.length>40)p.h.splice(0,2);
     var hh=p.h,m=hh.length;if(m<6)continue;var mid=(m>>2<<1);
     for(var pass=0;pass<2;pass++){var s0=pass?mid:0,s1=pass?m:mid+2,path=hp[pass];
       path.push(W/2+(hh[s0]-v.lon)*v.k,H/2-(hh[s0+1]-v.my)*v.k);
