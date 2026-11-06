@@ -114,6 +114,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-acti
 .pill .sp{font:italic 700 13px var(--f-disp);color:var(--mute);font-variant-numeric:tabular-nums}
 .pill .sp u{text-decoration:none;font-size:10px;color:var(--mute);margin-left:2px}
 .pill.all{border-style:dashed;border-color:var(--hot);color:var(--hot);font-weight:700}
+.pill.on{border-color:var(--c);box-shadow:inset 0 0 0 1px var(--c)}
 .list{overflow-y:auto;overscroll-behavior:contain}
 .row{display:grid;grid-template-columns:34px 22px minmax(0,1fr) auto auto;gap:12px;align-items:center;width:100%;text-align:left;padding:11px 0;border-top:1px solid var(--line);font-variant-numeric:tabular-nums}
 .row .p{font:italic 800 22px var(--f-disp);color:var(--c)}
@@ -300,7 +301,7 @@ var demo=[];
 function demoPos(b,t){var d=b.base*t+b.amp*Math.sin(t*b.w+b.ph);return along(d,b.off+b.offAmp*Math.sin(t/7+b.op));}
 
 /* state */
-var mode='demo',imp={},boats=[],sel=null,filter='ALL',trails=true,listOpen=false;
+var mode='demo',imp={},boats=[],sel=null,filter='ALL',trails=true,listOpen=false,selCompact=false;
 var cv=document.getElementById('map'),ctx=cv.getContext('2d'),W=0,H=0,dpr=1;
 var v={lon:-30,my:my(34),k:6},css=null,tickN=0;
 function readCss(){shadeCache={};var s=getComputedStyle(document.documentElement);css={};['--sea1','--sea2','--land','--landline','--grat','--ink','--mute','--hot','--sel','--bg','--ult','--ocf','--imo','--c40','--vmu','--vmo','--oth','--lab','--labline','--seatxt','--landtxt'].forEach(function(n){css[n]=s.getPropertyValue(n).trim();});}
@@ -372,8 +373,7 @@ function flyTo(lon,m,k,ms){cancelAnimationFrame(camAnim);var a={lon:v.lon,my:v.m
   function st(now){var f=Math.min(1,(now-t0)/ms),e=f<.5?2*f*f:1-Math.pow(-2*f+2,2)/2;v.lon=a.lon+(lon-a.lon)*e;v.my=a.my+(m-a.my)*e;v.k=Math.exp(Math.log(a.k)+(Math.log(k)-Math.log(a.k))*e);draw();if(f<1)camAnim=requestAnimationFrame(st);}
   camAnim=requestAnimationFrame(st);}
 function centerOn(b,k){k=k||v.k;var dk=document.getElementById('dock'),top=170,bot=dk.offsetHeight+12;flyTo(b.lon,my(b.lat)-(bot-top)/2/k,k);}
-function goLive(){cancelAnimationFrame(rafId);var was=!!rp;if(rp){rp=null;}document.getElementById('clkL').textContent='Last position';tick(true);updateTL();
-  if(was&&sel){var b=boats.filter(function(x){return x.id===sel.id;})[0];if(b)setTimeout(function(){centerOn(b);},0);}}
+function goLive(){cancelAnimationFrame(rafId);var was=!!rp;if(rp){rp=null;}if(was){selCompact=!!sel;listOpen=false;}document.getElementById('clkL').textContent='Last position';tick(true);updateTL();}
 function endReplay(){goLive();}
 function rpStep(now){if(!rp||!rp.playing)return;var dt=Math.min(50,now-rp.last);rp.last=now;rp.t+=dt*36000*SPD[spI];
   if(rp.t>=rp.t1){goLive();return;}
@@ -591,7 +591,7 @@ cv.addEventListener('pointercancel',function(e){delete ptrs[e.pointerId];});
 cv.addEventListener('wheel',function(e){e.preventDefault();var r=cv.getBoundingClientRect();zoomAt(e.clientX-r.left,e.clientY-r.top,Math.exp(-e.deltaY*.0015));draw();},{passive:false});
 function pick(px,py){var best=null,bd=30;boats.forEach(function(b){if(!vis(b))return;var d=Math.hypot(X(b.lon)-px,Y(b.lat)-py);if(d<bd){bd=d;best=b;}});if(best)select(best,false);else if(sel)select(null);}
 function select(b,center){var a0={lon:v.lon,my:v.my,k:v.k};select0(b,center);if(!rp){if(b&&center!==false){var k2=v.k;v.lon=a0.lon;v.my=a0.my;v.k=a0.k;draw();centerOn(b,k2);}return;}if(b){rp.selMode=true;rp.kSel=v.k;rp.cam={lon:v.lon,my:v.my,k:v.k};if(!rp.playing){compute();followCam(true);draw();}}else rp.selMode=false;}
-function select0(b,center){sel=b?{id:b.id}:null;listOpen=false;if(b&&center!==false){v.k=Math.max(v.k,11);v.lon=b.lon;v.my=my(b.lat)-110/v.k;}renderDock();draw();}
+function select0(b,center){sel=b?{id:b.id}:null;listOpen=false;selCompact=false;if(b&&center!==false){v.k=Math.max(v.k,11);v.lon=b.lon;v.my=my(b.lat)-110/v.k;}renderDock();draw();}
 function fit(){
   var l=boats.filter(vis);if(!l.length)return;
   var a=[FIN.lat,48.7,FIN.lon,-2];l.forEach(function(b){a[0]=Math.min(a[0],b.lat);a[1]=Math.max(a[1],b.lat);a[2]=Math.min(a[2],b.lon);a[3]=Math.max(a[3],b.lon);});
@@ -612,7 +612,7 @@ function gapOf(b,lead,i){return i===0?'Leader':'+'+f0(b.dtf-lead.dtf)+' nm \u00b
 function renderDock(){
   var sc=bodyEl.querySelector('.strip'),list=bodyEl.querySelector('.list'),sl=sc?sc.scrollLeft:0,st=list?list.scrollTop:0;
   var b=sel&&boats.filter(function(x){return x.id===sel.id;})[0],h='';
-  if(b){
+  if(b&&!selCompact){
     var c=colB(b),vl=boats.filter(vis);
     h='<div class="pad"><div class="dtl-h" style="--c:'+c+'">'+blSvg(b,32)+'<h3>'+esc(b.name)+'</h3><button class="x" id="xs" aria-label="Close">×</button></div>'+
     '<p class="sub">'+(b.boat?esc(b.boat)+' · ':'')+'P'+b.rank+' overall · P'+b.crank+' '+esc(clsName(b.cls))+(b.d24!=null?' · '+f0(b.d24)+' nm / '+f0(km(b.d24))+' km in 24 h':'')+'</p>'+
@@ -625,8 +625,9 @@ function renderDock(){
     h+='</div>';
   }else{
     var vl3=boats.filter(vis),vlS=vl3.slice(0,12);
-    h='<div class="pad strip"><span class="sh">Race order</span>';
-    vlS.forEach(function(x,i){h+='<button class="pill" data-id="'+esc(x.id)+'" style="--c:'+colB(x)+'"><span class="p">'+pad(i+1)+'</span>'+blSvg(x,20)+'<span class="nm">'+esc(x.name)+'</span><span class="sp">'+f1(x.sog)+'<u>kn</u></span></button>';});
+    h='<div class="pad strip"><span class="sh">'+(b?'Following':'Race order')+'</span>';
+    vlS.forEach(function(x,i){h+='<button class="pill'+(b&&x.id===b.id?' on':'')+'" data-id="'+esc(x.id)+'" style="--c:'+colB(x)+'"><span class="p">'+pad(i+1)+'</span>'+blSvg(x,20)+'<span class="nm">'+esc(x.name)+'</span><span class="sp">'+f1(x.sog)+'<u>kn</u></span></button>';});
+    if(b)h+='<button class="pill all" id="xsf" aria-label="Stop following">Unfollow</button>';
     h+='<button class="pill all" id="bAll">All '+vl3.length+'</button></div>';
   }
   bodyEl.innerHTML=h;
@@ -648,7 +649,7 @@ function dial(b,c){
 }
 bodyEl.addEventListener('click',function(e){
   var t=e.target.closest('button');if(!t)return;
-  if(t.id==='xs'){select(null);return;}
+  if(t.id==='xs'||t.id==='xsf'){select(null);return;}
   if(t.id==='bAll'){listOpen=!listOpen;renderDock();return;}
   if(t.dataset.id){var b=boats.filter(function(x){return x.id===t.dataset.id;})[0];if(b)select(b,true);}
 });
