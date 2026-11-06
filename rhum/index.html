@@ -359,7 +359,7 @@ function draw(){
       var tx=x+dx*(bw0*.75+3),ty=y+dy*(bw0*.75+3);ctx.fillStyle=css['--lab'];ctx.beginPath();ctx.moveTo(tx+dx*4,ty+dy*4);ctx.lineTo(tx-dx*2+dy*3.2,ty-dy*2-dx*3.2);ctx.lineTo(tx-dx*2-dy*3.2,ty-dy*2+dx*3.2);ctx.closePath();ctx.fill();
       ctx.globalAlpha=1;if(!hasSel&&i<3)label(b.name,x+bw0*.7+4,y-bw0*.5,12,css['--lab']);return;
     }
-    var bt=BOATP[b.cls]||BOATP.IMO,len=bt.len*zf*.36*(on?1.25:1),sc=len/100,sp=Math.min(1,(b.sog||0)/30);
+    var bt=BOATP[b.cls]||BOATP.IMO,len=bt.len*zf*.46*(on?1.25:1),sc=len/100,sp=Math.min(1,(b.sog||0)/30);
     ctx.globalAlpha=dim?.4:1;
     var wl=len*(.9+sp*1.8),sx=x-dx*len*.5,sy=y-dy*len*.5,nx=-dy,ny=dx;
     [-1,1].forEach(function(sd){var ex=sx-dx*wl+nx*sd*wl*.3,ey=sy-dy*wl+ny*sd*wl*.3,gr=ctx.createLinearGradient(sx,sy,ex,ey);
