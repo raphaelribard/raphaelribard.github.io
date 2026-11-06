@@ -104,6 +104,16 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-acti
 .cs{font:italic 700 20px var(--f-disp);margin-top:5px;font-variant-numeric:tabular-nums}
 .ck{font:600 11px var(--f-body);color:var(--mute);font-variant-numeric:tabular-nums}
 .cs u{text-decoration:none;font-size:12px;color:var(--mute);margin-left:3px}
+/* Compact race-order strip: keeps the live dock about as small as the replay banner */
+.strip{display:flex;gap:8px;align-items:center;overflow-x:auto;scroll-snap-type:x proximity;scrollbar-width:none;padding-bottom:2px}
+.strip::-webkit-scrollbar{display:none}
+.strip .sh{flex:none;font:italic 700 12px var(--f-disp);letter-spacing:.12em;text-transform:uppercase;color:var(--mute);padding-right:2px}
+.pill{flex:none;scroll-snap-align:start;display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;background:var(--soft);border:1px solid var(--line);color:var(--ink);font:600 12px var(--f-body);white-space:nowrap}
+.pill .p{font:italic 800 15px/1 var(--f-disp);color:var(--c)}
+.pill .nm{max-width:120px;overflow:hidden;text-overflow:ellipsis}
+.pill .sp{font:italic 700 13px var(--f-disp);color:var(--mute);font-variant-numeric:tabular-nums}
+.pill .sp u{text-decoration:none;font-size:10px;color:var(--mute);margin-left:2px}
+.pill.all{border-style:dashed;border-color:var(--hot);color:var(--hot);font-weight:700}
 .list{overflow-y:auto;overscroll-behavior:contain}
 .row{display:grid;grid-template-columns:34px 22px minmax(0,1fr) auto auto;gap:12px;align-items:center;width:100%;text-align:left;padding:11px 0;border-top:1px solid var(--line);font-variant-numeric:tabular-nums}
 .row .p{font:italic 800 22px var(--f-disp);color:var(--c)}
@@ -322,12 +332,12 @@ function cutHist(H,T){var n=H.length,i=0;if(H[0].t>=T)return [H[0]];while(i<n&&H
   var p=a[a.length-1],q=H[i],f=(T-p.t)/(q.t-p.t),dt=(q.t-p.t)/3600000,sg=q.sog!=null?q.sog:(dt>0?hav(p.lat,p.lon,q.lat,q.lon)/dt:null);
   a.push({t:T,lat:p.lat+(q.lat-p.lat)*f,lon:p.lon+(q.lon-p.lon)*f,sog:sg,cog:brg(p.lat,p.lon,q.lat,q.lon)});return a;}
 function sm3(x){x=Math.max(0,Math.min(1,x));return x*x*(3-2*x);}
-function tgt(vb,F,fr,pad,kmax){var L=vb[0],hv=Math.max(120,H-170-(rp?170:290)),g=vb.slice(0,Math.max(3,Math.ceil(vb.length*fr))),a=[1e9,-1e9,1e9,-1e9];
+function tgt(vb,F,fr,pad,kmax){var L=vb[0],hv=Math.max(120,H-170-(rp?170:110)),g=vb.slice(0,Math.max(3,Math.ceil(vb.length*fr))),a=[1e9,-1e9,1e9,-1e9];
   g.forEach(function(b){var m=my(b.lat);a[0]=Math.min(a[0],m);a[1]=Math.max(a[1],m);a[2]=Math.min(a[2],b.lon);a[3]=Math.max(a[3],b.lon);});
   var sx=Math.max(a[3]-a[2],2.5)*pad,sy=Math.max(a[1]-a[0],2.5)*pad,k=Math.max(F.k,Math.min(kmax,Math.min((W-48)/sx,hv/sy)));
   return {lon:.5*((a[2]+a[3])/2)+.5*L.lon,m:.5*((a[0]+a[1])/2)+.5*my(L.lat),k:k};}
 function followCam(snap){
-  var top=170,bot=rp?170:290,F=rp.full||FULLV||{lon:v.lon,my:v.my,k:v.k},f,c;
+  var top=170,bot=rp?170:110,F=rp.full||FULLV||{lon:v.lon,my:v.my,k:v.k},f,c;
   f=snap?1:.12;
   var sb=rp.selMode&&sel?boats.filter(function(b){return b.id===sel.id;})[0]:null;
   if(sb){var kT=rp.kSel||14,T0={lon:sb.lon,my:my(sb.lat)-(bot-top)/2/kT,k:kT};
@@ -585,7 +595,7 @@ function select0(b,center){sel=b?{id:b.id}:null;listOpen=false;if(b&&center!==fa
 function fit(){
   var l=boats.filter(vis);if(!l.length)return;
   var a=[FIN.lat,48.7,FIN.lon,-2];l.forEach(function(b){a[0]=Math.min(a[0],b.lat);a[1]=Math.max(a[1],b.lat);a[2]=Math.min(a[2],b.lon);a[3]=Math.max(a[3],b.lon);});
-  var top=170,bot=290,hv=Math.max(120,H-top-bot),mc=(my(a[0])+my(a[1]))/2;
+  var top=170,bot=rp?170:110,hv=Math.max(120,H-top-bot),mc=(my(a[0])+my(a[1]))/2;
   var kx=(W-48)/(a[3]-a[2]||1),ky=hv/(my(a[1])-my(a[0])||1);
   v.k=Math.max(3,Math.min(60,Math.min(kx,ky)));v.lon=(a[2]+a[3])/2;v.my=mc-(bot-top)/2/v.k;FULLV={lon:v.lon,my:v.my,k:v.k};draw();
 }
@@ -600,7 +610,7 @@ function clsName(k){var c=CLASSES.filter(function(x){return x.k===k})[0];return 
 var bodyEl=document.getElementById('body'),dock=document.getElementById('dock');
 function gapOf(b,lead,i){return i===0?'Leader':'+'+f0(b.dtf-lead.dtf)+' nm \u00b7 '+f0(km(b.dtf-lead.dtf))+' km';}
 function renderDock(){
-  var sc=bodyEl.querySelector('.cards'),list=bodyEl.querySelector('.list'),sl=sc?sc.scrollLeft:0,st=list?list.scrollTop:0;
+  var sc=bodyEl.querySelector('.strip'),list=bodyEl.querySelector('.list'),sl=sc?sc.scrollLeft:0,st=list?list.scrollTop:0;
   var b=sel&&boats.filter(function(x){return x.id===sel.id;})[0],h='';
   if(b){
     var c=colB(b),vl=boats.filter(vis);
@@ -614,13 +624,13 @@ function renderDock(){
     vl2.forEach(function(x,i){h+='<button class="row" data-id="'+esc(x.id)+'" style="--c:'+colB(x)+'"><span class="p">'+pad(i+1)+'</span>'+blSvg(x,22)+'<span class="n">'+esc(x.name)+'<small>'+gapOf(x,vl2[0],i)+'</small></span><span class="g">'+f0(x.dtf)+' nm<br>'+f0(km(x.dtf))+' km</span><span class="s">'+f1(x.sog)+'<u>kn</u><em>'+f1(km(x.sog))+' km/h</em></span></button>';});
     h+='</div>';
   }else{
-    var vl3=boats.filter(vis).slice(0,12);
-    h='<div class="pad dhd"><h2>Race order</h2><button class="link" id="bAll">View all</button></div><div class="pad cards">';
-    vl3.forEach(function(x,i){h+='<button class="card" data-id="'+esc(x.id)+'" style="--c:'+colB(x)+'"><span class="pos">'+pad(i+1)+'</span>'+blSvg(x,24)+'<span class="cn">'+esc(x.name)+'</span><span class="cg">'+gapOf(x,vl3[0],i)+'</span><span class="cs">'+f1(x.sog)+'<u>kn</u></span><span class="ck">'+f1(km(x.sog))+' km/h</span></button>';});
-    h+='</div>';
+    var vl3=boats.filter(vis),vlS=vl3.slice(0,12);
+    h='<div class="pad strip"><span class="sh">Race order</span>';
+    vlS.forEach(function(x,i){h+='<button class="pill" data-id="'+esc(x.id)+'" style="--c:'+colB(x)+'"><span class="p">'+pad(i+1)+'</span>'+blSvg(x,20)+'<span class="nm">'+esc(x.name)+'</span><span class="sp">'+f1(x.sog)+'<u>kn</u></span></button>';});
+    h+='<button class="pill all" id="bAll">All '+vl3.length+'</button></div>';
   }
   bodyEl.innerHTML=h;
-  var sc2=bodyEl.querySelector('.cards'),l2=bodyEl.querySelector('.list');if(sc2)sc2.scrollLeft=sl;if(l2)l2.scrollTop=st;
+  var sc2=bodyEl.querySelector('.strip'),l2=bodyEl.querySelector('.list');if(sc2)sc2.scrollLeft=sl;if(l2)l2.scrollTop=st;
 }
 function stat(l,v,u,x){return '<div class="stat"><label>'+l+'</label><b>'+v+'<u>'+u+'</u></b>'+(x?'<em>'+x+'</em>':'')+'</div>';}
 function boatSvg(cls,c){var bt=BOATP[cls]||BOATP.IMO,o='';bt.parts.forEach(function(q){var t=q[0],d=q[1];
