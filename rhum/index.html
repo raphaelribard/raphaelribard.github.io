@@ -61,6 +61,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-acti
   padding:14px 0 max(14px,env(safe-area-inset-bottom,0px));max-height:70%;display:flex;flex-direction:column}
 .tl{display:flex;align-items:center;gap:10px;padding-bottom:10px}
 .tl button{border:1px solid var(--line);background:var(--soft);color:var(--ink);border-radius:999px;font:700 12px var(--f-body);letter-spacing:.06em;padding:8px 12px;min-width:44px}
+.tl #tSp{min-width:0;padding:8px 9px}
 .tl #tLive{color:var(--hot)}
 .tl .tm{flex:1;min-width:0}
 .tl .tl2{display:flex;justify-content:space-between;gap:6px;font:600 11px var(--f-body);color:var(--mute);letter-spacing:.04em;white-space:nowrap}
@@ -138,7 +139,7 @@ input[type=url]{width:100%;background:var(--soft);color:var(--ink);border:1px so
     <button class="tbtn glass" id="bFit" aria-label="Fit fleet"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
     <button class="tbtn glass" id="bData" aria-label="Import positions"><svg viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg></button>
   </div>
-  <section id="dock" class="glass" aria-label="Racers"><div class="tl pad" id="tl" hidden><button id="tPlay" aria-label="Replay the race">&#9654;</button><div class="tm"><div class="tl2"><span id="tA">D1</span><b id="tD">--</b><span id="tB">D1</span></div><input type="range" id="tR" min="0" max="2000" step="1" value="2000" aria-label="Race time"></div><button id="tLive" aria-label="Back to live">LIVE</button></div><div id="body"></div></section>
+  <section id="dock" class="glass" aria-label="Racers"><div class="tl pad" id="tl" hidden><button id="tPlay" aria-label="Replay the race">&#9654;</button><button id="tSp" aria-label="Replay speed">&times;1</button><div class="tm"><div class="tl2"><span id="tA">D1</span><b id="tD">--</b><span id="tB">D1</span></div><input type="range" id="tR" min="0" max="2000" step="1" value="2000" aria-label="Race time"></div><button id="tLive" aria-label="Back to live">LIVE</button></div><div id="body"></div></section>
   <div id="modal" hidden>
     <div class="sheet pad">
       <h2>Import positions</h2>
@@ -286,7 +287,7 @@ function blSvg(b,w){var q=bl(b),id='bc'+(++bid);return '<svg class="bl" width="'
 function pad(n){return (n<10?'0':'')+n;}
 function vis(b){return filter==='ALL'||b.cls===filter;}
 
-var rp=null,FULLV=null,rafId=0,TL={t0:0,t1:0};
+var SPD=[.5,1,2,4],spI=1,rp=null,FULLV=null,rafId=0,TL={t0:0,t1:0};
 function cutHist(H,T){var n=H.length,i=0;if(H[0].t>=T)return [H[0]];while(i<n&&H[i].t<=T)i++;var a=H.slice(0,i);if(i>=n)return a;
   var p=a[a.length-1],q=H[i],f=(T-p.t)/(q.t-p.t),dt=(q.t-p.t)/3600000,sg=q.sog!=null?q.sog:(dt>0?hav(p.lat,p.lon,q.lat,q.lon)/dt:null);
   a.push({t:T,lat:p.lat+(q.lat-p.lat)*f,lon:p.lon+(q.lon-p.lon)*f,sog:sg,cog:brg(p.lat,p.lon,q.lat,q.lon)});return a;}
@@ -323,7 +324,7 @@ function startReplay(selMode){if(!histRange())return;cancelAnimationFrame(rafId)
   document.getElementById('clkL').textContent='Replay';rafId=requestAnimationFrame(rpStep);}
 function goLive(){cancelAnimationFrame(rafId);if(rp){rp=null;}document.getElementById('clkL').textContent='Last position';tick(true);updateTL();}
 function endReplay(){goLive();}
-function rpStep(now){if(!rp||!rp.playing)return;var dt=Math.min(50,now-rp.last);rp.last=now;rp.t+=dt*60000;
+function rpStep(now){if(!rp||!rp.playing)return;var dt=Math.min(50,now-rp.last);rp.last=now;rp.t+=dt*36000*SPD[spI];
   if(rp.t>=rp.t1){goLive();return;}
   compute();followCam();draw();updateTL();if(++rp.n%8===0)renderDock();rafId=requestAnimationFrame(rpStep);}
 function scrubTo(val){if(!(TL.t1>TL.t0))return;if(val>=2000){goLive();return;}
@@ -331,6 +332,7 @@ function scrubTo(val){if(!(TL.t1>TL.t0))return;if(val>=2000){goLive();return;}
   if(!rp)rp=mkRp(T,false,!!sel);else{rp.playing=false;rp.t=T;if(sel&&!rp.selMode){rp.selMode=true;rp.cam={lon:v.lon,my:v.my,k:v.k};}}
   document.getElementById('clkL').textContent='Replay';compute();followCam(true);draw();updateTL();renderDock();}
 document.getElementById('tR').addEventListener('input',function(e){scrubTo(+e.target.value);});
+document.getElementById('tSp').onclick=function(){spI=(spI+1)%SPD.length;this.textContent='\u00d7'+SPD[spI];};
 document.getElementById('tLive').onclick=function(){goLive();};
 document.getElementById('tPlay').onclick=function(){startReplay(!!sel);};
 function compute(){
