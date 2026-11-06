@@ -41,7 +41,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-acti
 .live i{width:7px;height:7px;border-radius:50%;background:var(--hot);box-shadow:0 0 0 0 var(--hot);animation:pulse 1.8s infinite}
 @keyframes pulse{70%{box-shadow:0 0 0 8px transparent}100%{box-shadow:0 0 0 0 transparent}}
 .title h1{margin:2px 0 0;font:italic 800 26px/1 var(--f-disp);letter-spacing:.01em;text-transform:uppercase;white-space:nowrap}
-.title p{margin:3px 0 0;font-size:12px;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.title p{margin:3px 0 0;font-size:12px;color:var(--mute);white-space:nowrap;overflow:visible}
 .clock{text-align:right}
 .clock small{display:block;font:600 10px var(--f-body);letter-spacing:.16em;text-transform:uppercase;color:var(--mute)}
 .clock b{white-space:nowrap;font:italic 700 22px/1.05 var(--f-disp);font-variant-numeric:tabular-nums}
@@ -87,6 +87,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-acti
 .cn{font:600 14px var(--f-body);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:4px}
 .cg{font-size:12px;color:var(--mute);font-variant-numeric:tabular-nums}
 .cs{font:italic 700 20px var(--f-disp);margin-top:5px;font-variant-numeric:tabular-nums}
+.ck{font:600 11px var(--f-body);color:var(--mute);font-variant-numeric:tabular-nums}
 .cs u{text-decoration:none;font-size:12px;color:var(--mute);margin-left:3px}
 .list{overflow-y:auto;overscroll-behavior:contain}
 .row{display:grid;grid-template-columns:34px 22px minmax(0,1fr) auto auto;gap:12px;align-items:center;width:100%;text-align:left;padding:11px 0;border-top:1px solid var(--line);font-variant-numeric:tabular-nums}
@@ -95,6 +96,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-acti
 .row .n small{display:block;font-weight:400;font-size:12px;color:var(--mute)}
 .row .g{font-size:13px;color:var(--mute);text-align:right}
 .row .s{font:italic 700 19px var(--f-disp);min-width:58px;text-align:right}
+.row .s em{display:block;font:600 11px var(--f-body);font-style:normal;color:var(--mute)}
 .row .s u{text-decoration:none;font-size:11px;color:var(--mute);margin-left:2px}
 
 /* Racer detail */
@@ -111,6 +113,8 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-acti
 .stat{background:var(--soft);border-radius:12px;padding:8px 10px}
 .stat label{display:block;font:600 10px var(--f-body);letter-spacing:.12em;text-transform:uppercase;color:var(--mute)}
 .stat b{font:italic 700 20px var(--f-disp);font-variant-numeric:tabular-nums;white-space:nowrap}
+.stat em{display:block;font:600 11px var(--f-body);font-style:normal;color:var(--mute);font-variant-numeric:tabular-nums;white-space:nowrap}
+.speed .kh{display:block;margin:8px 0 0 6px;font-size:15px;letter-spacing:.03em;color:var(--ink)}
 .stat u{text-decoration:none;font-size:11px;color:var(--mute);margin-left:2px}
 
 /* Import */
@@ -136,7 +140,7 @@ input[type=url]{width:100%;background:var(--soft);color:var(--ink);border:1px so
     <div class="title">
       <span class="live"><i></i><span id="mode">Simulation</span></span>
       <h1>Route du Rhum</h1>
-      <p>Saint-Malo → Pointe-à-Pitre · 3 542 nm</p>
+      <p>Saint-Malo → Pointe-à-Pitre · 3 542 nm · 6 560 km</p>
     </div>
     <div class="clock"><small id="clkL">Race time</small><b id="clock">--</b></div>
   </header>
@@ -475,37 +479,38 @@ function fit(){
 }
 
 /* dock */
+function km(n){return n==null||isNaN(n)?null:n*1.852;}
 function f1(n){return n==null||isNaN(n)?'--':n.toFixed(1);}
 function f0(n){return n==null||isNaN(n)?'--':Math.round(n).toLocaleString('en-US');}
 function dg(n){return n==null||isNaN(n)?'---':('00'+(Math.round(n)%360)).slice(-3);}
 function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
 function clsName(k){var c=CLASSES.filter(function(x){return x.k===k})[0];return c?c.n:'Other';}
 var bodyEl=document.getElementById('body'),dock=document.getElementById('dock');
-function gapOf(b,lead,i){return i===0?'Leader':'+'+f0(b.dtf-lead.dtf)+' nm';}
+function gapOf(b,lead,i){return i===0?'Leader':'+'+f0(b.dtf-lead.dtf)+' nm \u00b7 '+f0(km(b.dtf-lead.dtf))+' km';}
 function renderDock(){
   var sc=bodyEl.querySelector('.cards'),list=bodyEl.querySelector('.list'),sl=sc?sc.scrollLeft:0,st=list?list.scrollTop:0;
   var b=sel&&boats.filter(function(x){return x.id===sel.id;})[0],h='';
   if(b){
     var c=colB(b),vl=boats.filter(vis);
     h='<div class="pad"><div class="dtl-h" style="--c:'+c+'">'+blSvg(b,32)+'<h3>'+esc(b.name)+'</h3><button class="x" id="xs" aria-label="Close">×</button></div>'+
-    '<p class="sub">'+(b.boat?esc(b.boat)+' · ':'')+'P'+b.rank+' overall · P'+b.crank+' '+esc(clsName(b.cls))+(b.d24!=null?' · '+f0(b.d24)+' nm in 24 h':'')+'</p>'+
-    '<div class="hero" style="--c:'+c+'"><div class="speed"><b>'+f1(b.sog)+'</b><span>KN</span></div>'+dial(b,c)+'</div>'+
-    '<div class="stats">'+stat('Course',dg(b.cog),'°')+stat('To finish',dg(b.brgF),'°')+stat('Distance',f0(b.dtf),'nm')+stat('VMG',f1(b.vmg),'kn')+'</div></div>';
+    '<p class="sub">'+(b.boat?esc(b.boat)+' · ':'')+'P'+b.rank+' overall · P'+b.crank+' '+esc(clsName(b.cls))+(b.d24!=null?' · '+f0(b.d24)+' nm / '+f0(km(b.d24))+' km in 24 h':'')+'</p>'+
+    '<div class="hero" style="--c:'+c+'"><div class="speed"><b>'+f1(b.sog)+'</b><span>KN</span><span class="kh">'+f1(km(b.sog))+' km/h</span></div>'+dial(b,c)+'</div>'+
+    '<div class="stats">'+stat('Course',dg(b.cog),'°')+stat('To finish',dg(b.brgF),'°')+stat('Distance',f0(b.dtf),'nm',f0(km(b.dtf))+' km')+stat('VMG',f1(b.vmg),'kn',f1(km(b.vmg))+' km/h')+'</div></div>';
   }else if(listOpen){
     var vl2=boats.filter(vis);
     h='<div class="pad dhd"><h2>All racers · '+vl2.length+'</h2><button class="link" id="bAll">Close</button></div><div class="pad list" style="max-height:52vh">';
-    vl2.forEach(function(x,i){h+='<button class="row" data-id="'+esc(x.id)+'" style="--c:'+colB(x)+'"><span class="p">'+pad(i+1)+'</span>'+blSvg(x,22)+'<span class="n">'+esc(x.name)+'<small>'+gapOf(x,vl2[0],i)+'</small></span><span class="g">'+f0(x.dtf)+' nm</span><span class="s">'+f1(x.sog)+'<u>kn</u></span></button>';});
+    vl2.forEach(function(x,i){h+='<button class="row" data-id="'+esc(x.id)+'" style="--c:'+colB(x)+'"><span class="p">'+pad(i+1)+'</span>'+blSvg(x,22)+'<span class="n">'+esc(x.name)+'<small>'+gapOf(x,vl2[0],i)+'</small></span><span class="g">'+f0(x.dtf)+' nm<br>'+f0(km(x.dtf))+' km</span><span class="s">'+f1(x.sog)+'<u>kn</u><em>'+f1(km(x.sog))+' km/h</em></span></button>';});
     h+='</div>';
   }else{
     var vl3=boats.filter(vis).slice(0,12);
     h='<div class="pad dhd"><h2>Race order</h2><button class="link" id="bAll">View all</button></div><div class="pad cards">';
-    vl3.forEach(function(x,i){h+='<button class="card" data-id="'+esc(x.id)+'" style="--c:'+colB(x)+'"><span class="pos">'+pad(i+1)+'</span>'+blSvg(x,24)+'<span class="cn">'+esc(x.name)+'</span><span class="cg">'+gapOf(x,vl3[0],i)+'</span><span class="cs">'+f1(x.sog)+'<u>kn</u></span></button>';});
+    vl3.forEach(function(x,i){h+='<button class="card" data-id="'+esc(x.id)+'" style="--c:'+colB(x)+'"><span class="pos">'+pad(i+1)+'</span>'+blSvg(x,24)+'<span class="cn">'+esc(x.name)+'</span><span class="cg">'+gapOf(x,vl3[0],i)+'</span><span class="cs">'+f1(x.sog)+'<u>kn</u></span><span class="ck">'+f1(km(x.sog))+' km/h</span></button>';});
     h+='</div>';
   }
   bodyEl.innerHTML=h;
   var sc2=bodyEl.querySelector('.cards'),l2=bodyEl.querySelector('.list');if(sc2)sc2.scrollLeft=sl;if(l2)l2.scrollTop=st;
 }
-function stat(l,v,u){return '<div class="stat"><label>'+l+'</label><b>'+v+'<u>'+u+'</u></b></div>';}
+function stat(l,v,u,x){return '<div class="stat"><label>'+l+'</label><b>'+v+'<u>'+u+'</u></b>'+(x?'<em>'+x+'</em>':'')+'</div>';}
 function boatSvg(cls,c){var bt=BOATP[cls]||BOATP.IMO,o='';bt.parts.forEach(function(q){var t=q[0],d=q[1];
   if(t==='beam')o+='<path d="'+d+'" fill="none" stroke="'+c+'" stroke-width="2.6" stroke-linecap="round"/>';
   else if(t==='foil')o+='<path d="'+d+'" fill="none" stroke="'+c+'" stroke-width="3.2" stroke-linecap="round"/>';
