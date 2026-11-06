@@ -357,7 +357,9 @@ function mkRp(t,playing,selMode){var k=14;
   return {t:t,t0:TL.t0,t1:TL.t1,last:performance.now(),n:0,full:FULLV||{lon:v.lon,my:v.my,k:v.k},cam:selMode?{lon:v.lon,my:v.my,k:v.k}:null,playing:playing,selMode:!!selMode,kSel:k};}
 function startReplay(selMode){if(!histRange())return;cancelAnimationFrame(rafId);rp=mkRp(TL.t0,true,selMode);
   document.getElementById('clkL').textContent='Replay';document.getElementById('app').classList.add('mv');rafId=requestAnimationFrame(rpStep);}
-function goLive(){cancelAnimationFrame(rafId);if(rp){rp=null;}document.getElementById('clkL').textContent='Last position';tick(true);updateTL();}
+function centerOn(b){var dk=document.getElementById('dock'),top=170,bot=dk.offsetHeight+12;v.lon=b.lon;v.my=my(b.lat)-(bot-top)/2/v.k;draw();}
+function goLive(){cancelAnimationFrame(rafId);var was=!!rp;if(rp){rp=null;}document.getElementById('clkL').textContent='Last position';tick(true);updateTL();
+  if(was&&sel){var b=boats.filter(function(x){return x.id===sel.id;})[0];if(b)setTimeout(function(){centerOn(b);},0);}}
 function endReplay(){goLive();}
 function rpStep(now){if(!rp||!rp.playing)return;var dt=Math.min(50,now-rp.last);rp.last=now;rp.t+=dt*36000*SPD[spI];
   if(rp.t>=rp.t1){goLive();return;}
@@ -574,7 +576,7 @@ cv.addEventListener('pointerup',function(e){var had=ptrs[e.pointerId];delete ptr
 cv.addEventListener('pointercancel',function(e){delete ptrs[e.pointerId];});
 cv.addEventListener('wheel',function(e){e.preventDefault();var r=cv.getBoundingClientRect();zoomAt(e.clientX-r.left,e.clientY-r.top,Math.exp(-e.deltaY*.0015));draw();},{passive:false});
 function pick(px,py){var best=null,bd=30;boats.forEach(function(b){if(!vis(b))return;var d=Math.hypot(X(b.lon)-px,Y(b.lat)-py);if(d<bd){bd=d;best=b;}});if(best)select(best,false);else if(sel)select(null);}
-function select(b,center){select0(b,center);if(!rp)return;if(b){rp.selMode=true;rp.kSel=v.k;rp.cam={lon:v.lon,my:v.my,k:v.k};if(!rp.playing){compute();followCam(true);draw();}}else rp.selMode=false;}
+function select(b,center){select0(b,center);if(!rp){if(b&&center!==false)centerOn(b);return;}if(b){rp.selMode=true;rp.kSel=v.k;rp.cam={lon:v.lon,my:v.my,k:v.k};if(!rp.playing){compute();followCam(true);draw();}}else rp.selMode=false;}
 function select0(b,center){sel=b?{id:b.id}:null;listOpen=false;if(b&&center!==false){v.k=Math.max(v.k,11);v.lon=b.lon;v.my=my(b.lat)-110/v.k;}renderDock();draw();}
 function fit(){
   var l=boats.filter(vis);if(!l.length)return;
