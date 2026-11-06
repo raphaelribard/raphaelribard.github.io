@@ -62,6 +62,11 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-acti
 .tl{display:flex;align-items:center;gap:10px;padding-bottom:10px}
 .tl button{border:1px solid var(--line);background:var(--soft);color:var(--ink);border-radius:999px;font:700 12px var(--f-body);letter-spacing:.06em;padding:8px 12px;min-width:44px}
 .mv #body{display:none}
+.spd{display:none;justify-content:space-between;align-items:baseline;gap:8px;padding-bottom:8px;white-space:nowrap}
+.mv .spd:not([hidden]){display:flex}
+.spd b{font:italic 700 15px var(--f-disp);letter-spacing:.06em;text-transform:uppercase;overflow:hidden;text-overflow:ellipsis}
+.spd span{font:700 15px var(--f-body);color:var(--hot)}
+.spd small{font:600 11px var(--f-body);color:var(--mute);margin-left:3px}
 .mv .tl{padding-bottom:0}
 .tl #tSp{min-width:0;padding:8px 9px}
 .tl #tLive{color:var(--hot)}
@@ -141,7 +146,7 @@ input[type=url]{width:100%;background:var(--soft);color:var(--ink);border:1px so
     <button class="tbtn glass" id="bFit" aria-label="Fit fleet"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
     <button class="tbtn glass" id="bData" aria-label="Import positions"><svg viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg></button>
   </div>
-  <section id="dock" class="glass" aria-label="Racers"><div class="tl pad" id="tl" hidden><button id="tPlay" aria-label="Replay the race">&#9654;</button><button id="tSp" aria-label="Replay speed">&times;1</button><div class="tm"><div class="tl2"><span id="tA">D1</span><b id="tD">--</b><span id="tB">D1</span></div><input type="range" id="tR" min="0" max="2000" step="1" value="2000" aria-label="Race time"></div><button id="tLive" aria-label="Back to live">LIVE</button></div><div id="body"></div></section>
+  <section id="dock" class="glass" aria-label="Racers"><div class="spd pad" id="tSpd" hidden></div><div class="tl pad" id="tl" hidden><button id="tPlay" aria-label="Replay the race">&#9654;</button><button id="tSp" aria-label="Replay speed">&times;1</button><div class="tm"><div class="tl2"><span id="tA">D1</span><b id="tD">--</b><span id="tB">D1</span></div><input type="range" id="tR" min="0" max="2000" step="1" value="2000" aria-label="Race time"></div><button id="tLive" aria-label="Back to live">LIVE</button></div><div id="body"></div></section>
   <div id="modal" hidden>
     <div class="sheet pad">
       <h2>Import positions</h2>
@@ -294,12 +299,12 @@ function cutHist(H,T){var n=H.length,i=0;if(H[0].t>=T)return [H[0]];while(i<n&&H
   var p=a[a.length-1],q=H[i],f=(T-p.t)/(q.t-p.t),dt=(q.t-p.t)/3600000,sg=q.sog!=null?q.sog:(dt>0?hav(p.lat,p.lon,q.lat,q.lon)/dt:null);
   a.push({t:T,lat:p.lat+(q.lat-p.lat)*f,lon:p.lon+(q.lon-p.lon)*f,sog:sg,cog:brg(p.lat,p.lon,q.lat,q.lon)});return a;}
 function sm3(x){x=Math.max(0,Math.min(1,x));return x*x*(3-2*x);}
-function tgt(vb,F,fr,pad,kmax){var L=vb[0],hv=Math.max(120,H-170-(rp?130:290)),g=vb.slice(0,Math.max(3,Math.ceil(vb.length*fr))),a=[1e9,-1e9,1e9,-1e9];
+function tgt(vb,F,fr,pad,kmax){var L=vb[0],hv=Math.max(120,H-170-(rp?170:290)),g=vb.slice(0,Math.max(3,Math.ceil(vb.length*fr))),a=[1e9,-1e9,1e9,-1e9];
   g.forEach(function(b){var m=my(b.lat);a[0]=Math.min(a[0],m);a[1]=Math.max(a[1],m);a[2]=Math.min(a[2],b.lon);a[3]=Math.max(a[3],b.lon);});
   var sx=Math.max(a[3]-a[2],2.5)*pad,sy=Math.max(a[1]-a[0],2.5)*pad,k=Math.max(F.k,Math.min(kmax,Math.min((W-48)/sx,hv/sy)));
   return {lon:.5*((a[2]+a[3])/2)+.5*L.lon,m:.5*((a[0]+a[1])/2)+.5*my(L.lat),k:k};}
 function followCam(snap){
-  var top=170,bot=rp?130:290,F=rp.full||FULLV||{lon:v.lon,my:v.my,k:v.k},f,c;
+  var top=170,bot=rp?170:290,F=rp.full||FULLV||{lon:v.lon,my:v.my,k:v.k},f,c;
   f=snap?1:.12;
   var sb=rp.selMode&&sel?boats.filter(function(b){return b.id===sel.id;})[0]:null;
   if(sb){var kT=rp.kSel||14,T0={lon:sb.lon,my:my(sb.lat)-(bot-top)/2/kT,k:kT};
@@ -316,7 +321,11 @@ function followCam(snap){
   v.lon=F.lon+(c.lon-F.lon)*w;v.my=F.my+(c.my-F.my)*w;v.k=Math.exp(Math.log(F.k)+(Math.log(c.k)-Math.log(F.k))*w);}
 function histRange(){var t0=Infinity,t1=0;Object.keys(imp).forEach(function(id){var h=imp[id].hist;if(h[0].t<t0)t0=h[0].t;if(h[h.length-1].t>t1)t1=h[h.length-1].t;});
   TL.t0=t0;TL.t1=t1;var ok=mode==='imp'&&t1>t0;document.getElementById('tl').hidden=!ok;if(ok){document.getElementById('tB').textContent='D'+(Math.floor((t1-t0)/864e5)+1);if(rp)rp.t1=t1;updateTL();}return ok;}
-function updateTL(){document.getElementById('app').classList.toggle('mv',!!rp);if(!(TL.t1>TL.t0))return;var T=rp?rp.t:TL.t1;
+function updateSpd(){var el=document.getElementById('tSpd'),b=null;
+  if(rp){var vb=boats.filter(vis);b=(sel&&vb.filter(function(x){return x.id===sel.id;})[0])||vb[0];}
+  if(!b){el.hidden=true;return;}el.hidden=false;var k=b.sog,n=(sel&&sel.id===b.id)?b.name:'Leader \u00b7 '+b.name;
+  el.innerHTML='<b>'+n.replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</b><span>'+(k==null?'\u2013':k.toFixed(1))+'<small>kn</small> \u00b7 '+(k==null?'\u2013':(k*1.852).toFixed(1))+'<small>km/h</small></span>';}
+function updateTL(){document.getElementById('app').classList.toggle('mv',!!rp);updateSpd();if(!(TL.t1>TL.t0))return;var T=rp?rp.t:TL.t1;
   document.getElementById('tR').value=Math.round((T-TL.t0)/(TL.t1-TL.t0)*2000);
   document.getElementById('tD').textContent='Day '+(Math.floor((T-TL.t0)/864e5)+1)+' \u00b7 '+new Date(T).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}).replace(',','');}
 function mkRp(t,playing,selMode){var k=14;
