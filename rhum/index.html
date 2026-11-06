@@ -1,6 +1,13 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="Rhum Tracker"><meta name="theme-color" content="#46B6FF"><style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}[hidden]{display:none!important}body{margin:0}</style>
-<title>Rhum Tracker</title>
+<title>Route du Rhum 2026 – live tracker</title>
+<meta name="description" content="Follow the Route du Rhum 2026 fleet live: positions, speeds, wind, and a replay of the whole race. Unofficial fan tracker.">
+<link rel="canonical" href="https://raphaelribard.github.io/rhum/">
+<meta property="og:type" content="website"><meta property="og:site_name" content="Route du Rhum live tracker">
+<meta property="og:title" content="Route du Rhum 2026 – live tracker">
+<meta property="og:description" content="Every boat on the map, live wind, and a replay of the race. Tap a boat to follow it.">
+<meta property="og:url" content="https://raphaelribard.github.io/rhum/"><meta property="og:image" content="https://raphaelribard.github.io/rhum/preview.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="Route du Rhum 2026 – live tracker"><meta name="twitter:description" content="Every boat on the map, live wind, and a replay of the race."><meta name="twitter:image" content="https://raphaelribard.github.io/rhum/preview.png">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;1,700;1,800&family=Barlow:wght@400;500;600&display=swap">
 <style>
 /* Layout: full-bleed dusk-sky chart, a quiet HUD at the top, and one dock at the bottom that swaps between race order, full list and a single racer. */
@@ -61,6 +68,8 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-acti
   padding:14px 0 max(14px,env(safe-area-inset-bottom,0px));max-height:70%;display:flex;flex-direction:column}
 .tl{display:flex;align-items:center;gap:10px;padding-bottom:10px}
 .tl button{border:1px solid var(--line);background:var(--soft);color:var(--ink);border-radius:999px;font:700 12px var(--f-body);letter-spacing:.06em;padding:8px 12px;min-width:44px}
+#toast{position:absolute;left:50%;top:44%;transform:translateX(-50%);z-index:5;background:var(--ink);color:var(--bg);font:600 13px var(--f-body);padding:10px 16px;border-radius:999px;pointer-events:none;opacity:0;transition:opacity .25s}
+#toast.on{opacity:1}
 .mv #body{display:none}
 #wLeg{position:absolute;left:16px;z-index:2;pointer-events:none;display:grid;grid-template-columns:repeat(4,1fr);gap:0;width:150px;font:600 10px var(--f-body);color:var(--ink);text-shadow:0 0 3px var(--bg)}
 #wLeg[hidden]{display:none}
@@ -155,8 +164,10 @@ input[type=url]{width:100%;background:var(--soft);color:var(--ink);border:1px so
     <button class="tbtn glass" id="bTrail" aria-pressed="true" aria-label="Toggle trajectories"><svg viewBox="0 0 24 24"><path d="M3 18c4-1 5-6 9-6s4 5 9 0"/><circle cx="21" cy="12" r="1.6"/></svg></button>
     <button class="tbtn glass" id="bWind" aria-pressed="true" aria-label="Toggle wind"><svg viewBox="0 0 24 24"><path d="M3 8h10.5a2.5 2.5 0 1 0-2.5-2.5M3 12h15a2.5 2.5 0 1 1-2.5 2.5M3 16h7"/></svg></button>
     <button class="tbtn glass" id="bFit" aria-label="Fit fleet"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+    <button class="tbtn glass" id="bShare" aria-label="Share this view"><svg viewBox="0 0 24 24"><path d="M12 15V4M8 8l4-4 4 4M5 13v6h14v-6"/></svg></button>
     <button class="tbtn glass" id="bData" aria-label="Import positions"><svg viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg></button>
   </div>
+  <div id="toast" role="status"></div>
   <div id="wLeg" hidden><i></i><span>0</span><span>10</span><span>20</span><span>30+ kn</span></div>
   <section id="dock" class="glass" aria-label="Racers"><div class="spd pad" id="tSpd" hidden></div><div class="tl pad" id="tl" hidden><button id="tPlay" aria-label="Replay the race">&#9654;</button><button id="tSp" aria-label="Replay speed">&times;1</button><div class="tm"><div class="tl2"><span id="tA">D1</span><b id="tD">--</b><span id="tB">D1</span></div><input type="range" id="tR" min="0" max="2000" step="1" value="2000" aria-label="Race time"></div><button id="tLive" aria-label="Back to live">LIVE</button></div><div id="body"></div></section>
   <div id="modal" hidden>
@@ -464,6 +475,20 @@ function wLoop(now){if(!windOn||!WIND||document.hidden){wLoopOn=false;return;}
   if(now-wLast>30&&!(rp&&rp.playing)){wLast=now;draw();}requestAnimationFrame(wLoop);}
 function wStart(){if(!wLoopOn&&windOn&&WIND){wLoopOn=true;requestAnimationFrame(wLoop);}}
 document.addEventListener('visibilitychange',function(){if(!document.hidden)wStart();});
+/* ---------- share + deep links (?b=boat&t=epochSeconds) ---------- */
+function toast(t){var e=document.getElementById('toast');e.textContent=t;e.classList.add('on');clearTimeout(toast.h);toast.h=setTimeout(function(){e.classList.remove('on');},2200);}
+function shareUrl(){var q=[];if(sel)q.push('b='+encodeURIComponent(sel.id));if(rp)q.push('t='+Math.round(rp.t/1000));return location.origin+location.pathname+(q.length?'?'+q.join('&'):'');}
+document.getElementById('bShare').onclick=function(){
+  var u=shareUrl(),b=sel&&boats.filter(function(x){return x.id===sel.id;})[0],tx=b?('Following '+b.name+' on the Route du Rhum'):'Route du Rhum 2026, live';
+  if(navigator.share){navigator.share({title:'Route du Rhum 2026 – live tracker',text:tx,url:u}).catch(function(){});return;}
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(u).then(function(){toast('Link copied');},function(){toast(u);});}else toast(u);
+};
+function applyDeep(){
+  var q;try{q=new URLSearchParams(location.search);}catch(e){return;}
+  var b=q.get('b'),t=+q.get('t');
+  if(b){var f=boats.filter(function(x){return String(x.id)===b||String(x.name).toLowerCase()===b.toLowerCase();})[0];if(f)select(f,true);}
+  if(t&&TL.t1>TL.t0){var T=t*1000;scrubTo(Math.max(0,Math.min(2000,Math.round((T-TL.t0)/(TL.t1-TL.t0)*2000))));}
+}
 function draw(){if(WIND&&windOn)setLeg();
   if(!css)readCss();
   ctx.setTransform(dpr,0,0,dpr,0,0);
@@ -794,7 +819,7 @@ function loadFeed(force){
     var mt=Object.keys(imp).filter(function(id){return BOATS[id];}).length;
     msg.textContent=n+' positions loaded for '+Object.keys(imp).length+' boats; '+mt+' matched a name. '+boatsInfo;
     document.getElementById('clkL').textContent='Last position';
-    var first=firstLoad;firstLoad=false;histRange();tick(true);if(first){fit();}if(windOn)loadWind();
+    var first=firstLoad;firstLoad=false;histRange();tick(true);if(first){fit();applyDeep();}if(windOn)loadWind();
     });
   }).catch(function(err){
     if(mode==='demo')setStatus('Simulation · feed unavailable');else setStatus('Feed error · showing last data');
