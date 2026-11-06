@@ -357,7 +357,11 @@ function mkRp(t,playing,selMode){var k=14;
   return {t:t,t0:TL.t0,t1:TL.t1,last:performance.now(),n:0,full:FULLV||{lon:v.lon,my:v.my,k:v.k},cam:selMode?{lon:v.lon,my:v.my,k:v.k}:null,playing:playing,selMode:!!selMode,kSel:k};}
 function startReplay(selMode){if(!histRange())return;cancelAnimationFrame(rafId);rp=mkRp(TL.t0,true,selMode);
   document.getElementById('clkL').textContent='Replay';document.getElementById('app').classList.add('mv');rafId=requestAnimationFrame(rpStep);}
-function centerOn(b){var dk=document.getElementById('dock'),top=170,bot=dk.offsetHeight+12;v.lon=b.lon;v.my=my(b.lat)-(bot-top)/2/v.k;draw();}
+var camAnim=0;
+function flyTo(lon,m,k,ms){cancelAnimationFrame(camAnim);var a={lon:v.lon,my:v.my,k:v.k},t0=performance.now();ms=ms||700;
+  function st(now){var f=Math.min(1,(now-t0)/ms),e=f<.5?2*f*f:1-Math.pow(-2*f+2,2)/2;v.lon=a.lon+(lon-a.lon)*e;v.my=a.my+(m-a.my)*e;v.k=Math.exp(Math.log(a.k)+(Math.log(k)-Math.log(a.k))*e);draw();if(f<1)camAnim=requestAnimationFrame(st);}
+  camAnim=requestAnimationFrame(st);}
+function centerOn(b,k){k=k||v.k;var dk=document.getElementById('dock'),top=170,bot=dk.offsetHeight+12;flyTo(b.lon,my(b.lat)-(bot-top)/2/k,k);}
 function goLive(){cancelAnimationFrame(rafId);var was=!!rp;if(rp){rp=null;}document.getElementById('clkL').textContent='Last position';tick(true);updateTL();
   if(was&&sel){var b=boats.filter(function(x){return x.id===sel.id;})[0];if(b)setTimeout(function(){centerOn(b);},0);}}
 function endReplay(){goLive();}
@@ -562,7 +566,7 @@ function draw(){if(WIND&&windOn)setLeg();
 /* gestures */
 var ptrs={},moved=0,t0=0;
 function zoomAt(px,py,f){var lon=v.lon+(px-W/2)/v.k,m=v.my-(py-H/2)/v.k;v.k=Math.max(3,Math.min(600,v.k*f));v.lon=lon-(px-W/2)/v.k;v.my=m+(py-H/2)/v.k;if(rp&&rp.selMode){rp.kSel=v.k;if(rp.cam)rp.cam.k=v.k;}}
-cv.addEventListener('pointerdown',function(e){if(rp&&rp.playing&&!rp.selMode)goLive();cv.setPointerCapture(e.pointerId);ptrs[e.pointerId]={x:e.clientX,y:e.clientY};moved=0;t0=Date.now();});
+cv.addEventListener('pointerdown',function(e){cancelAnimationFrame(camAnim);if(rp&&rp.playing&&!rp.selMode)goLive();cv.setPointerCapture(e.pointerId);ptrs[e.pointerId]={x:e.clientX,y:e.clientY};moved=0;t0=Date.now();});
 cv.addEventListener('pointermove',function(e){
   var p=ptrs[e.pointerId];if(!p)return;var ids=Object.keys(ptrs);
   if(ids.length===1){var dx=e.clientX-p.x,dy=e.clientY-p.y;moved+=Math.abs(dx)+Math.abs(dy);v.lon-=dx/v.k;v.my+=dy/v.k;}
@@ -576,7 +580,7 @@ cv.addEventListener('pointerup',function(e){var had=ptrs[e.pointerId];delete ptr
 cv.addEventListener('pointercancel',function(e){delete ptrs[e.pointerId];});
 cv.addEventListener('wheel',function(e){e.preventDefault();var r=cv.getBoundingClientRect();zoomAt(e.clientX-r.left,e.clientY-r.top,Math.exp(-e.deltaY*.0015));draw();},{passive:false});
 function pick(px,py){var best=null,bd=30;boats.forEach(function(b){if(!vis(b))return;var d=Math.hypot(X(b.lon)-px,Y(b.lat)-py);if(d<bd){bd=d;best=b;}});if(best)select(best,false);else if(sel)select(null);}
-function select(b,center){select0(b,center);if(!rp){if(b&&center!==false)centerOn(b);return;}if(b){rp.selMode=true;rp.kSel=v.k;rp.cam={lon:v.lon,my:v.my,k:v.k};if(!rp.playing){compute();followCam(true);draw();}}else rp.selMode=false;}
+function select(b,center){var a0={lon:v.lon,my:v.my,k:v.k};select0(b,center);if(!rp){if(b&&center!==false){var k2=v.k;v.lon=a0.lon;v.my=a0.my;v.k=a0.k;draw();centerOn(b,k2);}return;}if(b){rp.selMode=true;rp.kSel=v.k;rp.cam={lon:v.lon,my:v.my,k:v.k};if(!rp.playing){compute();followCam(true);draw();}}else rp.selMode=false;}
 function select0(b,center){sel=b?{id:b.id}:null;listOpen=false;if(b&&center!==false){v.k=Math.max(v.k,11);v.lon=b.lon;v.my=my(b.lat)-110/v.k;}renderDock();draw();}
 function fit(){
   var l=boats.filter(vis);if(!l.length)return;
