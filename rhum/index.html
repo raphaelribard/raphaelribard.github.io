@@ -286,7 +286,7 @@ function cutHist(H,T){var n=H.length,i=0;if(H[0].t>=T)return [H[0]];while(i<n&&H
 function startReplay(){var t0=Infinity,t1=0;Object.keys(imp).forEach(function(id){var h=imp[id].hist;if(h[0].t<t0)t0=h[0].t;if(h[h.length-1].t>t1)t1=h[h.length-1].t;});
   if(!(t1>t0))return;rp={t:t0,t1:t1,last:performance.now(),n:0};document.getElementById('clkL').textContent='Replay';requestAnimationFrame(rpStep);}
 function endReplay(){if(!rp)return;rp=null;document.getElementById('clkL').textContent='Last position';tick(true);}
-function rpStep(now){if(!rp)return;var dt=Math.min(50,now-rp.last);rp.last=now;rp.t+=dt*360000;
+function rpStep(now){if(!rp)return;var dt=Math.min(50,now-rp.last);rp.last=now;rp.t+=dt*180000;
   if(rp.t>=rp.t1){endReplay();return;}
   compute();draw();if(++rp.n%8===0)renderDock();requestAnimationFrame(rpStep);}
 function compute(){
