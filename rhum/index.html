@@ -279,6 +279,16 @@ function blSvg(b,w){var q=bl(b),id='bc'+(++bid);return '<svg class="bl" width="'
 function pad(n){return (n<10?'0':'')+n;}
 function vis(b){return filter==='ALL'||b.cls===filter;}
 
+var rp=null;
+function cutHist(H,T){var n=H.length,i=0;if(H[0].t>=T)return [H[0]];while(i<n&&H[i].t<=T)i++;var a=H.slice(0,i);if(i>=n)return a;
+  var p=a[a.length-1],q=H[i],f=(T-p.t)/(q.t-p.t),dt=(q.t-p.t)/3600000,sg=q.sog!=null?q.sog:(dt>0?hav(p.lat,p.lon,q.lat,q.lon)/dt:null);
+  a.push({t:T,lat:p.lat+(q.lat-p.lat)*f,lon:p.lon+(q.lon-p.lon)*f,sog:sg,cog:brg(p.lat,p.lon,q.lat,q.lon)});return a;}
+function startReplay(){var t0=Infinity,t1=0;Object.keys(imp).forEach(function(id){var h=imp[id].hist;if(h[0].t<t0)t0=h[0].t;if(h[h.length-1].t>t1)t1=h[h.length-1].t;});
+  if(!(t1>t0))return;rp={t:t0,t1:t1,last:performance.now(),n:0};document.getElementById('clkL').textContent='Replay';requestAnimationFrame(rpStep);}
+function endReplay(){if(!rp)return;rp=null;document.getElementById('clkL').textContent='Last position';tick(true);}
+function rpStep(now){if(!rp)return;var dt=Math.min(50,now-rp.last);rp.last=now;rp.t+=dt*360000;
+  if(rp.t>=rp.t1){endReplay();return;}
+  compute();draw();if(++rp.n%8===0)renderDock();requestAnimationFrame(rpStep);}
 function compute(){
   var now=Date.now(),t=(now-START)/3600000,list=[];
   if(mode==='demo'){
@@ -289,7 +299,7 @@ function compute(){
     });
   }else{
     Object.keys(imp).forEach(function(id){
-      var b=imp[id],h=b.hist,L=h[h.length-1],P=h.length>1?h[h.length-2]:null,sog=L.sog,cog=L.cog;
+      var b=imp[id],h=rp?cutHist(b.hist,rp.t):b.hist,L=h[h.length-1],P=h.length>1?h[h.length-2]:null,sog=L.sog,cog=L.cog;
       if(P){var dt=(L.t-P.t)/3600000;if(sog==null&&dt>0)sog=hav(P.lat,P.lon,L.lat,L.lon)/dt;if(cog==null)cog=brg(P.lat,P.lon,L.lat,L.lon);}
       var d24=null;for(var i=h.length-1;i>=0;i--){if(L.t-h[i].t>=23*3600000){d24=hav(h[i].lat,h[i].lon,L.lat,L.lon);break;}}
       list.push({id:id,name:b.name,boat:b.boat,color:b.color,cls:b.cls,lat:L.lat,lon:L.lon,sog:sog,cog:cog,trail:thin(h),d24:d24,ts:L.t});
@@ -383,7 +393,7 @@ function draw(){
 /* gestures */
 var ptrs={},moved=0,t0=0;
 function zoomAt(px,py,f){var lon=v.lon+(px-W/2)/v.k,m=v.my-(py-H/2)/v.k;v.k=Math.max(3,Math.min(600,v.k*f));v.lon=lon-(px-W/2)/v.k;v.my=m+(py-H/2)/v.k;}
-cv.addEventListener('pointerdown',function(e){cv.setPointerCapture(e.pointerId);ptrs[e.pointerId]={x:e.clientX,y:e.clientY};moved=0;t0=Date.now();});
+cv.addEventListener('pointerdown',function(e){if(rp)endReplay();cv.setPointerCapture(e.pointerId);ptrs[e.pointerId]={x:e.clientX,y:e.clientY};moved=0;t0=Date.now();});
 cv.addEventListener('pointermove',function(e){
   var p=ptrs[e.pointerId];if(!p)return;var ids=Object.keys(ptrs);
   if(ids.length===1){var dx=e.clientX-p.x,dy=e.clientY-p.y;moved+=Math.abs(dx)+Math.abs(dy);v.lon-=dx/v.k;v.my+=dy/v.k;}
@@ -639,7 +649,7 @@ function loadFeed(force){
     var mt=Object.keys(imp).filter(function(id){return BOATS[id];}).length;
     msg.textContent=n+' positions loaded for '+Object.keys(imp).length+' boats; '+mt+' matched a name. '+boatsInfo;
     document.getElementById('clkL').textContent='Last position';
-    var first=firstLoad;firstLoad=false;tick(true);if(first)fit();
+    var first=firstLoad;firstLoad=false;tick(true);if(first){fit();if(!manual&&!rp)startReplay();}
     });
   }).catch(function(err){
     if(mode==='demo')setStatus('Simulation · feed unavailable');else setStatus('Feed error · showing last data');
