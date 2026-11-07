@@ -68,8 +68,8 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-acti
 @media(max-height:760px){.tools{display:grid;grid-template-columns:repeat(2,34px);gap:6px}.tbtn{width:34px;height:34px}}
 /* Dock */
 #dock{position:absolute;left:0;right:0;bottom:0;border-radius:22px 22px 0 0;border-bottom:0;
-  padding:14px 0 max(14px,env(safe-area-inset-bottom,0px));max-height:70%;display:flex;flex-direction:column}
-.tl{display:flex;align-items:center;gap:10px;padding-bottom:10px}
+  padding:10px 0 max(10px,env(safe-area-inset-bottom,0px));max-height:70%;display:flex;flex-direction:column}
+.tl{display:flex;align-items:center;gap:10px;padding-bottom:6px}
 .tl button{border:1px solid var(--line);background:var(--soft);color:var(--ink);border-radius:999px;font:700 12px var(--f-body);letter-spacing:.06em;padding:8px 12px;min-width:44px}
 #app.rec .tools,#app.rec #filters{opacity:.25}
 #toast{position:absolute;left:50%;top:44%;transform:translateX(-50%);z-index:5;background:var(--ink);color:var(--bg);font:600 13px var(--f-body);padding:10px 16px;border-radius:999px;pointer-events:none;opacity:0;transition:opacity .25s}
@@ -136,17 +136,17 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-acti
 .dtl-h h3{margin:0;font:italic 800 22px/1 var(--f-disp);text-transform:uppercase;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .x{width:34px;height:34px;border-radius:50%;background:var(--soft);border:1px solid var(--line);font-size:20px;line-height:1}
 .sub{font-size:12px;color:var(--mute);margin:3px 0 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.pr{display:flex;align-items:center;gap:8px;margin:6px 0 2px;font:700 12px var(--f-body);color:var(--c);font-variant-numeric:tabular-nums}.pr i{flex:1;height:6px;border-radius:3px;background:var(--soft);overflow:hidden;box-shadow:inset 0 0 0 1px var(--line)}.pr i b{display:block;height:100%;border-radius:3px;background:var(--c)}
+.pr{display:flex;align-items:center;gap:8px;margin:4px 0 0;font:700 12px var(--f-body);color:var(--c);font-variant-numeric:tabular-nums}.pr i{flex:1;height:6px;border-radius:3px;background:var(--soft);overflow:hidden;box-shadow:inset 0 0 0 1px var(--line)}.pr i b{display:block;height:100%;border-radius:3px;background:var(--c)}
 .hero{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:2px 0 4px}
-.speed b{font:italic 800 56px/.9 var(--f-disp);letter-spacing:-.01em;font-variant-numeric:tabular-nums;color:var(--c)}
+.speed b{font:italic 800 48px/.9 var(--f-disp);letter-spacing:-.01em;font-variant-numeric:tabular-nums;color:var(--c)}
 .speed span{font:600 12px var(--f-body);letter-spacing:.16em;color:var(--mute);margin-left:6px}
-.dial{width:68px;height:68px;flex:none}
+.dial{width:56px;height:56px;flex:none}
 .stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
-.stat{background:var(--soft);border-radius:10px;padding:5px 8px}
+.stat{background:var(--soft);border-radius:10px;padding:4px 8px}
 .stat label{display:block;font:600 10px var(--f-body);letter-spacing:.12em;text-transform:uppercase;color:var(--mute)}
 .stat b{font:italic 700 17px var(--f-disp);font-variant-numeric:tabular-nums;white-space:nowrap}
 .stat em{display:block;font:600 11px var(--f-body);font-style:normal;color:var(--mute);font-variant-numeric:tabular-nums;white-space:nowrap}
-.speed .kh{display:block;margin:4px 0 0 4px;font-size:14px;letter-spacing:.03em;color:var(--ink)}
+.speed .kh{display:inline;margin:0 0 0 10px;font-size:15px;letter-spacing:.03em;color:var(--ink)}
 .stat u{text-decoration:none;font-size:11px;color:var(--mute);margin-left:2px}
 
 /* Import */
@@ -430,7 +430,7 @@ function loadWind(){
     WIND={t0:t[0],n:n,U:U,V:V,fetched:Date.now()};WBAD=false;lsSet('rdr_wind_v3',JSON.stringify(WIND));setWindBtn();draw();wStart();
   }).catch(function(){WBAD=true;WFAIL=Date.now();setWindBtn();}).then(function(){WBUSY=false;});
 }
-var DOCKH=0;function dockH(){return DOCKH||document.getElementById('dock').offsetHeight;}
+var DOCKH=0;function dockH(){return document.getElementById('dock').offsetHeight||DOCKH;}
 if(window.ResizeObserver)new ResizeObserver(function(){DOCKH=document.getElementById('dock').offsetHeight;setLeg();}).observe(document.getElementById('dock'));
 function setLeg(){var l=document.getElementById('wLeg');l.hidden=!(windOn&&WIND);l.style.bottom=(dockH()+8)+'px';}
 function setWindBtn(){setLeg();var b=document.getElementById('bWind');b.setAttribute('aria-pressed',windOn);b.style.opacity=(WBAD&&!WIND)?.45:1;b.setAttribute('aria-label',(WBAD&&!WIND)?'Wind data unavailable':'Toggle wind');}
