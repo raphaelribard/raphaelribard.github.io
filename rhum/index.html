@@ -441,16 +441,16 @@ var WCOL=['rgba(255,255,255,.5)','rgba(225,248,255,.72)','rgba(255,236,150,.82)'
 var WBUSY=false,WFAIL=0;
 function loadWind(){
   if(WBUSY||(WIND&&Date.now()-WIND.fetched<108e5)||(!WIND&&Date.now()-WFAIL<18e5))return;
-  var c=null;try{c=JSON.parse(lsGet('rdr_wind_v3')||'null');}catch(e){}
+  var c=null;try{c=JSON.parse(lsGet('rdr_wind_v4')||'null');}catch(e){}
   if(c&&Date.now()-c.fetched<72e5&&c.t0<=(TL.t0||Infinity)/1000+3600){WIND=c;setWindBtn();draw();wStart();return;}
   var la=[],lo=[];WLA.forEach(function(a){WLO.forEach(function(b){la.push(a);lo.push(b);});});
   var days=Math.max(3,Math.min(90,Math.ceil((Date.now()-(isFinite(TL.t0)&&TL.t0>0?TL.t0:Date.now()-6*864e5))/864e5)+2));WBUSY=true;
-  var url='https://api.open-meteo.com/v1/forecast?latitude='+la.join(',')+'&longitude='+lo.join(',')+'&hourly=wind_speed_10m,wind_direction_10m&wind_speed_unit=kn&timeformat=unixtime&past_days='+days+'&forecast_days=2';
+  var url='https://api.open-meteo.com/v1/forecast?latitude='+la.join(',')+'&longitude='+lo.join(',')+'&hourly=wind_speed_10m,wind_direction_10m&wind_speed_unit=kn&timeformat=unixtime&past_days='+days+'&forecast_days=7';
   return fetch(url).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}).then(function(j){
     if(!Array.isArray(j))j=[j];var t=j[0].hourly.time,n=t.length,U=[],V=[];
     j.forEach(function(L){var u=new Array(n),w=new Array(n),sp=L.hourly.wind_speed_10m,di=L.hourly.wind_direction_10m;
       for(var i=0;i<n;i++){var a=(di[i]||0)*D2R,k=sp[i]||0;u[i]=+(-k*Math.sin(a)).toFixed(1);w[i]=+(-k*Math.cos(a)).toFixed(1);}U.push(u);V.push(w);});
-    WIND={t0:t[0],n:n,U:U,V:V,fetched:Date.now()};WBAD=false;lsSet('rdr_wind_v3',JSON.stringify(WIND));setWindBtn();draw();wStart();
+    WIND={t0:t[0],n:n,U:U,V:V,fetched:Date.now()};WBAD=false;lsSet('rdr_wind_v4',JSON.stringify(WIND));setWindBtn();draw();wStart();
   }).catch(function(){WBAD=true;WFAIL=Date.now();setWindBtn();}).then(function(){WBUSY=false;});
 }
 var DOCKH=0;function toolsFit(){updateRpBtn();var d=document.getElementById('dock'),t=document.querySelector('.tools'),a=document.getElementById('app');if(!d||!t||!a)return;a.classList.toggle('tlh',d.getBoundingClientRect().top<t.getBoundingClientRect().bottom+6);}
@@ -579,6 +579,58 @@ function etaOf(b,T){var H=imp[b.id]&&imp[b.id].hist;if(!H||H.length<2||b.out||b.
   var rate=(hav(H[j].lat,H[j].lon,FIN.lat,FIN.lon)-hav(Lp.lat,Lp.lon,FIN.lat,FIN.lon))/dtm;
   if(rate<2)return null;var h=b.dtf/rate;if(h>240)return null;
   return new Date(T+h*36e5).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}).replace(',','');}
+/* Wind-aware ETA: a polar learned from the boat's class (speed vs true wind speed and angle),
+   scaled to this boat's recent form, then sailed to the finish through the forecast wind. */
+var POL={},ETC={},TWSG=[0,4,8,12,16,20,24,28,32,40],TWAG=[0,15,30,45,60,75,90,105,120,135,150,165,180];
+function angd(a,b){var d=Math.abs(a-b)%360;return d>180?360-d:d;}
+function fmtEta(ms){return new Date(ms).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}).replace(',','');}
+function polarFor(cls){
+  var sig=cls+'|'+boats.length+'|'+TL.t1+'|'+(WIND?WIND.fetched:0),e=POL[cls];if(e&&e.sig===sig)return e.g;
+  var S=[];
+  boats.forEach(function(b){if(b.cls!==cls)return;var H=imp[b.id]&&imp[b.id].hist;if(!H)return;
+    for(var i=1;i<H.length;i++){var p=H[i-1],q=H[i],dt=(q.t-p.t)/36e5;if(dt<.5||dt>6)continue;
+      var sp=hav(p.lat,p.lon,q.lat,q.lon)/dt;if(sp<1||sp>50)continue;
+      var w=windAt((p.lat+q.lat)/2,(p.lon+q.lon)/2,(p.t+q.t)/2);if(!w)continue;
+      S.push([w.spd,angd(brg(p.lat,p.lon,q.lat,q.lon),w.dir),sp]);}});
+  var g=null;
+  if(S.length>=40){
+    g=TWSG.map(function(ts){return TWAG.map(function(ta){var sw=0,sv=0;
+      S.forEach(function(x){var w=Math.exp(-Math.pow((x[0]-ts)/4,2)-Math.pow((x[1]-ta)/20,2));sw+=w;sv+=w*x[2];});
+      return sw>.6?sv/sw:null;});});
+    g.forEach(function(row){var f=-1,l=-1,k;for(k=0;k<row.length;k++)if(row[k]!=null){if(f<0)f=k;l=k;}
+      if(f<0)return;
+      for(k=0;k<f;k++)row[k]=row[f]*TWAG[k]/TWAG[f];
+      for(k=l+1;k<row.length;k++)row[k]=row[l];
+      for(k=f;k<l;k++)if(row[k]==null){var a=k-1,b=k+1;while(row[b]==null)b++;row[k]=row[a]+(row[b]-row[a])*(k-a)/(b-a);}});
+    var ok=g.map(function(r){return r[0]!=null;});
+    if(!ok.some(Boolean))g=null;else g.forEach(function(row,i){if(row[0]!=null)return;var j=-1,d=99;ok.forEach(function(v,m){if(v&&Math.abs(m-i)<d){d=Math.abs(m-i);j=m;}});g[i]=g[j].slice();});
+  }
+  POL[cls]={sig:sig,g:g};return g;}
+function polSpd(g,tws,twa){
+  var x=Math.max(0,Math.min(39.99,tws)),y=Math.max(0,Math.min(179.99,twa)),i=0,j=Math.floor(y/15);while(TWSG[i+1]<=x)i++;
+  var fx=(x-TWSG[i])/(TWSG[i+1]-TWSG[i]),fy=(y-TWAG[j])/15;
+  return (g[i][j]*(1-fy)+g[i][j+1]*fy)*(1-fx)+(g[i+1][j]*(1-fy)+g[i+1][j+1]*fy)*fx;}
+function etaWind(b,T){
+  if(!WIND||b.out||b.dtf<3)return null;var H=imp[b.id]&&imp[b.id].hist;if(!H||H.length<3)return null;
+  var key=b.id+'|'+Math.floor(T/36e5)+'|'+WIND.fetched+'|'+H.length;if(key in ETC)return ETC[key];
+  var g=polarFor(b.cls),res=null;
+  if(g){
+    var i=H.length-1;while(i>0&&H[i].t>T)i--;var sa=0,sp=0,k;
+    for(k=i;k>0&&H[i].t-H[k-1].t<=14*36e5;k--){var p=H[k-1],q=H[k],dt=(q.t-p.t)/36e5;if(dt<.5||dt>6)continue;
+      var w0=windAt((p.lat+q.lat)/2,(p.lon+q.lon)/2,(p.t+q.t)/2);if(!w0)continue;
+      sa+=hav(p.lat,p.lon,q.lat,q.lon)/dt;sp+=polSpd(g,w0.spd,angd(brg(p.lat,p.lon,q.lat,q.lon),w0.dir));}
+    var f=sp>1?Math.max(.75,Math.min(1.25,sa/sp)):1,la=b.lat,lo=b.lon,t=T,hrs=0,done=false;
+    for(var st=0;st<480;st++){
+      var d=hav(la,lo,FIN.lat,FIN.lon);if(d<2){done=true;break;}
+      var w=windAt(la,lo,t);if(!w)break;
+      var bt=brg(la,lo,FIN.lat,FIN.lon),best=.5;
+      for(var a=-90;a<=90;a+=15){var v=polSpd(g,w.spd,angd(bt+a,w.dir))*f*Math.cos(a*D2R);if(v>best)best=v;}
+      var step=Math.min(1,d/best),mv=best*step;
+      la+=mv/60*Math.cos(bt*D2R);lo+=mv/60*Math.sin(bt*D2R)/Math.cos(la*D2R);t+=step*36e5;hrs+=step;
+      if(step<1){done=true;break;}}
+    if(done&&hrs<480)res=fmtEta(T+hrs*36e5);
+  }
+  if(Object.keys(ETC).length>400)ETC={};ETC[key]=res;return res;}
 /* A boat that stopped reporting or hasn't moved for hours (capsize, retirement) is left out of the highlights */
 function isOut(b,T){var H=imp[b.id]&&imp[b.id].hist;if(!H||H.length<2)return false;
   var i=H.length-1;while(i>0&&H[i].t>T)i--;var L=H[i];if(L.t>T)return false;
@@ -748,7 +800,7 @@ cv.addEventListener('pointercancel',function(e){delete ptrs[e.pointerId];});
 cv.addEventListener('wheel',function(e){e.preventDefault();var r=cv.getBoundingClientRect();zoomAt(e.clientX-r.left,e.clientY-r.top,Math.exp(-e.deltaY*.0015));draw();},{passive:false});
 function pick(px,py){var best=null,bd=30;boats.forEach(function(b){if(!vis(b))return;var d=Math.hypot(X(b.lon)-px,Y(b.lat)-py);if(d<bd){bd=d;best=b;}});if(best)select(best,false);else if(sel)select(null);}
 function select(b,center){if(!b)CMP='';else if(b.id===CMP)CMP='';cmpMode=false;var a0={lon:v.lon,my:v.my,k:v.k};select0(b,center);if(!rp){if(b&&center!==false){var k2=v.k;v.lon=a0.lon;v.my=a0.my;v.k=a0.k;draw();centerOn(b,k2);}return;}if(b){rp.selMode=true;rp.kSel=v.k;rp.cam={lon:v.lon,my:v.my,k:v.k};if(!rp.playing){compute();followCam(true);draw();}}else rp.selMode=false;}
-function select0(b,center){sel=b?{id:b.id}:null;listOpen=false;selCompact=false;if(b&&center!==false){v.k=Math.max(v.k,11);v.lon=b.lon;v.my=my(b.lat)-110/v.k;}renderDock();draw();}
+function select0(b,center){sel=b?{id:b.id}:null;if(b&&!WIND)loadWind();listOpen=false;selCompact=false;if(b&&center!==false){v.k=Math.max(v.k,11);v.lon=b.lon;v.my=my(b.lat)-110/v.k;}renderDock();draw();}
 function fit(){
   var l=boats.filter(vis);if(!l.length)return;
   var a=[FIN.lat,48.7,FIN.lon,-2];l.forEach(function(b){a[0]=Math.min(a[0],b.lat);a[1]=Math.max(a[1],b.lat);a[2]=Math.min(a[2],b.lon);a[3]=Math.max(a[3],b.lon);});
@@ -771,7 +823,7 @@ function renderDock(){
   var sc=bodyEl.querySelector('.strip'),list=bodyEl.querySelector('.list'),sl=sc?sc.scrollLeft:0,st=list?list.scrollTop:0;
   var b=sel&&boats.filter(function(x){return x.id===sel.id;})[0],h='';
   if(b&&!selCompact&&!cmpMode){
-    var c=colB(b),vl=boats.filter(vis),pc=Math.max(0,Math.min(100,Math.round((1-b.dtf/hav(SM.lat,SM.lon,FIN.lat,FIN.lon))*100))),eta=etaOf(b,rp?rp.t:TL.t1);
+    var c=colB(b),vl=boats.filter(vis),pc=Math.max(0,Math.min(100,Math.round((1-b.dtf/hav(SM.lat,SM.lon,FIN.lat,FIN.lon))*100))),eta=(function(){var Tn=rp?rp.t:TL.t1,w=etaWind(b,Tn);if(w)return w;var o=etaOf(b,Tn);return o?'~'+o:null;})();
     h='<div class="pad"><div class="dtl-h" style="--c:'+c+'">'+blSvg(b,32)+'<h3>'+esc(b.name)+'</h3><button class="x" id="cmp" aria-label="Compare">\u21c4</button><button class="x star" id="fav" aria-label="Favourite">'+(FAV===b.id?'\u2605':'\u2606')+'</button><button class="x" id="xs" aria-label="Close">×</button></div>'+
     '<p class="sub">'+(b.out?'<b style="color:var(--hot)">Stopped</b> \u00b7 ':'')+(b.boat?esc(b.boat)+' · ':'')+'P'+b.rank+' overall · P'+b.crank+' '+esc(clsName(b.cls))+(b.d24!=null?' · '+f0(b.d24)+' nm / '+f0(km(b.d24))+' km in 24 h':'')+'</p>'+
     '<div class="pr" style="--c:'+c+'"><i><b style="width:'+pc+'%"></b></i>'+pc+'% done'+(eta?'<em>ETA '+eta+'</em>':'')+'</div>'+cmpRow(b)+'<div class="hero" style="--c:'+c+'"><div class="speed"><b>'+f1(b.sog)+'</b><span>KN</span><span class="kh">'+f1(km(b.sog))+' km/h</span></div>'+dial(b,c)+'</div>'+
@@ -1008,7 +1060,7 @@ function loadFeed(force){
     var mt=Object.keys(imp).filter(function(id){return BOATS[id];}).length;
     msg.textContent=n+' positions loaded for '+Object.keys(imp).length+' boats; '+mt+' matched a name. '+boatsInfo;
     document.getElementById('clkL').textContent='Last position';
-    feedErr=false;var first=firstLoad;firstLoad=false;histRange();tick(true);if(first){fit();applyDeep();}updateFresh();if(windOn)setTimeout(loadWind,1200);
+    feedErr=false;var first=firstLoad;firstLoad=false;histRange();tick(true);if(first){fit();applyDeep();}updateFresh();setTimeout(loadWind,1200);
     });
   }).catch(function(err){
     feedErr=true;
