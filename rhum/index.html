@@ -446,21 +446,23 @@ function label(txt,x,y,size,col,align){ctx.font='italic 700 '+size+'px "Barlow C
 var WIND=null,windOn=(lsGet('rdr_wind')!=='0'),WST6=6,WLA=[8,14,20,26,32,38,44,50,56],WLO=[-68,-62,-56,-50,-44,-38,-32,-26,-20,-14,-8,-2,4],WBAD=false;
 var WCOL=['rgba(255,255,255,.5)','rgba(225,248,255,.72)','rgba(255,236,150,.82)','rgba(255,170,80,.9)','rgba(255,90,70,.95)'];
 var WBUSY=false,WFAIL=0;
-function loadWind(){
-  if(WBUSY||(WIND&&Date.now()-WIND.fetched<108e5)||Date.now()-WFAIL<3e5)return;
+var WERR='';/* paste your Cloudflare Worker wind URL between the quotes */var WPROXY='';
+function loadWind(force){
+  if(WBUSY||(WIND&&Date.now()-WIND.fetched<216e5&&!force)||(!force&&Date.now()-WFAIL<3e5))return;
   var c=null;try{c=JSON.parse(lsGet('rdr_wind_v4')||'null');}catch(e){}
-  if(c&&Date.now()-c.fetched<72e5&&c.t0<=(TL.t0||Infinity)/1000+3600){WIND=c;setWindBtn();try{if(boats.length)renderDock();}catch(e){}draw();wStart();return;}
+  if(!force&&c&&Date.now()-c.fetched<216e5&&c.t0<=(TL.t0||Infinity)/1000+3600){WIND=c;setWindBtn();try{if(boats.length)renderDock();}catch(e){}draw();wStart();return;}
   if(!WIND&&c&&c.U&&c.n>3)WIND=c;/* show older saved wind while a fresh copy loads */
   if(WIND){setWindBtn();draw();wStart();}
   var la=[],lo=[];WLA.forEach(function(a){WLO.forEach(function(b){la.push(a);lo.push(b);});});
   var days=Math.max(3,Math.min(90,Math.ceil((Date.now()-(isFinite(TL.t0)&&TL.t0>0?TL.t0:Date.now()-6*864e5))/864e5)+2)),fdays=Math.max(2,Math.min(7,14-days));WBUSY=true;
-  var url='https://api.open-meteo.com/v1/forecast?latitude='+la.join(',')+'&longitude='+lo.join(',')+'&hourly=wind_speed_10m,wind_direction_10m&wind_speed_unit=kn&timeformat=unixtime&past_days='+days+'&forecast_days='+fdays;
-  return fetch(url).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}).then(function(j){
+  var qs='?latitude='+la.join(',')+'&longitude='+lo.join(',')+'&hourly=wind_speed_10m,wind_direction_10m&wind_speed_unit=kn&timeformat=unixtime&past_days='+days+'&forecast_days='+fdays,direct='https://api.open-meteo.com/v1/forecast'+qs;
+  var first=fetch('wind.json?'+Math.floor(Date.now()/6e5)).then(function(r){if(!r.ok)throw 0;return r.json();}).then(function(j){if(!Array.isArray(j)||j.length!==117||j[0].hourly.time[0]>(isFinite(TL.t0)&&TL.t0>0?TL.t0/1000+7200:Infinity))throw 0;return {ok:true,json:function(){return j;}};}).catch(function(){return WPROXY?fetch(WPROXY+qs).then(function(r){if(!r.ok)throw 0;return r;}).catch(function(){return fetch(direct);}):fetch(direct);});
+  return first.then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}).then(function(j){
     if(!Array.isArray(j))j=[j];var t=j[0].hourly.time,n=t.length,U=[],V=[];
     j.forEach(function(L){var u=new Array(n),w=new Array(n),sp=L.hourly.wind_speed_10m,di=L.hourly.wind_direction_10m;
       for(var i=0;i<n;i++){var a=(di[i]||0)*D2R,k=sp[i]||0;u[i]=+(-k*Math.sin(a)).toFixed(1);w[i]=+(-k*Math.cos(a)).toFixed(1);}U.push(u);V.push(w);});
     WIND={t0:t[0],n:n,U:U,V:V,fetched:Date.now()};WBAD=false;lsSet('rdr_wind_v4',JSON.stringify(WIND));setWindBtn();draw();wStart();try{if(boats.length)renderDock();}catch(e2){}
-  }).catch(function(){WBAD=true;WFAIL=Date.now();setWindBtn();}).then(function(){WBUSY=false;});
+  }).catch(function(e){WBAD=true;WFAIL=Date.now();WERR=e&&e.message?e.message:'network';setWindBtn();}).then(function(){WBUSY=false;});
 }
 var DOCKH=0;function toolsFit(){updateRpBtn();var d=document.getElementById('dock'),t=document.querySelector('.tools'),a=document.getElementById('app');if(!d||!t||!a)return;a.classList.toggle('tlh',d.getBoundingClientRect().top<t.getBoundingClientRect().bottom+6);}
 function dockH(){return document.getElementById('dock').offsetHeight||DOCKH;}
@@ -1017,7 +1019,7 @@ function buildFilters(){
   fEl.innerHTML=all.map(function(c){return '<button class="chip glass" data-k="'+c.k+'" aria-pressed="'+(filter===c.k)+'" style="'+(c.v?'--c:var('+c.v+')':'')+'">'+(c.v?'<i></i>':'')+c.s+'</button>';}).join('');
 }
 fEl.addEventListener('click',function(e){var b=e.target.closest('.chip');if(!b)return;filter=b.dataset.k;if(sel){var s=boats.filter(function(x){return x.id===sel.id;})[0];if(s&&!vis(s))sel=null;}buildFilters();renderDock();draw();});
-document.getElementById('bWind').onclick=function(){windOn=!windOn;lsSet('rdr_wind',windOn?'1':'0');setWindBtn();if(windOn&&!WIND)loadWind();wStart();draw();};
+document.getElementById('bWind').onclick=function(){if(WBAD&&!WIND){toast(L2('Wind service unavailable ('+(WERR||'?')+'). Trying again\u2026','Service vent indisponible ('+(WERR||'?')+'). Nouvel essai\u2026'));loadWind(true);return;}windOn=!windOn;lsSet('rdr_wind',windOn?'1':'0');setWindBtn();if(windOn&&!WIND)loadWind();wStart();draw();};
 var bT=document.getElementById('bTrail');bT.onclick=function(){trails=!trails;bT.setAttribute('aria-pressed',trails);draw();};
 document.getElementById('bFit').onclick=fit;
 var modal=document.getElementById('modal'),ta=document.getElementById('ta'),msg=document.getElementById('msg');
