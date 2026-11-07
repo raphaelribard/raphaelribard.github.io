@@ -379,7 +379,7 @@ function updateSpd(){var el=document.getElementById('tSpd'),b=null;
   el.innerHTML='<div class="sn"><b>'+n.replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</b>'+wt+'</div><span>'+(k==null?'\u2013':k.toFixed(1))+'<small>kn</small> \u00b7 '+(k==null?'\u2013':(k*1.852).toFixed(1))+'<small>km/h</small></span>';}
 function updateTL(){updateFresh();updateRpBtn();var pb=document.getElementById('tPlay'),pl=!!(rp&&rp.playing);if(pb.dataset.p!==(pl?'1':'0')){pb.dataset.p=pl?'1':'0';pb.innerHTML=pl?'&#10074;&#10074;':'&#9654;';pb.setAttribute('aria-label',pl?'Pause':'Replay the race');}document.getElementById('app').classList.toggle('mv',!!rp);updateSpd();if(!(TL.t1>TL.t0))return;var T=rp?rp.t:TL.t1;
   document.getElementById('tR').value=Math.round((T-TL.t0)/(TL.t1-TL.t0)*2000);
-  document.getElementById('tD').textContent='Day '+dayNo(T)+' \u00b7 '+new Date(T).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}).replace(',','');}
+  document.getElementById('tD').textContent='Day '+dayNo(T)+' \u00b7 '+new Date(T).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}).replace(',','')+(ESTEND&&T<ESTEND?' \u00b7 est.':'');}
 function mkRp(t,playing,selMode){var k=14;
   if(selMode)k=v.k;
   return {t:t,t0:TL.t0,t1:TL.t1,last:performance.now(),n:0,full:FULLV||{lon:v.lon,my:v.my,k:v.k},cam:selMode?{lon:v.lon,my:v.my,k:v.k}:null,playing:playing,selMode:!!selMode,kSel:k};}
@@ -639,6 +639,34 @@ function etaWind(b,T){
   }
   if(Object.keys(ETC).length>400)ETC={};ETC[key]=res;return res;}
 var RACE_T0=Date.UTC(2026,10,1,12,2,0);function dayNo(T){return Math.max(1,Math.floor((T-RACE_T0)/864e5)+1);}
+var START_PT={lat:48.7167,lon:-1.85},ESTEND=0,LBB=null;
+/* Sea corridor from the start line, north of the Brittany coast, past Ushant and out into the Atlantic. */
+var CORR=[[48.90,-2.30],[49.00,-3.00],[48.95,-4.00],[48.85,-4.90],[48.60,-5.60],[47.50,-6.50],[46.00,-7.50],[44.50,-9.00]];
+function inLand(lat,lon){
+  if(!LBB)LBB=LAND.map(function(r){var a=1e9,b=-1e9,c=1e9,d=-1e9;r.forEach(function(q){if(q[0]<a)a=q[0];if(q[0]>b)b=q[0];if(q[1]<c)c=q[1];if(q[1]>d)d=q[1];});return [a,b,c,d];});
+  for(var i=0;i<LAND.length;i++){var B=LBB[i];if(lon<B[0]||lon>B[1]||lat<B[2]||lat>B[3])continue;
+    var r=LAND[i],ins=false;for(var j=0,k=r.length-1;j<r.length;k=j++){var xi=r[j][0],yi=r[j][1],xk=r[k][0],yk=r[k][1];
+      if(((yi>lat)!==(yk>lat))&&(lon<(xk-xi)*(lat-yi)/(yk-yi)+xi))ins=!ins;}
+    if(ins)return true;}
+  return false;}
+function seaClear(a,b){var d=hav(a.lat,a.lon,b.lat,b.lon),n=Math.max(2,Math.ceil(d/1.5));
+  for(var i=0;i<=n;i++){var f=i/n;if(inLand(a.lat+(b.lat-a.lat)*f,a.lon+(b.lon-a.lon)*f))return false;}return true;}
+/* Estimated start of the race: the history begins after the gun, so each boat starts on the line at 13:02 and
+   follows the sea corridor, leaving it as soon as a straight line to its first real position stays in the water.
+   Estimated points end in 7 ms so they can be recognised and rebuilt (they are saved with the history). */
+function seaPath(P){var N=[{lat:START_PT.lat,lon:START_PT.lon}].concat(CORR.map(function(c){return {lat:c[0],lon:c[1]};})),k=N.length-1,i;
+  for(i=0;i<N.length;i++){if(hav(N[i].lat,N[i].lon,P.lat,P.lon)<3||seaClear(N[i],P)){k=i;break;}}
+  var pts=N.slice(0,k+1),cum=[0],D=0;for(i=1;i<pts.length;i++){D+=hav(pts[i-1].lat,pts[i-1].lon,pts[i].lat,pts[i].lon);cum.push(D);}
+  D+=hav(pts[pts.length-1].lat,pts[pts.length-1].lon,P.lat,P.lon);
+  var t0=RACE_T0+7,out=[],last=t0-1;
+  pts.forEach(function(q,i){var t=i===0?t0:Math.round((t0+(P.t-t0)*(D>0?cum[i]/D:0))/1000)*1000+7;if(t<=last)t=last+1000;if(t>=P.t)return;out.push({t:t,lat:q.lat,lon:q.lon,sog:null,cog:null});last=t;});
+  return out;}
+function fillStart(){var e=Infinity;Object.keys(imp).forEach(function(id){var H=imp[id].hist;if(!H||!H.length)return;
+    while(H.length&&(H[0].t%1000===7||H[0].t===RACE_T0))H.shift();
+    if(!H.length)return;var P=H[0];
+    if(P.t>RACE_T0+30*6e4){var ps=seaPath(P);Array.prototype.unshift.apply(H,ps);}
+    if(P.t<e)e=P.t;});
+  ESTEND=isFinite(e)?e:0;}
 var FIDX={};
 function finOf(b,T){var H=imp[b.id]&&imp[b.id].hist;if(!H||!H.length)return null;var k=b.id+'|'+H.length,ix=FIDX[k];
   if(ix===undefined){ix=-1;for(var i=0;i<H.length;i++){if(hav(H[i].lat,H[i].lon,FIN.lat,FIN.lon)<5){ix=i;break;}}if(Object.keys(FIDX).length>500)FIDX={};FIDX[k]=ix;}
@@ -1170,7 +1198,7 @@ function loadFeed(force){
   return loadBoats().then(function(){return baseRows();}).then(function(base){
     return fetch(url,{cache:'no-store'}).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status+' on the feed URL.');return r.text();}).then(function(txt){
     /* base = full history since the start, local store = points newer than the last collector run */
-    var n=ingestFeed(txt,base.concat(histRows()));mode='imp';manual=false;lastOk=Date.now();histSave();
+    var n=ingestFeed(txt,base.concat(histRows()));fillStart();mode='imp';manual=false;lastOk=Date.now();histSave();
     var mt=Object.keys(imp).filter(function(id){return BOATS[id];}).length;
     msg.textContent=n+' positions loaded for '+Object.keys(imp).length+' boats; '+mt+' matched a name. '+boatsInfo;
     document.getElementById('clkL').textContent='Last position';
@@ -1178,7 +1206,7 @@ function loadFeed(force){
     });
   }).catch(function(err){
     feedErr=true;
-    if(!Object.keys(imp).length){var rs=histRows();if(rs.length){try{imp={};ingest(JSON.stringify(rs));mode='imp';document.getElementById('clkL').textContent='Last position';var f0b=firstLoad;firstLoad=false;histRange();tick(true);if(f0b){fit();applyDeep();}setStatus('Offline \u00b7 last saved data');updateFresh();return;}catch(e2){imp={};}}}
+    if(!Object.keys(imp).length){var rs=histRows();if(rs.length){try{imp={};ingest(JSON.stringify(rs));fillStart();mode='imp';document.getElementById('clkL').textContent='Last position';var f0b=firstLoad;firstLoad=false;histRange();tick(true);if(f0b){fit();applyDeep();}setStatus('Offline \u00b7 last saved data');updateFresh();return;}catch(e2){imp={};}}}
     updateFresh();
     if(mode==='demo')setStatus('Simulation · feed unavailable');else setStatus('Feed error · showing last data');
     msg.textContent=(err&&err.message?err.message:'Feed unreachable.')+'  (feed: '+feedUrl+')';
