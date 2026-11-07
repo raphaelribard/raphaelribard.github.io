@@ -1,0 +1,1 @@
+{"name": "Route du Rhum 2026 – live tracker", "short_name": "Rhum Tracker", "start_url": "./", "scope": "./", "display": "standalone", "background_color": "#2A8CF5", "theme_color": "#46B6FF", "icons": [{"src": "icon-180.png", "sizes": "180x180", "type": "image/png"}, {"src": "icon-512.png", "sizes": "512x512", "type": "image/png"}]}
