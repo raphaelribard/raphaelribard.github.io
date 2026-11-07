@@ -750,6 +750,7 @@ function draw0(){if(WIND&&windOn)setLeg();
   var vl=boats.filter(vis),all=v.k>13,zf=Math.max(.8,Math.min(1.9,v.k/9));
   if(hasSel&&CMP){var ca=boats.filter(function(q){return q.id===sel.id;})[0],cb=boats.filter(function(q){return q.id===CMP;})[0];
     if(ca&&cb){var ax=X(ca.lon),ay=Y(ca.lat),bx=X(cb.lon),by=Y(cb.lat);ctx.save();ctx.setLineDash([6,6]);ctx.strokeStyle=css['--sel'];ctx.lineWidth=2;ctx.globalAlpha=.9;ctx.beginPath();ctx.moveTo(ax,ay);ctx.lineTo(bx,by);ctx.stroke();ctx.restore();}}
+  var sb0=hasSel?boats.filter(function(q){return q.id===sel.id;})[0]:null,sbx=sb0?X(sb0.lon):-999,sby=sb0?Y(sb0.lat):-999,LB=[];
   vl.forEach(function(b,i){
     var x=X(b.lon),y=Y(b.lat);if(x<-60||y<-60||x>W+60||y>H+60)return;
     var on=hasSel&&sel.id===b.id,c=colB(b),a=(b.cog==null?0:b.cog)*D2R,dx=Math.sin(a),dy=-Math.cos(a),dim=!on&&b.id!==CMP&&(hasSel||b.out);
@@ -777,7 +778,11 @@ function draw0(){if(WIND&&windOn)setLeg();
     });
     ctx.restore();ctx.globalAlpha=dim?.5:1;
     var bw=on?15:Math.min(13,8+zf*1.5),bx=x+len*.38+3,by=y-len*.38-bw*1.17;drawBl(b,bx,by,bw);ctx.globalAlpha=1;
-    if(on||(!hasSel&&(i<3||all)))label(b.name,bx+bw+4,by+bw*.85,on?15:12,css['--lab']);
+    var lab=on||(!hasSel&&(i<3||all));
+    if(!lab&&hasSel&&v.k>=10&&Math.hypot(x-sbx,y-sby)>70){var lx=bx+bw+4,lw=b.name.length*6.8,ok=true;
+      for(var q=0;q<LB.length;q++){var o=LB[q];if(lx<o[0]+o[2]&&lx+lw>o[0]&&by<o[1]+14&&by+14>o[1]){ok=false;break;}}
+      if(ok){LB.push([lx,by,lw]);lab=true;}}
+    if(lab)label(b.name,bx+bw+4,by+bw*.85,on?15:12,css['--lab']);
   });
   ctx.textAlign='left';
 }
