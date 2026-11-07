@@ -1,0 +1,32 @@
+name: feed
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: feed
+  cancel-in-progress: false
+jobs:
+  feed:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Mirror feeds to the data branch
+        env:
+          TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          URL="https://x-access-token:${TOKEN}@github.com/${REPO}.git"
+          git clone --depth 1 --branch data "$URL" out 2>/dev/null || { mkdir out; git -C out init -q -b data; git -C out remote add origin "$URL"; }
+          cd out
+          curl -fsS --compressed --retry 3 --retry-delay 10 'https://route-du-rhum-live.andamarco.workers.dev/live.json' -o live.tmp
+          python3 -c "import json;json.load(open('live.tmp'))"
+          mv live.tmp live.json
+          if curl -fsS --compressed --retry 2 'https://raw.githubusercontent.com/AugTop/rhum-tracker/main/data/history.json' -o hist.tmp && python3 -c "import json;json.load(open('hist.tmp'))"; then mv hist.tmp history.json; else rm -f hist.tmp; fi
+          date +%s > meta.txt
+          git config user.name feed-bot
+          git config user.email bot@users.noreply.github.com
+          git add -A
+          if git rev-parse -q --verify HEAD >/dev/null; then git commit -q --amend -m data; else git commit -q -m data; fi
+          git push -q --force origin data
