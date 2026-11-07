@@ -50,7 +50,9 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-acti
 .title h1{margin:2px 0 0;font:italic 800 26px/1 var(--f-disp);letter-spacing:.01em;text-transform:uppercase;white-space:nowrap}
 .title p{margin:3px 0 0;font-size:12px;color:var(--mute);white-space:nowrap;overflow:visible}
 .clock{text-align:right}
-.clock small{display:block;font:600 10px var(--f-body);letter-spacing:.16em;text-transform:uppercase;color:var(--mute)}
+.clock small{white-space:nowrap;display:block;font:600 10px var(--f-body);letter-spacing:.16em;text-transform:uppercase;color:var(--mute)}
+.clock em{display:block;font:600 10px var(--f-body);font-style:normal;color:var(--mute);letter-spacing:.04em;margin-top:3px;min-height:12px}
+.clock em.stale{color:var(--hot)}
 .clock b{white-space:nowrap;font:italic 700 22px/1.05 var(--f-disp);font-variant-numeric:tabular-nums}
 .filters{top:84px;display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:2px 0;pointer-events:auto;-webkit-overflow-scrolling:touch;-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 26px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 26px),transparent)}
 .filters::-webkit-scrollbar{display:none}
@@ -68,12 +70,14 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-acti
   padding:14px 0 max(14px,env(safe-area-inset-bottom,0px));max-height:70%;display:flex;flex-direction:column}
 .tl{display:flex;align-items:center;gap:10px;padding-bottom:10px}
 .tl button{border:1px solid var(--line);background:var(--soft);color:var(--ink);border-radius:999px;font:700 12px var(--f-body);letter-spacing:.06em;padding:8px 12px;min-width:44px}
+#app.rec .tools,#app.rec #filters{opacity:.25}
 #toast{position:absolute;left:50%;top:44%;transform:translateX(-50%);z-index:5;background:var(--ink);color:var(--bg);font:600 13px var(--f-body);padding:10px 16px;border-radius:999px;pointer-events:none;opacity:0;transition:opacity .25s}
 #toast.on{opacity:1}
 .mv #body{display:none}
-#wLeg{position:absolute;left:16px;z-index:2;pointer-events:none;display:grid;grid-template-columns:repeat(4,1fr);gap:0;width:150px;font:600 10px var(--f-body);color:var(--ink);text-shadow:0 0 3px var(--bg)}
+#wLeg{position:absolute;left:16px;z-index:2;pointer-events:none;display:grid;grid-template-columns:repeat(4,1fr);gap:0;width:170px;font:600 10px var(--f-body);color:var(--ink);text-shadow:0 0 3px var(--bg)}
 #wLeg[hidden]{display:none}
 #wLeg i{grid-column:1/-1;height:6px;border-radius:3px;margin-bottom:2px;background:linear-gradient(90deg,rgba(40,170,200,.5),rgba(40,190,120,.8),rgba(170,210,60,.9),rgba(250,190,40,.95),rgba(250,120,40,1),rgba(240,60,60,1),rgba(190,40,160,1))}
+#wLeg span{white-space:nowrap}
 #wLeg span:last-child{text-align:right}
 .spd{display:none;justify-content:space-between;align-items:center;gap:8px;padding-bottom:8px;white-space:nowrap}
 .mv .spd:not([hidden]){display:flex}
@@ -149,6 +153,21 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-acti
 #modal h2{margin:0 0 6px;font:italic 800 26px var(--f-disp);text-transform:uppercase}
 #modal p{margin:0 0 12px;font-size:14px;line-height:1.5;color:var(--mute);max-width:62ch}
 textarea{width:100%;height:140px;background:var(--soft);color:var(--ink);border:1px solid var(--line);border-radius:14px;padding:12px;font:12px/1.45 ui-monospace,Menlo,monospace;resize:vertical}
+.sx{position:absolute;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;z-index:20}
+.sx .sheet{background:var(--bg);border-top:1px solid var(--line);border-radius:22px 22px 0 0;width:100%;max-height:90%;overflow-y:auto;padding-top:20px;padding-bottom:max(18px,env(safe-area-inset-bottom,0px))}
+.sx h2{margin:0 0 4px;font:italic 800 26px var(--f-disp);text-transform:uppercase}
+.sx p{margin:0 0 10px;font-size:14px;line-height:1.5;color:var(--mute);max-width:62ch}
+.sx .sub2{font:600 12px var(--f-body);letter-spacing:.08em;color:var(--mute);margin-bottom:6px}
+.hi{display:flex;align-items:center;gap:12px;padding:12px 0;border-top:1px solid var(--line);width:100%;text-align:left}
+.hi .tx{min-width:0;flex:1}
+.hi .eb{display:block;font:700 10px var(--f-body);letter-spacing:.14em;text-transform:uppercase;color:var(--mute)}
+.hi .nm{display:block;font:600 16px var(--f-body);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hi .vl{margin-left:auto;font:italic 700 18px var(--f-disp);color:var(--hot);text-align:right;white-space:nowrap}
+.hi .vl small{display:block;font:400 11px var(--f-body);color:var(--mute);font-style:normal}
+.mrow{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:14px 0;border-top:1px solid var(--line);font:600 16px var(--f-body)}
+.mrow small{display:block;font:400 12px var(--f-body);color:var(--mute);margin-top:2px}
+.mrow .ic{width:38px;height:38px;border-radius:50%;background:var(--soft);border:1px solid var(--line);display:grid;place-items:center;flex:none;font-size:16px}
+.x.star{color:var(--hot)}
 .btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
 .btn{border:1px solid var(--line);background:var(--soft);border-radius:999px;padding:10px 16px;font:600 14px var(--f-body);display:inline-block}
 .btn.p{background:var(--hot);color:#fff;border-color:var(--hot)}
@@ -168,17 +187,27 @@ input[type=url]{width:100%;background:var(--soft);color:var(--ink);border:1px so
       <h1>Route du Rhum</h1>
       <p>Saint-Malo → Pointe-à-Pitre · 3 542 nm · 6 560 km</p>
     </div>
-    <div class="clock"><small id="clkL">Race time</small><b id="clock">--</b></div>
+    <div class="clock"><small id="clkL">Race time</small><b id="clock">--</b><em id="fresh"></em></div>
   </header>
   <nav class="ov filters" id="filters" aria-label="Class filter"></nav>
   <div class="ov tools">
     <button class="tbtn glass" id="bTrail" aria-pressed="true" aria-label="Toggle trajectories"><svg viewBox="0 0 24 24"><path d="M3 18c4-1 5-6 9-6s4 5 9 0"/><circle cx="21" cy="12" r="1.6"/></svg></button>
     <button class="tbtn glass" id="bWind" aria-pressed="true" aria-label="Toggle wind"><svg viewBox="0 0 24 24"><path d="M3 8h10.5a2.5 2.5 0 1 0-2.5-2.5M3 12h15a2.5 2.5 0 1 1-2.5 2.5M3 16h7"/></svg></button>
+    <button class="tbtn glass" id="bHl" aria-label="Highlights"><svg viewBox="0 0 24 24"><path d="M8 4h8v5a4 4 0 0 1-8 0V4zM8 6H5v1a3 3 0 0 0 3 3M16 6h3v1a3 3 0 0 1-3 3M12 13v4M8 20h8"/></svg></button>
     <button class="tbtn glass" id="bFit" aria-label="Fit fleet"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
     <button class="tbtn glass" id="bShare" aria-label="Share this view"><svg viewBox="0 0 24 24"><path d="M12 15V4M8 8l4-4 4 4M5 13v6h14v-6"/></svg></button>
     <button class="tbtn glass" id="bData" aria-label="Import positions"><svg viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg></button>
   </div>
   <div id="toast" role="status"></div>
+  <div id="mm" class="sx" hidden><div class="sheet pad"><h2>Share &amp; more</h2>
+    <button class="mrow" id="mLink"><span class="ic">&#8599;</span><span>Share this view<small>Link to the current boat and moment</small></span></button>
+    <button class="mrow" id="mRec"><span class="ic">&#9679;</span><span>Record the replay as a video<small>Plays the whole race and saves a video to share</small></span></button>
+    <button class="mrow" id="mCard"><span class="ic">&#9638;</span><span>Share highlights card<small>An image with the key stats</small></span></button>
+    <button class="mrow" id="mLang"><span class="ic">Aa</span><span id="mLangT">Language: English</span></button>
+    <button class="mrow" id="mAbout"><span class="ic">i</span><span>About &amp; data sources</span></button>
+    <div id="aboutBox" hidden><p>Unofficial fan tracker made by Raphael Ribard, built with AI assistance. Not affiliated with the Route du Rhum organisers, the teams or the skippers.</p><p>Positions come from an unofficial relay of the public tracking feed plus community history, and may be late or wrong. Wind is model data from Open-Meteo.com (CC BY 4.0) on a coarse grid. Coastlines are simplified drawings.</p></div>
+    <div class="btns"><button class="btn" id="mmClose">Close</button></div></div></div>
+  <div id="hl" class="sx" hidden><div class="sheet pad"><h2 id="hlT">Highlights</h2><div class="sub2" id="hlS"></div><div id="hlB"></div><div class="btns"><button class="btn p" id="hlShare">Share stats card</button><button class="btn" id="hlClose">Close</button></div></div></div>
   <div id="wLeg" hidden><i></i><span>0</span><span>10</span><span>20</span><span>30+ kn</span></div>
   <section id="dock" class="glass" aria-label="Racers"><div class="spd pad" id="tSpd" hidden></div><div class="tl pad" id="tl" hidden><button id="tPlay" aria-label="Replay the race">&#9654;</button><button id="tSp" aria-label="Replay speed">&times;1</button><div class="tm"><div class="tl2"><span id="tA">D1</span><b id="tD">--</b><span id="tB">D1</span></div><input type="range" id="tR" min="0" max="2000" step="1" value="2000" aria-label="Race time"></div><button id="tLive" aria-label="Back to live">LIVE</button></div><div id="body"></div></section>
   <div id="modal" hidden>
@@ -264,7 +293,8 @@ function my(l){return Math.log(Math.tan(Math.PI/4+l*Math.PI/360))*180/Math.PI;}
 function myInv(y){return (2*Math.atan(Math.exp(y*Math.PI/180))-Math.PI/2)/D2R;}
 var CUM=[0];for(var i=1;i<ROUTE.length;i++)CUM.push(CUM[i-1]+hav(ROUTE[i-1][0],ROUTE[i-1][1],ROUTE[i][0],ROUTE[i][1]));
 var TOTAL=CUM[CUM.length-1];
-var LANDP=LAND.map(function(r){return r.map(function(q){return [q[0],q[1],my(q[1])];});});
+function chaikin(r){var o=[],n=r.length,i;for(i=0;i<n;i++){var a=r[i],b=r[(i+1)%n];o.push([a[0]*.75+b[0]*.25,a[1]*.75+b[1]*.25],[a[0]*.25+b[0]*.75,a[1]*.25+b[1]*.75]);}return o;}
+var LANDP=LAND.map(function(r){if(r.length>5)r=chaikin(r);return r.map(function(q){return [q[0],q[1],my(q[1])];});});
 function hp(y0,y1,w,cx,k){cx=cx||0;k=k||1;var a=w*1.25*k,b=w*.82;
   return 'M'+cx+' '+y0+' C'+(cx+a)+' '+(y0*.45)+' '+(cx+w)+' '+(y1*.35)+' '+(cx+b)+' '+y1+' L'+(cx-b)+' '+y1+' C'+(cx-w)+' '+(y1*.35)+' '+(cx-a)+' '+(y0*.45)+' '+cx+' '+y0+' Z';}
 var BOATP={};
@@ -360,7 +390,7 @@ function updateSpd(){var el=document.getElementById('tSpd'),b=null;
   if(!b){el.hidden=true;return;}el.hidden=false;var k=b.sog,n=(sel&&sel.id===b.id)?b.name:'Leader \u00b7 '+b.name;
   var w=windOn?windAt(b.lat,b.lon,wtime()):null,wt=w?'<small class="wd">Wind '+w.spd.toFixed(0)+' kn \u00b7 '+(w.spd*1.852).toFixed(0)+' km/h from '+CPT[Math.round(w.dir/22.5)%16]+'</small>':'';
   el.innerHTML='<div class="sn"><b>'+n.replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</b>'+wt+'</div><span>'+(k==null?'\u2013':k.toFixed(1))+'<small>kn</small> \u00b7 '+(k==null?'\u2013':(k*1.852).toFixed(1))+'<small>km/h</small></span>';}
-function updateTL(){var pb=document.getElementById('tPlay'),pl=!!(rp&&rp.playing);if(pb.dataset.p!==(pl?'1':'0')){pb.dataset.p=pl?'1':'0';pb.innerHTML=pl?'&#10074;&#10074;':'&#9654;';pb.setAttribute('aria-label',pl?'Pause':'Replay the race');}document.getElementById('app').classList.toggle('mv',!!rp);updateSpd();if(!(TL.t1>TL.t0))return;var T=rp?rp.t:TL.t1;
+function updateTL(){updateFresh();var pb=document.getElementById('tPlay'),pl=!!(rp&&rp.playing);if(pb.dataset.p!==(pl?'1':'0')){pb.dataset.p=pl?'1':'0';pb.innerHTML=pl?'&#10074;&#10074;':'&#9654;';pb.setAttribute('aria-label',pl?'Pause':'Replay the race');}document.getElementById('app').classList.toggle('mv',!!rp);updateSpd();if(!(TL.t1>TL.t0))return;var T=rp?rp.t:TL.t1;
   document.getElementById('tR').value=Math.round((T-TL.t0)/(TL.t1-TL.t0)*2000);
   document.getElementById('tD').textContent='Day '+(Math.floor((T-TL.t0)/864e5)+1)+' \u00b7 '+new Date(T).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}).replace(',','');}
 function mkRp(t,playing,selMode){var k=14;
@@ -373,7 +403,7 @@ function flyTo(lon,m,k,ms){cancelAnimationFrame(camAnim);var a={lon:v.lon,my:v.m
   function st(now){var f=Math.min(1,(now-t0)/ms),e=f<.5?2*f*f:1-Math.pow(-2*f+2,2)/2;v.lon=a.lon+(lon-a.lon)*e;v.my=a.my+(m-a.my)*e;v.k=Math.exp(Math.log(a.k)+(Math.log(k)-Math.log(a.k))*e);draw();if(f<1)camAnim=requestAnimationFrame(st);}
   camAnim=requestAnimationFrame(st);}
 function centerOn(b,k){k=k||v.k;var top=170,bot=dockH()+12;flyTo(b.lon,my(b.lat)-(bot-top)/2/k,k);}
-function goLive(){cancelAnimationFrame(rafId);var was=!!rp;if(rp){rp=null;}if(was){selCompact=!!sel;listOpen=false;}document.getElementById('clkL').textContent='Last position';tick(true);updateTL();}
+function goLive(){cancelAnimationFrame(rafId);var was=!!rp;if(REC)setTimeout(stopRec,400);setTimeout(updateFresh,0);if(rp){rp=null;}if(was){selCompact=!!sel;listOpen=false;}document.getElementById('clkL').textContent='Last position';tick(true);updateTL();}
 function endReplay(){goLive();}
 function rpStep(now){if(!rp||!rp.playing)return;var dt=Math.min(50,now-rp.last);rp.last=now;rp.t+=dt*36000*SPD[spI];
   if(rp.t>=rp.t1){goLive();return;}
@@ -466,8 +496,9 @@ function drawHeat(T){
   var im=HX.createImageData(cw,ch),d=im.data,o=[0,0,0,0],x,y,i=0;
   for(y=0;y<ch;y++){var lat=myInv(v.my-((y+.5)*cs-H/2)/v.k);
     for(x=0;x<cw;x++,i+=4){var lon=v.lon+((x+.5)*cs-W/2)/v.k;
-      if(lat<2||lat>60||lon<-75||lon>8){d[i+3]=0;continue;}
-      var w=windAt(lat,lon,T);wramp(w.spd,o);d[i]=o[0];d[i+1]=o[1];d[i+2]=o[2];d[i+3]=o[3];}}
+      var dd=Math.max(WLA[0]-lat,lat-WLA[WLA.length-1],WLO[0]-lon,lon-WLO[WLO.length-1],0),fa=1-dd/7;
+      if(fa<=0){d[i+3]=0;continue;}
+      var w=windAt(lat,lon,T);wramp(w.spd,o);d[i]=o[0];d[i+1]=o[1];d[i+2]=o[2];d[i+3]=o[3]*fa;}}
   HX.putImageData(im,0,0);ctx.save();ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';ctx.drawImage(HC,0,0,cw*cs,ch*cs);ctx.restore();
 }
 function spawn(p){p.x=v.lon+(Math.random()-.5)*W/v.k;p.y=v.my+(Math.random()-.5)*H/v.k;p.a=0;p.life=70+Math.random()*70;p.h=[];}
@@ -477,7 +508,7 @@ function drawParticles(T){
   ctx.save();ctx.lineCap='round';ctx.lineWidth=1.3;
   var hp=[[],[]];
   for(var i=0;i<PT.length;i++){var p=PT[i],lat=myInv(p.y),w=windAt(lat,p.x,T);
-    if(!w||p.a++>p.life||Math.abs(p.x-v.lon)>W/v.k*.62||Math.abs(p.y-v.my)>H/v.k*.62){spawn(p);continue;}
+    if(!w||lat<WLA[0]-5||lat>WLA[WLA.length-1]+5||p.x<WLO[0]-5||p.x>WLO[WLO.length-1]+5||p.a++>p.life||Math.abs(p.x-v.lon)>W/v.k*.62||Math.abs(p.y-v.my)>H/v.k*.62){spawn(p);continue;}
     var c=4.2*dt/v.k;p.x+=w.u*c;p.y+=w.v*c;
     p.h.push(p.x,p.y);if(p.h.length>40)p.h.splice(0,2);
     var hh=p.h,m=hh.length;if(m<6)continue;var mid=(m>>2<<1);
@@ -500,18 +531,111 @@ document.addEventListener('visibilitychange',function(){if(!document.hidden)wSta
 /* ---------- share + deep links (?b=boat&t=epochSeconds) ---------- */
 function toast(t){var e=document.getElementById('toast');e.textContent=t;e.classList.add('on');clearTimeout(toast.h);toast.h=setTimeout(function(){e.classList.remove('on');},2200);}
 function shareUrl(){var q=[];if(sel)q.push('b='+encodeURIComponent(sel.id));if(rp)q.push('t='+Math.round(rp.t/1000));return location.origin+location.pathname+(q.length?'?'+q.join('&'):'');}
-document.getElementById('bShare').onclick=function(){
+function shareLink(){
   var u=shareUrl(),b=sel&&boats.filter(function(x){return x.id===sel.id;})[0],tx=b?('Following '+b.name+' on the Route du Rhum'):'Route du Rhum 2026, live';
-  if(navigator.share){navigator.share({title:'Route du Rhum 2026 – live tracker',text:tx,url:u}).catch(function(){});return;}
+  if(navigator.share){navigator.share({title:'Route du Rhum 2026 \u2013 live tracker',text:tx,url:u}).catch(function(){});return;}
   if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(u).then(function(){toast('Link copied');},function(){toast(u);});}else toast(u);
-};
+}
+var mmEl=document.getElementById('mm');
+document.getElementById('bShare').onclick=function(){mmEl.hidden=false;};
+document.getElementById('mmClose').onclick=function(){mmEl.hidden=true;};
+mmEl.addEventListener('click',function(e){if(e.target===mmEl)mmEl.hidden=true;});
+document.getElementById('mLink').onclick=function(){mmEl.hidden=true;shareLink();};
+document.getElementById('mCard').onclick=function(){mmEl.hidden=true;hlCard();};
+document.getElementById('mAbout').onclick=function(){var a=document.getElementById('aboutBox');a.hidden=!a.hidden;};
+document.getElementById('mRec').onclick=function(){startRec();};
+/* ---------- record the replay as a video ---------- */
+var REC=null;
+function startRec(){
+  if(!window.MediaRecorder||!cv.captureStream){mmEl.hidden=true;toast('Video recording is not supported on this browser');return;}
+  if(!histRange()){mmEl.hidden=true;toast('No race history to record yet');return;}
+  var types=['video/mp4;codecs=avc1.42E01E','video/mp4','video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'],mt='',i;
+  for(i=0;i<types.length;i++){try{if(MediaRecorder.isTypeSupported(types[i])){mt=types[i];break;}}catch(e){}}
+  var stream=cv.captureStream(30),rec,chunks=[];
+  try{rec=new MediaRecorder(stream,mt?{mimeType:mt,videoBitsPerSecond:5e6}:{videoBitsPerSecond:5e6});}catch(e){toast('Video recording failed to start');return;}
+  rec.ondataavailable=function(e){if(e.data&&e.data.size)chunks.push(e.data);};
+  rec.onstop=function(){REC=null;document.getElementById('app').classList.remove('rec');stream.getTracks().forEach(function(t){t.stop();});
+    var blob=new Blob(chunks,{type:rec.mimeType||mt||'video/webm'});if(blob.size<1000){toast('Recording failed');draw();return;}
+    shareFile(blob,'rhum-replay.'+(/mp4/.test(blob.type)?'mp4':'webm'),'Route du Rhum 2026 \u2013 race replay');draw();};
+  REC={rec:rec};mmEl.hidden=true;document.getElementById('app').classList.add('rec');
+  rec.start(500);startReplay(!!sel);toast('Recording\u2026 tap the map to stop');
+}
+function stopRec(){if(REC&&REC.rec.state!=='inactive')REC.rec.stop();}
+function recCap(){ctx.save();ctx.setTransform(dpr,0,0,dpr,0,0);ctx.fillStyle='rgba(3,18,46,.5)';ctx.fillRect(0,0,W,62);ctx.fillStyle='#fff';
+  ctx.font='italic 800 26px "Barlow Condensed","Arial Narrow",Arial,sans-serif';ctx.textAlign='left';ctx.fillText('ROUTE DU RHUM 2026',16,30);
+  ctx.font='600 13px Barlow,system-ui,Arial,sans-serif';ctx.fillStyle='rgba(255,255,255,.88)';ctx.fillText(rp?dayLabel(rp.t):'',16,50);
+  ctx.textAlign='right';ctx.fillText('raphaelribard.github.io/rhum',W-16,50);ctx.restore();}
 function applyDeep(){
   var q;try{q=new URLSearchParams(location.search);}catch(e){return;}
   var b=q.get('b'),t=+q.get('t');
+  if(!b&&FAV&&!q.get('t')){var ff=boats.filter(function(x){return x.id===FAV;})[0];if(ff)select(ff,true);}
   if(b){var f=boats.filter(function(x){return String(x.id)===b||String(x.name).toLowerCase()===b.toLowerCase();})[0];if(f)select(f,true);}
   if(t&&TL.t1>TL.t0){var T=t*1000;scrubTo(Math.max(0,Math.min(2000,Math.round((T-TL.t0)/(TL.t1-TL.t0)*2000))));}
 }
-function draw(){if(WIND&&windOn)setLeg();
+/* ---------- favourite + highlights ---------- */
+var FAV=lsGet('rdr_fav')||'';
+function toggleFav(){if(!sel)return;FAV=(FAV===sel.id)?'':sel.id;lsSet('rdr_fav',FAV||null);renderDock();toast(FAV?'Favourite saved \u2013 it opens first next time':'Favourite removed');}
+function shareFile(blob,name,text){
+  var f=new File([blob],name,{type:blob.type});
+  if(navigator.canShare&&navigator.canShare({files:[f]})){navigator.share({files:[f],title:'Route du Rhum 2026 \u2013 live tracker',text:text||''}).catch(function(){});return;}
+  var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(a.href);a.remove();},4000);toast('Saved');}
+function dayLabel(T){return 'Day '+(Math.floor((T-TL.t0)/864e5)+1)+' \u00b7 '+new Date(T).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}).replace(',','');}
+function hlData(){
+  var T=rp?rp.t:TL.t1,out=[],all=boats.slice();if(!all.length)return out;
+  var ord=all.slice().sort(function(a,b){return a.dtf-b.dtf;}),L0=ord[0];
+  out.push({eb:'Leader',b:L0,vl:f0(L0.dtf)+' nm',sm:f0(km(L0.dtf))+' km to go'});
+  var fs=all.filter(function(b){return b.sog!=null;}).sort(function(a,b){return b.sog-a.sog;})[0];
+  if(fs)out.push({eb:'Fastest now',b:fs,vl:f1(fs.sog)+' kn',sm:f1(km(fs.sog))+' km/h'});
+  all.filter(function(b){return b.d24!=null;}).sort(function(a,b){return b.d24-a.d24;}).slice(0,3).forEach(function(b,i){out.push({eb:i?'Best 24 h #'+(i+1):'Best 24 h',b:b,vl:f0(b.d24)+' nm',sm:f0(km(b.d24))+' km'});});
+  var prev=[];all.forEach(function(b){var H=imp[b.id]&&imp[b.id].hist;if(!H||H[0].t>T-864e5)return;var h=cutHist(H,T-864e5),L=h[h.length-1];prev.push({id:b.id,d:hav(L.lat,L.lon,FIN.lat,FIN.lon)});});
+  prev.sort(function(a,b){return a.d-b.d;});var pr={};prev.forEach(function(x,i){pr[x.id]=i+1;});
+  var cl=null;ord.forEach(function(b,i){if(pr[b.id]!=null){var g=pr[b.id]-(i+1);if(g>0&&(!cl||g>cl.g))cl={b:b,g:g};}});
+  if(cl)out.push({eb:'Biggest climber (24 h)',b:cl.b,vl:'+'+cl.g,sm:'places'});
+  var du=null;for(var i=0;i<Math.min(ord.length-1,25);i++){var g=ord[i+1].dtf-ord[i].dtf;if(!du||g<du.g)du={g:g,a:ord[i],b:ord[i+1],i:i};}
+  if(du)out.push({eb:'Closest duel',b:du.a,nm2:du.b.name,vl:f0(du.g)+' nm',sm:f0(km(du.g))+' km apart'});
+  var seen={};ord.forEach(function(b){if(seen[b.cls])return;seen[b.cls]=1;if(b!==L0)out.push({eb:clsName(b.cls)+' leader',b:b,vl:f0(b.dtf)+' nm',sm:'+'+f0(b.dtf-L0.dtf)+' nm vs overall leader'});});
+  return out;
+}
+function hlOpen(){
+  var d=hlData(),el=document.getElementById('hlB');
+  document.getElementById('hlS').textContent=TL.t1>0?dayLabel(rp?rp.t:TL.t1):'';
+  var h='';d.forEach(function(x){h+='<button class="hi" data-id="'+esc(x.b.id)+'" style="--c:'+colB(x.b)+'">'+blSvg(x.b,26)+'<span class="tx"><span class="eb">'+x.eb+'</span><span class="nm">'+esc(x.b.name)+(x.nm2?' vs '+esc(x.nm2):'')+'</span></span><span class="vl">'+x.vl+'<small>'+x.sm+'</small></span></button>';});
+  el.innerHTML=d.length?h:'<p>No data yet.</p>';document.getElementById('hl').hidden=false;if(window.T)T(document.getElementById('hl'));
+}
+function hlCard(){
+  var d=hlData().slice(0,7),W2=1080,H2=1350,c=document.createElement('canvas');c.width=W2;c.height=H2;var g=c.getContext('2d');
+  var gr=g.createLinearGradient(0,0,0,H2);gr.addColorStop(0,'#2A8CF5');gr.addColorStop(1,'#0B3A82');g.fillStyle=gr;g.fillRect(0,0,W2,H2);
+  var F='"Barlow Condensed","Arial Narrow",Arial,sans-serif',B='Barlow,system-ui,Arial,sans-serif';
+  g.fillStyle='#fff';var fs0=96;g.font='italic 800 '+fs0+'px '+F;while(g.measureText('ROUTE DU RHUM 2026').width>940&&fs0>40){fs0-=4;g.font='italic 800 '+fs0+'px '+F;}g.fillText('ROUTE DU RHUM 2026',70,150);
+  g.font='600 34px '+B;g.fillStyle='rgba(255,255,255,.85)';g.fillText('Live tracker \u00b7 '+(TL.t1>0?dayLabel(rp?rp.t:TL.t1):''),70,206);
+  var y=300;d.forEach(function(x){
+    g.fillStyle='rgba(255,255,255,.14)';g.fillRect(70,y-52,940,118);
+    g.fillStyle='rgba(255,255,255,.75)';g.font='700 24px '+B;g.fillText(x.eb.toUpperCase(),96,y-14);
+    g.fillStyle='#fff';g.font='italic 800 50px '+F;g.fillText((x.b.name+(x.nm2?' vs '+x.nm2:'')).toUpperCase().slice(0,22),96,y+36);
+    g.textAlign='right';g.fillStyle='#FFB067';g.font='italic 800 52px '+F;g.fillText(x.vl,984,y+12);g.fillStyle='rgba(255,255,255,.8)';g.font='600 22px '+B;g.fillText(x.sm.slice(0,34),984,y+44);g.textAlign='left';y+=134;});
+  g.fillStyle='rgba(255,255,255,.9)';g.font='600 30px '+B;g.fillText('raphaelribard.github.io/rhum',70,H2-80);g.font='400 22px '+B;g.fillStyle='rgba(255,255,255,.7)';g.fillText('Unofficial fan tracker \u2013 not affiliated with the Route du Rhum',70,H2-44);
+  c.toBlob(function(b){if(b)shareFile(b,'rhum-highlights.png','Route du Rhum 2026 \u2013 highlights');},'image/png');
+}
+document.getElementById('bHl').onclick=hlOpen;
+document.getElementById('hlClose').onclick=function(){document.getElementById('hl').hidden=true;};
+document.getElementById('hl').addEventListener('click',function(e){if(e.target===this){this.hidden=true;return;}var t=e.target.closest('.hi');if(t){var b=boats.filter(function(x){return x.id===t.dataset.id;})[0];this.hidden=true;if(b)select(b,true);}});
+document.getElementById('hlShare').onclick=hlCard;
+/* ---------- English / French ---------- */
+var FRX={'Live feed':'Flux en direct','Imported data':'Données importées','Simulation · feed unavailable':'Simulation · flux indisponible','Feed error · showing last data':'Erreur de flux · dernières données','Last position':'Dernier point','Race time':'Temps de course','Race order':'Classement','View all':'Tout voir','Close':'Fermer','Following':'Suivi','Unfollow':'Ne plus suivre','Course':'Cap','To finish':"Vers l'arrivée",'LIVE':'DIRECT','Highlights':'Temps forts','Share stats card':'Partager la carte','No data yet.':'Pas encore de données.','Share & more':'Partager & plus','Share this view':'Partager cette vue','Link to the current boat and moment':'Lien vers le bateau et le moment affichés','Record the replay as a video':'Enregistrer le replay en vidéo','Plays the whole race and saves a video to share':'Rejoue toute la course et crée une vidéo à partager','Share highlights card':'Partager la carte des temps forts','An image with the key stats':'Une image avec les stats clés','About & data sources':'À propos & sources','Link copied':'Lien copié','Saved':'Enregistré','Favourite removed':'Favori retiré','Favourite saved – it opens first next time':"Favori enregistré – il s'ouvrira en premier",'Recording… tap the map to stop':"Enregistrement… touchez la carte pour arrêter",'Recording failed':"L'enregistrement a échoué",'Video recording is not supported on this browser':"L'enregistrement vidéo n'est pas pris en charge par ce navigateur",'No race history to record yet':"Pas encore d'historique à enregistrer",'Updated just now':"Mis à jour à l'instant",'Fastest now':'Le plus rapide','Biggest climber (24 h)':'Plus belle remontée (24 h)','Closest duel':'Duel le plus serré','Import positions':'Importer des positions','Apply':'Appliquer','Choose file':'Choisir un fichier','Back to simulation':'Retour à la simulation','Use this feed':'Utiliser ce flux','Reset to default':'Réinitialiser','KN':'NDS','Favourite':'Favori','★ Favourite':'★ Favori','☆ Favourite':'☆ Favori','Unofficial fan tracker made by Raphael Ribard, built with AI assistance. Not affiliated with the Route du Rhum organisers, the teams or the skippers.':"Tracker de fan non officiel créé par Raphael Ribard, conçu avec l'aide de l'IA. Sans lien avec les organisateurs de la Route du Rhum, les équipes ou les skippers.",'Positions come from an unofficial relay of the public tracking feed plus community history, and may be late or wrong. Wind is model data from Open-Meteo.com (CC BY 4.0) on a coarse grid. Coastlines are simplified drawings.':"Les positions viennent d'un relais non officiel du flux de suivi public et d'un historique communautaire ; elles peuvent être en retard ou fausses. Le vent provient de modèles météo Open-Meteo.com (CC BY 4.0) sur une grille grossière. Les côtes sont des dessins simplifiés."};
+var FRR=[[/^All (\d+)$/,'Tous $1'],[/^All$/,'Tous'],[/^All racers · (\d+)$/,'Tous les bateaux · $1'],[/^Day (\d+)/,'Jour $1'],[/\bDay (\d+)/g,'Jour $1'],[/ overall\b/g,' au général'],[/ in 24 h\b/g,' en 24 h'],[/^Updated (\d+) (min|h) ago$/,'Mis à jour il y a $1 $2'],[/^Feed unreachable · last data (\d+) (min|h) ago$/,'Flux injoignable · dernières données il y a $1 $2'],[/^Feed unreachable · last data just now$/,"Flux injoignable · dernières données à l'instant"],
+ [/\bBest 24 h( #\d)?$/,'Meilleur 24 h$1'],[/^(.+) leader$/,'Leader $1'],[/ to go$/,' restants'],[/ apart$/,' d’écart'],[/ vs overall leader$/,' du leader'],[/^Wind (\d+) kn/,'Vent $1 nds'],[/ from ([NSEW]{1,3})\b/,function(m,c){return ' de '+c.replace(/W/g,'O');}],[/\bkn\b/g,'nds'],[/^Following (.+) on the Route du Rhum$/,'Je suis $1 sur la Route du Rhum'],[/(\d)\.(\d)/g,'$1,$2']];
+function trs(str){var t=str.trim();if(!t)return str;var r=FRX[t];if(r!=null)return str.replace(t,r);var o=str;FRR.forEach(function(x){o=o.replace(x[0],x[1]);});return o;}
+function T(el){if(!el)return;var w=document.createTreeWalker(el,NodeFilter.SHOW_TEXT,null),n,L=[];while((n=w.nextNode()))L.push(n);
+  L.forEach(function(n){if(n.__o===undefined||n.__f!==n.nodeValue){n.__o=n.nodeValue;}var o=n.__o,r=LANG==='fr'?trs(o):o;if(n.nodeValue!==r){n.nodeValue=r;n.__f=r;}else n.__f=n.nodeValue;});}
+var TRO=['body','clkL','mode','tD','toast','fresh','tSpd','msg','hlB','hlS','filters','mm','tl'];
+function trWatch(){var mo=new MutationObserver(function(recs){if(LANG!=='fr'&&!trWatch.on)return;var seen=[];recs.forEach(function(r){var t=r.target.nodeType===3?r.target.parentNode:r.target;if(t&&seen.indexOf(t)<0){seen.push(t);}});seen.forEach(T);});
+  TRO.forEach(function(id){var e=document.getElementById(id);if(e)mo.observe(e,{childList:true,subtree:true,characterData:true});});}
+function setLang(l){LANG=l;lsSet('rdr_lang',l);document.documentElement.lang=l;trWatch.on=true;
+  document.getElementById('mLangT').textContent=l==='fr'?'Langue : Français':'Language: English';
+  T(document.getElementById('app'));renderDock();updateTL();updateFresh();if(!document.getElementById('hl').hidden)hlOpen();}
+document.getElementById('mLang').onclick=function(){setLang(LANG==='fr'?'en':'fr');};
+function draw(){draw0();if(REC)recCap();}
+function draw0(){if(WIND&&windOn)setLeg();
   if(!css)readCss();
   ctx.setTransform(dpr,0,0,dpr,0,0);
   var g=ctx.createRadialGradient(W*.5,H*.38,0,W*.5,H*.38,Math.max(W,H)*.85);g.addColorStop(0,css['--sea1']);g.addColorStop(1,css['--sea2']);
@@ -582,7 +706,7 @@ function draw(){if(WIND&&windOn)setLeg();
 /* gestures */
 var ptrs={},moved=0,t0=0;
 function zoomAt(px,py,f){var lon=v.lon+(px-W/2)/v.k,m=v.my-(py-H/2)/v.k;v.k=Math.max(3,Math.min(600,v.k*f));v.lon=lon-(px-W/2)/v.k;v.my=m+(py-H/2)/v.k;if(rp&&rp.selMode){rp.kSel=v.k;if(rp.cam)rp.cam.k=v.k;}}
-cv.addEventListener('pointerdown',function(e){cancelAnimationFrame(camAnim);if(rp&&rp.playing&&!rp.selMode)goLive();cv.setPointerCapture(e.pointerId);ptrs[e.pointerId]={x:e.clientX,y:e.clientY};moved=0;t0=Date.now();});
+cv.addEventListener('pointerdown',function(e){cancelAnimationFrame(camAnim);if(rp&&rp.playing&&(!rp.selMode||REC))goLive();cv.setPointerCapture(e.pointerId);ptrs[e.pointerId]={x:e.clientX,y:e.clientY};moved=0;t0=Date.now();});
 cv.addEventListener('pointermove',function(e){
   var p=ptrs[e.pointerId];if(!p)return;var ids=Object.keys(ptrs);
   if(ids.length===1){var dx=e.clientX-p.x,dy=e.clientY-p.y;moved+=Math.abs(dx)+Math.abs(dy);v.lon-=dx/v.k;v.my+=dy/v.k;}
@@ -609,7 +733,8 @@ function fit(){
 /* dock */
 function km(n){return n==null||isNaN(n)?null:n*1.852;}
 function f1(n){return n==null||isNaN(n)?'--':n.toFixed(1);}
-function f0(n){return n==null||isNaN(n)?'--':Math.round(n).toLocaleString('en-US');}
+var LANG=(lsGet('rdr_lang')||((navigator.language||'en').slice(0,2)==='fr'?'fr':'en'));
+function f0(n){return n==null||isNaN(n)?'--':Math.round(n).toLocaleString(LANG==='fr'?'fr-FR':'en-US');}
 function dg(n){return n==null||isNaN(n)?'---':('00'+(Math.round(n)%360)).slice(-3);}
 function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
 function clsName(k){var c=CLASSES.filter(function(x){return x.k===k})[0];return c?c.n:'Other';}
@@ -620,7 +745,7 @@ function renderDock(){
   var b=sel&&boats.filter(function(x){return x.id===sel.id;})[0],h='';
   if(b&&!selCompact){
     var c=colB(b),vl=boats.filter(vis);
-    h='<div class="pad"><div class="dtl-h" style="--c:'+c+'">'+blSvg(b,32)+'<h3>'+esc(b.name)+'</h3><button class="x" id="xs" aria-label="Close">×</button></div>'+
+    h='<div class="pad"><div class="dtl-h" style="--c:'+c+'">'+blSvg(b,32)+'<h3>'+esc(b.name)+'</h3><button class="x star" id="fav" aria-label="Favourite">'+(FAV===b.id?'\u2605':'\u2606')+'</button><button class="x" id="xs" aria-label="Close">×</button></div>'+
     '<p class="sub">'+(b.boat?esc(b.boat)+' · ':'')+'P'+b.rank+' overall · P'+b.crank+' '+esc(clsName(b.cls))+(b.d24!=null?' · '+f0(b.d24)+' nm / '+f0(km(b.d24))+' km in 24 h':'')+'</p>'+
     '<div class="hero" style="--c:'+c+'"><div class="speed"><b>'+f1(b.sog)+'</b><span>KN</span><span class="kh">'+f1(km(b.sog))+' km/h</span></div>'+dial(b,c)+'</div>'+
     '<div class="stats">'+stat('Course',dg(b.cog),'°')+stat('To finish',dg(b.brgF),'°')+stat('Distance',f0(b.dtf),'nm',f0(km(b.dtf))+' km')+stat('VMG',f1(b.vmg),'kn',f1(km(b.vmg))+' km/h')+'</div></div>';
@@ -632,8 +757,8 @@ function renderDock(){
   }else{
     var vl3=boats.filter(vis),vlS=vl3.slice(0,12);
     h='<div class="pad strip"><span class="sh">'+(b?'Following':'Race order')+'</span>';
-    vlS.forEach(function(x,i){h+='<button class="pill'+(b&&x.id===b.id?' on':'')+'" data-id="'+esc(x.id)+'" style="--c:'+colB(x)+'"><span class="p">'+pad(i+1)+'</span>'+blSvg(x,20)+'<span class="nm">'+esc(x.name)+'</span><span class="sp">'+f1(x.sog)+'<u>kn</u></span></button>';});
-    if(b)h+='<button class="pill all" id="xsf" aria-label="Stop following">Unfollow</button>';
+    vlS.forEach(function(x,i){h+='<button class="pill'+(b&&x.id===b.id?' on':'')+'" data-id="'+esc(x.id)+'" style="--c:'+colB(x)+'"><span class="p">'+pad(i+1)+'</span>'+blSvg(x,20)+'<span class="nm">'+(x.id===FAV?'\u2605 ':'')+esc(x.name)+'</span><span class="sp">'+f1(x.sog)+'<u>kn</u></span></button>';});
+    if(b)h+='<button class="pill all" id="favf">'+(FAV===b.id?'\u2605 Favourite':'\u2606 Favourite')+'</button><button class="pill all" id="xsf" aria-label="Stop following">Unfollow</button>';
     h+='<button class="pill all" id="bAll">All '+vl3.length+'</button></div>';
   }
   bodyEl.innerHTML=h;
@@ -656,6 +781,7 @@ function dial(b,c){
 bodyEl.addEventListener('click',function(e){
   var t=e.target.closest('button');if(!t)return;
   if(t.id==='xs'||t.id==='xsf'){select(null);return;}
+  if(t.id==='fav'||t.id==='favf'){toggleFav();return;}
   if(t.id==='bAll'){listOpen=!listOpen;renderDock();return;}
   if(t.dataset.id){var b=boats.filter(function(x){return x.id===t.dataset.id;})[0];if(b)select(b,true);}
 });
@@ -832,6 +958,13 @@ function loadBoats(){
   return fetch(boatsUrl).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.text();}).then(function(t){BOATS=parseBoats(t);boatsInfo=Object.keys(BOATS).length?(Object.keys(BOATS).length+' boat names read.'):'boat list found but no names recognised.';}).catch(function(e){boatsInfo='boat names unavailable ('+(e&&e.message?e.message:'error')+').';});
 }
 function setStatus(t){document.getElementById('mode').textContent=t;}
+var feedErr=false;
+function updateFresh(){var e=document.getElementById('fresh');if(!e)return;
+  if(mode!=='imp'||rp||!(TL.t1>0)){if(e.textContent){e.textContent='';e.__t=null;}e.className='';return;}
+  var a=Date.now()-TL.t1,m=Math.max(0,Math.round(a/6e4)),t=m<2?'Updated just now':m<60?'Updated '+m+' min ago':'Updated '+Math.round(m/60)+' h ago';
+  var stale=a>5*36e5||feedErr;if(feedErr)t='Feed unreachable \u00b7 '+t.replace('Updated','last data');
+  if(e.__t!==t||e.className!==(stale?'stale':'')){e.__t=t;e.textContent=t;e.className=stale?'stale':'';if(window.T)T(e);}}
+setInterval(updateFresh,30000);
 function loadFeed(force){
   if(manual&&!force)return;
   var url=feedUrl+(feedUrl.indexOf('?')>-1?'&':'?')+'_='+Date.now();
@@ -842,9 +975,10 @@ function loadFeed(force){
     var mt=Object.keys(imp).filter(function(id){return BOATS[id];}).length;
     msg.textContent=n+' positions loaded for '+Object.keys(imp).length+' boats; '+mt+' matched a name. '+boatsInfo;
     document.getElementById('clkL').textContent='Last position';
-    var first=firstLoad;firstLoad=false;histRange();tick(true);if(first){fit();applyDeep();}if(windOn)loadWind();
+    feedErr=false;var first=firstLoad;firstLoad=false;histRange();tick(true);if(first){fit();applyDeep();}updateFresh();if(windOn)setTimeout(loadWind,1200);
     });
   }).catch(function(err){
+    feedErr=true;updateFresh();
     if(mode==='demo')setStatus('Simulation · feed unavailable');else setStatus('Feed error · showing last data');
     msg.textContent=(err&&err.message?err.message:'Feed unreachable.')+'  (feed: '+feedUrl+')';
   });
@@ -859,6 +993,7 @@ window.addEventListener('resize',function(){resize();});
 if(window.matchMedia)window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',function(){setTimeout(function(){readCss();draw();renderDock();},60);});
 new MutationObserver(function(){setTimeout(function(){readCss();draw();},60);}).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
 buildFilters();compute();readCss();resize();fit();renderDock();loadFeed(true);setInterval(function(){loadFeed(false);},300000);
+trWatch();setLang(LANG);
 setInterval(function(){if(mode==='demo'&&document.visibilityState==='visible'&&!Object.keys(ptrs).length)tick(false);},1000);
 })();
 </script>
