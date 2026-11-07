@@ -1171,9 +1171,15 @@ function histRows(){var o=histLoad(),rows=[];if(!o)return rows;
   Object.keys(o).forEach(function(id){var e=o[id];(e.h||[]).forEach(function(p){
     rows.push({id:id,name:e.n,boatname:e.b,'class':e.c,color:e.col,lat:p[1],lon:p[2],sog:p[3],cog:p[4],ts:new Date(p[0]).toISOString()});});});
   return rows;}
+var MIRROR='https://raw.githubusercontent.com/raphaelribard/raphaelribard.github.io/data/',MIR={t:0,p:null};
+function mirrorOk(){/* own copy of the feeds, refreshed by a GitHub job; used only while fresh */
+  if(MIR.p&&Date.now()-MIR.t<45e3)return MIR.p;MIR.t=Date.now();
+  MIR.p=fetch(MIRROR+'meta.txt?_='+Math.floor(Date.now()/6e4),{cache:'no-store'}).then(function(r){return r.ok?r.text():'0';}).then(function(t){return Date.now()/1000-parseInt(t,10)<1500;}).catch(function(){return false;});
+  return MIR.p;}
+function mirrorGet(f){return mirrorOk().then(function(ok){if(!ok)throw 0;return fetch(MIRROR+f+'?_='+Math.floor(Date.now()/6e4),{cache:'no-store'});}).then(function(r){if(!r.ok)throw 0;return r.text();});}
 function baseRows(){
   /* full race history from the GitHub collector, re-fetched every poll */
-  return fetch(HIST_WARM+'?_='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.text():'';}).then(function(t){
+  return mirrorGet('history.json').catch(function(){return fetch(HIST_WARM+'?_='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.text():'';});}).then(function(t){
     if(!t)return [];try{return tracksRows(JSON.parse(t))||[];}catch(e){return [];}
   }).catch(function(){return [];});
 }
@@ -1201,7 +1207,7 @@ function loadFeed(force){
   loadWind();
   var url=feedUrl+(feedUrl.indexOf('?')>-1?'&':'?')+'_='+Date.now();
   return loadBoats().then(function(){return baseRows();}).then(function(base){
-    return fetch(url,{cache:'no-store'}).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status+' on the feed URL.');return r.text();}).then(function(txt){
+    return (feedUrl===FEED_DEFAULT?mirrorGet('live.json'):Promise.reject()).catch(function(){return fetch(url,{cache:'no-store'}).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status+' on the feed URL.');return r.text();});}).then(function(txt){
     /* base = full history since the start, local store = points newer than the last collector run */
     var n=ingestFeed(txt,base.concat(histRows()));fillStart();mode='imp';manual=false;lastOk=Date.now();histSave();
     var mt=Object.keys(imp).filter(function(id){return BOATS[id];}).length;
