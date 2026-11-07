@@ -156,7 +156,7 @@ canvas.rkc{position:relative;inset:auto;display:block;width:100%;height:300px;bo
 .dtl-h h3{margin:0;font:italic 800 22px/1 var(--f-disp);text-transform:uppercase;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .x{width:34px;height:34px;border-radius:50%;background:var(--soft);border:1px solid var(--line);font-size:20px;line-height:1}
 .sub{font-size:12px;color:var(--mute);margin:3px 0 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.pr{display:flex;align-items:center;gap:8px;margin:4px 0 0;font:700 12px var(--f-body);color:var(--c);font-variant-numeric:tabular-nums}.pr i{flex:1;height:6px;border-radius:3px;background:var(--soft);overflow:hidden;box-shadow:inset 0 0 0 1px var(--line)}.pr i b{display:block;height:100%;border-radius:3px;background:var(--c)}
+.pr{display:flex;align-items:center;gap:8px;margin:4px 0 0;font:700 12px var(--f-body);color:var(--c);font-variant-numeric:tabular-nums}.pr i{flex:1;height:6px;border-radius:3px;background:var(--soft);overflow:hidden;box-shadow:inset 0 0 0 1px var(--line)}.pr i b{display:block;height:100%;border-radius:3px;background:var(--c)}.pr.fin{color:#14934f}.pr.fin i b{background:#22b866}.pr.fin em{font-style:normal}
 .hero{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:2px 0 4px}
 .speed b{font:italic 800 48px/.9 var(--f-disp);letter-spacing:-.01em;font-variant-numeric:tabular-nums;color:var(--c)}
 .speed span{font:600 12px var(--f-body);letter-spacing:.16em;color:var(--mute);margin-left:6px}
@@ -865,6 +865,14 @@ function draw0(){if(WIND&&windOn)setLeg();
   ctx.strokeStyle=css['--hot'];ctx.lineWidth=2;ctx.beginPath();ctx.arc(fx,fy,8,0,6.3);ctx.stroke();ctx.beginPath();ctx.arc(fx,fy,3,0,6.3);ctx.fillStyle=css['--hot'];ctx.fill();
   ctx.beginPath();ctx.arc(sx,sy,4,0,6.3);ctx.lineWidth=1.5;ctx.stroke();
   label('FINISH',fx+13,fy+4,13,css['--hot']);label('START',sx+10,sy+4,12,css['--lab']);
+  /* arrivals board: finished boats pile up on the line, so list them in order next to it (tap a row to select) */
+  PODS=[];
+  if(v.k>=7){var fb=boats.filter(function(q){return q.fin&&vis(q);}).sort(cmpB);
+    if(fb.length){ctx.font='700 12px "Barlow Condensed","Arial Narrow",sans-serif';ctx.textAlign='left';
+      fb.slice(0,6).forEach(function(q,i){var txt=(i+1)+'  '+q.name+'  '+durStr(q.fin-RACE_T0),w=ctx.measureText(txt).width+14,x0=fx+14,y0=fy+16+i*21;
+        ctx.fillStyle=css['--labline'];ctx.fillRect(x0,y0,w,18);ctx.fillStyle=i===0?'#3ddc84':css['--lab'];ctx.fillRect(x0,y0,3,18);
+        ctx.fillStyle=css['--lab'];ctx.fillText(txt,x0+8,y0+13);PODS.push({id:q.id,x:x0,y:y0,w:w,h:18});});
+      if(fb.length>6){ctx.fillStyle=css['--lab'];ctx.fillText('+'+(fb.length-6)+L2(' more \u2192 use the list',' autres \u2192 voir la liste'),fx+22,fy+16+6*21+12);}}}
   /* trails */
   var hasSel=!!sel;
   if(trails){boats.forEach(function(b){
@@ -933,7 +941,9 @@ cv.addEventListener('pointerup',function(e){var had=ptrs[e.pointerId];delete ptr
   if(had&&moved<8&&Date.now()-t0<450&&!Object.keys(ptrs).length){var r=cv.getBoundingClientRect();pick(e.clientX-r.left,e.clientY-r.top);}});
 cv.addEventListener('pointercancel',function(e){delete ptrs[e.pointerId];});
 cv.addEventListener('wheel',function(e){e.preventDefault();var r=cv.getBoundingClientRect();zoomAt(e.clientX-r.left,e.clientY-r.top,Math.exp(-e.deltaY*.0015));draw();},{passive:false});
-function pick(px,py){var best=null,bd=30;boats.forEach(function(b){if(!vis(b))return;var d=Math.hypot(X(b.lon)-px,Y(b.lat)-py);if(d<bd){bd=d;best=b;}});if(best)select(best,false);else if(sel)select(null);}
+var PODS=[];
+function pick(px,py){for(var pi=0;pi<PODS.length;pi++){var P=PODS[pi];if(px>=P.x&&px<=P.x+P.w&&py>=P.y&&py<=P.y+P.h){var pb=boats.filter(function(q){return q.id===P.id;})[0];if(pb){select(pb,false);return;}}}
+  var best=null,bd=30;boats.forEach(function(b){if(!vis(b))return;var d=Math.hypot(X(b.lon)-px,Y(b.lat)-py);if(d<bd){bd=d;best=b;}});if(best)select(best,false);else if(sel)select(null);}
 function select(b,center){if(!b)CMP='';else if(b.id===CMP)CMP='';cmpMode=false;var a0={lon:v.lon,my:v.my,k:v.k};select0(b,center);if(!rp){if(b&&center!==false){var k2=v.k;v.lon=a0.lon;v.my=a0.my;v.k=a0.k;draw();centerOn(b,k2);}return;}if(b){rp.selMode=true;rp.kSel=v.k;rp.cam={lon:v.lon,my:v.my,k:v.k};if(!rp.playing){compute();followCam(true);draw();}}else rp.selMode=false;}
 function select0(b,center){sel=b?{id:b.id}:null;if(b&&!WIND)loadWind();listOpen=false;selCompact=false;if(b&&center!==false){v.k=Math.max(v.k,11);v.lon=b.lon;v.my=my(b.lat)-110/v.k;}renderDock();draw();}
 function fit(){
@@ -961,7 +971,7 @@ function renderDock(){
     var c=colB(b),vl=boats.filter(vis),pc=Math.max(0,Math.min(100,Math.round((1-b.dtf/(b.dtfO>0?3542:hav(SM.lat,SM.lon,FIN.lat,FIN.lon)))*100))),pc=b.fin?100:pc,eta=(function(){var Tn=rp?rp.t:TL.t1,w=etaWind(b,Tn);if(w)return w;var o=etaOf(b,Tn);return o?'~'+o:null;})();
     h='<div class="pad"><div class="dtl-h" style="--c:'+c+'">'+blSvg(b,32)+'<h3>'+esc(b.name)+'</h3><button class="x" id="cmp" aria-label="Compare">\u21c4</button><button class="x star" id="fav" aria-label="Favourite">'+(FAV===b.id?'\u2605':'\u2606')+'</button><button class="x" id="xs" aria-label="Close">×</button></div>'+
     '<p class="sub">'+(b.fin?'<b style="color:var(--hot)">Finished in '+durStr(b.fin-RACE_T0)+'</b> \u00b7 ':'')+(b.out?'<b style="color:var(--hot)">'+(b.st==='RET'?'Retired':'Stopped')+'</b> \u00b7 ':'')+(b.boat?esc(b.boat)+' · ':'')+'P'+b.rank+' overall · P'+b.crank+' '+esc(clsName(b.cls))+(b.d24!=null?' · '+f0(b.d24)+' nm / '+f0(km(b.d24))+' km in 24 h':'')+'</p>'+
-    '<div class="pr" style="--c:'+c+'"><i><b style="width:'+pc+'%"></b></i>'+pc+'% done'+(b.fin?'<em>Finished '+fmtEta(b.fin)+'</em>':eta?'<em>ETA '+eta+'</em>':'')+'</div>'+cmpRow(b)+'<div class="hero" style="--c:'+c+'"><div class="speed"><b>'+f1(b.sog)+'</b><span>KN</span><span class="kh">'+f1(km(b.sog))+' km/h</span></div>'+dial(b,c)+'</div>'+windRow(b)+
+    '<div class="pr'+(b.fin?' fin':'')+'" style="--c:'+c+'"><i><b style="width:'+pc+'%"></b></i>'+pc+'% done'+(b.fin?'<em>Finished '+fmtEta(b.fin)+'</em>':eta?'<em>ETA '+eta+'</em>':'')+'</div>'+cmpRow(b)+'<div class="hero" style="--c:'+c+'"><div class="speed"><b>'+f1(b.sog)+'</b><span>KN</span><span class="kh">'+f1(km(b.sog))+' km/h</span></div>'+dial(b,c)+'</div>'+windRow(b)+
     '<div class="stats">'+stat('Course',dg(b.cog),'°')+stat('To finish',dg(b.brgF),'°')+stat('Distance',f0(b.dtf),'nm',f0(km(b.dtf))+' km')+stat('VMG',f1(b.vmg),'kn',f1(km(b.vmg))+' km/h')+'</div></div>';
   }else if(listOpen){
     var vl2=boats.filter(vis);
