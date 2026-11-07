@@ -539,8 +539,16 @@ function shareFile(blob,name,text){
   if(navigator.canShare&&navigator.canShare({files:[f]})){navigator.share({files:[f],title:'Route du Rhum 2026 \u2013 live tracker',text:text||''}).catch(function(){});return;}
   var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(a.href);a.remove();},4000);toast('Saved');}
 function dayLabel(T){return 'Day '+(Math.floor((T-TL.t0)/864e5)+1)+' \u00b7 '+new Date(T).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}).replace(',','');}
+/* A boat that stopped reporting or hasn't moved for hours (capsize, retirement) is left out of the highlights */
+function isOut(b,T){var H=imp[b.id]&&imp[b.id].hist;if(!H||H.length<2)return false;
+  var i=H.length-1;while(i>0&&H[i].t>T)i--;var L=H[i];if(L.t>T)return false;
+  if(T-L.t>6*36e5)return true;
+  var j=i;while(j>0&&H[j].t>L.t-8*36e5)j--;
+  if(H[j].t>L.t-6*36e5)return false;
+  var mv=hav(H[j].lat,H[j].lon,L.lat,L.lon),dtf=hav(L.lat,L.lon,FIN.lat,FIN.lon);
+  return mv<2&&dtf>40&&(L.sog==null||L.sog<2);}
 function hlData(){
-  var T=rp?rp.t:TL.t1,out=[],all=boats.slice();if(!all.length)return out;
+  var T=rp?rp.t:TL.t1,out=[],all=boats.filter(function(b){return !isOut(b,T);});if(!all.length)return out;
   var ord=all.slice().sort(function(a,b){return a.dtf-b.dtf;}),L0=ord[0];
   out.push({eb:'Leader',b:L0,vl:f0(L0.dtf)+' nm',sm:f0(km(L0.dtf))+' km to go'});
   var fs=all.filter(function(b){return b.sog!=null;}).sort(function(a,b){return b.sog-a.sog;})[0];
