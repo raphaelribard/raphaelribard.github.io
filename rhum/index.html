@@ -690,7 +690,7 @@ function finOf(b,T){var H=imp[b.id]&&imp[b.id].hist;if(!H||!H.length)return null
   return ix>=0&&H[ix].t<=T?H[ix].t:null;}
 function durStr(ms){var m=Math.max(0,Math.round(ms/6e4)),d=Math.floor(m/1440),h=Math.floor(m%1440/60),n=m%60;return d+'d '+pad(h)+'h '+pad(n)+'m';}
 function grp(b){return b.fin?0:b.out?2:1;}
-function cmpB(a,b){return grp(a)-grp(b)||(a.fin&&b.fin?a.fin-b.fin:(a.x&&b.x&&a.x.rk>0&&b.x.rk>0?a.x.rk-b.x.rk:a.dtf-b.dtf));}
+function cmpB(a,b){return grp(a)-grp(b)||(a.fin&&b.fin?a.fin-b.fin:a.dtf-b.dtf);}/* overall order = distance still to sail, so it always matches the % done */
 /* A boat that stopped reporting or hasn't moved for hours (capsize, retirement) is left out of the highlights */
 function isOut(b,T){var H=imp[b.id]&&imp[b.id].hist;if(!H||H.length<2)return false;if(finOf(b,T))return false;
   var i=H.length-1;while(i>0&&H[i].t>T)i--;var L=H[i];if(L.t>T)return false;
