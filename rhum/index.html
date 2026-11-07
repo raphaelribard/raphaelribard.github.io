@@ -73,6 +73,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-acti
 .tl{display:flex;align-items:center;gap:10px;padding-bottom:6px}
 .tl button{border:1px solid var(--line);background:var(--soft);color:var(--ink);border-radius:999px;font:700 12px var(--f-body);letter-spacing:.06em;padding:8px 12px;min-width:44px}
 #app.rec .tools,#app.rec #filters{opacity:.25}
+.tools{transition:opacity .15s}#app.tlh .tools{opacity:0}#app.tlh .tools,#app.tlh .tools *{pointer-events:none!important}
 #toast{position:absolute;left:50%;top:44%;transform:translateX(-50%);z-index:5;background:var(--ink);color:var(--bg);font:600 13px var(--f-body);padding:10px 16px;border-radius:999px;pointer-events:none;opacity:0;transition:opacity .25s}
 #toast.on{opacity:1}
 .mv #body{display:none}
@@ -436,8 +437,9 @@ function loadWind(){
     WIND={t0:t[0],n:n,U:U,V:V,fetched:Date.now()};WBAD=false;lsSet('rdr_wind_v3',JSON.stringify(WIND));setWindBtn();draw();wStart();
   }).catch(function(){WBAD=true;WFAIL=Date.now();setWindBtn();}).then(function(){WBUSY=false;});
 }
-var DOCKH=0;function dockH(){return document.getElementById('dock').offsetHeight||DOCKH;}
-if(window.ResizeObserver)new ResizeObserver(function(){DOCKH=document.getElementById('dock').offsetHeight;setLeg();}).observe(document.getElementById('dock'));
+var DOCKH=0;function toolsFit(){var d=document.getElementById('dock'),t=document.querySelector('.tools'),a=document.getElementById('app');if(!d||!t||!a)return;a.classList.toggle('tlh',d.getBoundingClientRect().top<t.getBoundingClientRect().bottom+6);}
+function dockH(){return document.getElementById('dock').offsetHeight||DOCKH;}
+if(window.ResizeObserver)new ResizeObserver(function(){DOCKH=document.getElementById('dock').offsetHeight;toolsFit();setLeg();}).observe(document.getElementById('dock'));
 function setLeg(){var l=document.getElementById('wLeg');l.hidden=!(windOn&&WIND);l.style.bottom=(dockH()+8)+'px';}
 function setWindBtn(){setLeg();var b=document.getElementById('bWind');b.setAttribute('aria-pressed',windOn);b.style.opacity=(WBAD&&!WIND)?.45:1;b.setAttribute('aria-label',(WBAD&&!WIND)?'Wind data unavailable':'Toggle wind');}
 function windAt(lat,lon,T){
@@ -763,7 +765,7 @@ function renderDock(){
     h+='<button class="pill all" id="bAll">All '+vl3.length+'</button></div>';
   }
   bodyEl.innerHTML=h;
-  var sc2=bodyEl.querySelector('.strip'),l2=bodyEl.querySelector('.list');if(sc2)sc2.scrollLeft=sl;if(l2)l2.scrollTop=st;
+  var sc2=bodyEl.querySelector('.strip'),l2=bodyEl.querySelector('.list');if(sc2)sc2.scrollLeft=sl;if(l2)l2.scrollTop=st;toolsFit();
 }
 function cmpRow(b){var o=CMP&&CMP!==b.id&&boats.filter(function(x){return x.id===CMP;})[0];if(!o)return '';
   var g=o.dtf-b.dtf,ab=Math.abs(g),dv=(b.sog!=null&&o.sog!=null)?o.sog-b.sog:null;
