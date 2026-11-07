@@ -447,17 +447,19 @@ var WIND=null,windOn=(lsGet('rdr_wind')!=='0'),WST6=6,WLA=[8,14,20,26,32,38,44,5
 var WCOL=['rgba(255,255,255,.5)','rgba(225,248,255,.72)','rgba(255,236,150,.82)','rgba(255,170,80,.9)','rgba(255,90,70,.95)'];
 var WBUSY=false,WFAIL=0;
 function loadWind(){
-  if(WBUSY||(WIND&&Date.now()-WIND.fetched<108e5)||(!WIND&&Date.now()-WFAIL<18e5))return;
+  if(WBUSY||(WIND&&Date.now()-WIND.fetched<108e5)||Date.now()-WFAIL<3e5)return;
   var c=null;try{c=JSON.parse(lsGet('rdr_wind_v4')||'null');}catch(e){}
-  if(c&&Date.now()-c.fetched<72e5&&c.t0<=(TL.t0||Infinity)/1000+3600){WIND=c;setWindBtn();if(boats.length)renderDock();draw();wStart();return;}
+  if(c&&Date.now()-c.fetched<72e5&&c.t0<=(TL.t0||Infinity)/1000+3600){WIND=c;setWindBtn();try{if(boats.length)renderDock();}catch(e){}draw();wStart();return;}
+  if(!WIND&&c&&c.U&&c.n>3)WIND=c;/* show older saved wind while a fresh copy loads */
+  if(WIND){setWindBtn();draw();wStart();}
   var la=[],lo=[];WLA.forEach(function(a){WLO.forEach(function(b){la.push(a);lo.push(b);});});
-  var days=Math.max(3,Math.min(90,Math.ceil((Date.now()-(isFinite(TL.t0)&&TL.t0>0?TL.t0:Date.now()-6*864e5))/864e5)+2));WBUSY=true;
-  var url='https://api.open-meteo.com/v1/forecast?latitude='+la.join(',')+'&longitude='+lo.join(',')+'&hourly=wind_speed_10m,wind_direction_10m&wind_speed_unit=kn&timeformat=unixtime&past_days='+days+'&forecast_days=7';
+  var days=Math.max(3,Math.min(90,Math.ceil((Date.now()-(isFinite(TL.t0)&&TL.t0>0?TL.t0:Date.now()-6*864e5))/864e5)+2)),fdays=Math.max(2,Math.min(7,14-days));WBUSY=true;
+  var url='https://api.open-meteo.com/v1/forecast?latitude='+la.join(',')+'&longitude='+lo.join(',')+'&hourly=wind_speed_10m,wind_direction_10m&wind_speed_unit=kn&timeformat=unixtime&past_days='+days+'&forecast_days='+fdays;
   return fetch(url).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}).then(function(j){
     if(!Array.isArray(j))j=[j];var t=j[0].hourly.time,n=t.length,U=[],V=[];
     j.forEach(function(L){var u=new Array(n),w=new Array(n),sp=L.hourly.wind_speed_10m,di=L.hourly.wind_direction_10m;
       for(var i=0;i<n;i++){var a=(di[i]||0)*D2R,k=sp[i]||0;u[i]=+(-k*Math.sin(a)).toFixed(1);w[i]=+(-k*Math.cos(a)).toFixed(1);}U.push(u);V.push(w);});
-    WIND={t0:t[0],n:n,U:U,V:V,fetched:Date.now()};WBAD=false;lsSet('rdr_wind_v4',JSON.stringify(WIND));setWindBtn();if(boats.length)renderDock();draw();wStart();
+    WIND={t0:t[0],n:n,U:U,V:V,fetched:Date.now()};WBAD=false;lsSet('rdr_wind_v4',JSON.stringify(WIND));setWindBtn();draw();wStart();try{if(boats.length)renderDock();}catch(e2){}
   }).catch(function(){WBAD=true;WFAIL=Date.now();setWindBtn();}).then(function(){WBUSY=false;});
 }
 var DOCKH=0;function toolsFit(){updateRpBtn();var d=document.getElementById('dock'),t=document.querySelector('.tools'),a=document.getElementById('app');if(!d||!t||!a)return;a.classList.toggle('tlh',d.getBoundingClientRect().top<t.getBoundingClientRect().bottom+6);}
@@ -1220,6 +1222,14 @@ document.getElementById('bReset').onclick=function(){feedUrl=FEED_DEFAULT;lsSet(
 function thin(h){var st=Math.max(1,Math.ceil(h.length/140)),o=[];for(var i=0;i<h.length;i+=st)o.push({lat:h[i].lat,lon:h[i].lon});var L=h[h.length-1];if(o[o.length-1].lat!==L.lat||o[o.length-1].lon!==L.lon)o.push({lat:L.lat,lon:L.lon});return o;}
 function tick(full){compute();readCss();tickN++;if(full||sel||tickN%5===0)renderDock();draw();}
 window.addEventListener('resize',function(){resize();});
+/* keep the bitmap matching the on-screen size, otherwise circles turn into ovals (iOS toolbar, rotation, zoom) */
+function sizeCheck(){var d=window.devicePixelRatio||1;if(cv.clientWidth!==W||cv.clientHeight!==H||d!==dpr)resize();}
+if(window.ResizeObserver)new ResizeObserver(sizeCheck).observe(cv);
+if(window.visualViewport)window.visualViewport.addEventListener('resize',sizeCheck);
+window.addEventListener('orientationchange',function(){setTimeout(sizeCheck,200);});
+window.addEventListener('pageshow',sizeCheck);
+document.addEventListener('visibilitychange',function(){if(!document.hidden)sizeCheck();});
+setInterval(sizeCheck,1500);
 if(window.matchMedia)window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',function(){setTimeout(function(){readCss();draw();renderDock();},60);});
 new MutationObserver(function(){setTimeout(function(){readCss();draw();},60);}).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
 buildFilters();compute();readCss();resize();fit();renderDock();loadFeed(true);setInterval(function(){loadFeed(false);},300000);
