@@ -234,6 +234,8 @@ input[type=url]{width:100%;background:var(--soft);color:var(--ink);border:1px so
     <button class="mrow" id="mLite"><span class="ic">\u26a1</span><span id="mLiteT">Lite mode: off<small>Lighter wind animation for older phones</small></span></button>
     <button class="mrow" id="mHow"><span class="ic">?</span><span>How it works</span></button>
     <div id="howBox" hidden><ol><li>Tap a boat, on the map or in the strip, to follow it.</li><li>Press ▶ to replay the race from the start. Drag the slider to go back in time, and use the speed button to go faster.</li><li>The round buttons: trails, wind, highlights, fit all, share and import.</li><li>With a boat selected, ⇄ compares it with another boat.</li></ol></div>
+    <button class="mrow" id="mSea"><span class="ic">&#8776;</span><span id="mSeaT">Sea state: off<small>Wave height ring around each boat, and wave shading on the map</small></span></button>
+    <button class="mrow" id="mRecap"><span class="ic">&#9873;</span><span>Share race recap card<small>Winners, class leaders and race status</small></span></button>
     <button class="mrow" id="mNight"><span class="ic">&#9790;</span><span id="mNightT">Day &amp; night: on<small>Shades the night side of the map</small></span></button>
     <button class="mrow" id="mAbout"><span class="ic">i</span><span>About &amp; data sources</span></button>
     <div id="aboutBox" hidden><p>Unofficial fan tracker made by Raphael Ribard, built with AI assistance. Not affiliated with the Route du Rhum organisers, the teams or the skippers.</p><p>Positions come from an unofficial relay of the public tracking feed plus community history, and may be late or wrong. Wind is model data from Open-Meteo.com (CC BY 4.0) on a coarse grid. Coastlines are simplified drawings.</p></div>
@@ -486,6 +488,26 @@ function windAt(lat,lon,T){
   return {u:u,v:vv,spd:sp,dir:(Math.atan2(-u,-vv)/D2R+360)%360};
 }
 var CPT=['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+/* Waves: hourly model wave height on the same grid as the wind, fetched by the GitHub job (wave.json). */
+var WAVE=null,WAVEF=0;
+function loadWave(){if(WAVE||Date.now()-WAVEF<3e5)return;WAVEF=Date.now();
+  fetch('wave.json?'+Math.floor(Date.now()/6e5)).then(function(r){if(!r.ok)throw 0;return r.json();}).then(function(j){
+    if(!Array.isArray(j)||j.length!==WLA.length*WLO.length)throw 0;var t=j[0].hourly.time,H=j.map(function(L){return L.hourly.wave_height.map(function(x){return x==null?NaN:+x;});});
+    WAVE={t0:t[0],n:t.length,H:H};draw();}).catch(function(){});}
+function waveAt(lat,lon,T){
+  if(!WAVE)return null;var h=(T/1000-WAVE.t0)/3600;h=Math.max(0,Math.min(WAVE.n-1.001,h));var i0=Math.floor(h),f=h-i0;
+  var fy=(Math.max(WLA[0],Math.min(WLA[WLA.length-1]-1e-6,lat))-WLA[0])/WST6,fx=(Math.max(WLO[0],Math.min(WLO[WLO.length-1]-1e-6,lon))-WLO[0])/WST6,
+      iy=Math.floor(fy),ix=Math.floor(fx),ty=fy-iy,tx=fx-ix,nx=WLO.length,s=0,w=0;
+  [[iy,ix,(1-ty)*(1-tx)],[iy,ix+1,(1-ty)*tx],[iy+1,ix,ty*(1-tx)],[iy+1,ix+1,ty*tx]].forEach(function(c){var a=WAVE.H[c[0]*nx+c[1]];if(!a)return;var x=a[i0]*(1-f)+a[i0+1]*f;if(isNaN(x)||c[2]<=0)return;s+=x*c[2];w+=c[2];});
+  return w>.2?s/w:null;}
+var WVC=null;
+function drawSea(){if(!SEA||!WAVE)return;var T=wtime(),cs=16,cw=Math.ceil(W/cs),ch=Math.ceil(H/cs);
+  if(!WVC||WVC.width!==cw||WVC.height!==ch){WVC=document.createElement('canvas');WVC.width=cw;WVC.height=ch;}
+  var nx=WVC.getContext('2d'),im=nx.createImageData(cw,ch),dd=im.data;
+  for(var j=0;j<ch;j++){var lat=myInv(v.my-((j+.5)*cs-H/2)/v.k);
+    for(var i=0;i<cw;i++){var lon=v.lon+((i+.5)*cs-W/2)/v.k,wv=waveAt(lat,lon,T),o=(j*cw+i)*4;if(wv==null||wv<1.5)continue;
+      var q=Math.min(1,(wv-1.5)/4.5);dd[o]=Math.round(255*(q<.5?q*2:1));dd[o+1]=Math.round(210-q*150);dd[o+2]=60;dd[o+3]=Math.round(255*(.12+q*.38));}}
+  nx.putImageData(im,0,0);ctx.save();ctx.imageSmoothingEnabled=true;ctx.drawImage(WVC,0,0,cw*cs,ch*cs);ctx.restore();}
 function wtime(){return rp?rp.t:(TL.t1||Date.now());}
 var WST=[[0,60,120,230,0],[4,40,170,200,.22],[8,40,190,120,.4],[12,170,210,60,.5],[17,250,190,40,.55],[22,250,120,40,.6],[28,240,60,60,.66],[36,190,40,160,.72]];
 function wramp(sp,o){var i=1;while(i<WST.length-1&&sp>WST[i][0])i++;var A=WST[i-1],B=WST[i],f=Math.max(0,Math.min(1,(sp-A[0])/(B[0]-A[0])));
@@ -529,10 +551,10 @@ function wLoop(now){if(!windOn||!WIND||document.hidden){wLoopOn=false;return;}
 function wStart(){if(!wLoopOn&&windOn&&WIND){wLoopOn=true;requestAnimationFrame(wLoop);}}
 document.addEventListener('visibilitychange',function(){if(!document.hidden)wStart();});
 /* ---------- share + deep links (?b=boat&t=epochSeconds) ---------- */
-function toast(t){var e=document.getElementById('toast');e.textContent=t;e.classList.add('on');clearTimeout(toast.h);toast.h=setTimeout(function(){e.classList.remove('on');},2200);}
+function toast(t,ms){var e=document.getElementById('toast');e.textContent=t;e.classList.add('on');clearTimeout(toast.h);toast.h=setTimeout(function(){e.classList.remove('on');},ms||2200);}
 function shareUrl(){var q=[];if(sel)q.push('b='+encodeURIComponent(sel.id));if(rp)q.push('t='+Math.round(rp.t/1000));return location.origin+location.pathname+(q.length?'?'+q.join('&'):'');}
 function shareLink(){
-  var u=shareUrl(),b=sel&&boats.filter(function(x){return x.id===sel.id;})[0],tx=b?('Following '+b.name+' on the Route du Rhum'):'Route du Rhum 2026, live';
+  var u=shareUrl(),b=sel&&boats.filter(function(x){return x.id===sel.id;})[0],tx=(b?('Following '+b.name+' on the Route du Rhum'):'Route du Rhum 2026, live')+(rp?' \u00b7 '+dayLabel(rp.t):'');
   if(navigator.share){navigator.share({title:'Route du Rhum 2026 \u2013 live tracker',text:tx,url:u}).catch(function(){});return;}
   if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(u).then(function(){toast('Link copied');},function(){toast(u);});}else toast(u);
 }
@@ -542,6 +564,28 @@ document.getElementById('mmClose').onclick=function(){mmEl.hidden=true;};
 mmEl.addEventListener('click',function(e){if(e.target===mmEl)mmEl.hidden=true;});
 document.getElementById('mLink').onclick=function(){mmEl.hidden=true;shareLink();};
 document.getElementById('mCard').onclick=function(){mmEl.hidden=true;hlCard();};
+document.getElementById('mRecap').onclick=function(){mmEl.hidden=true;recapCard();};
+function recapCard(){
+  var ord=boats.slice().sort(cmpB),fin=ord.filter(function(b){return b.fin;}),atSea=ord.filter(function(b){return !b.fin&&!b.out;}),outN=ord.filter(function(b){return b.out;}).length;
+  var rows=[],seen={};
+  fin.slice(0,3).forEach(function(b,i){rows.push({eb:i===0?L2('Winner','Vainqueur'):L2('Arrival #'+(i+1),'Arriv\u00e9e n\u00b0'+(i+1)),n:b.name,vl:durStr(durOf(b)),sm:clsName(b.cls)});});
+  CLASSES.forEach(function(c){var w=fin.filter(function(b){return b.cls===c.k;})[0];if(w){if(rows.some(function(q){return q.n===w.name;}))return;rows.push({eb:c.n+' \u00b7 '+L2('winner','vainqueur'),n:w.name,vl:durStr(durOf(w)),sm:L2('Finished ','Arriv\u00e9 ')+fmtEta(w.fin)});}
+    else{var l=atSea.filter(function(b){return b.cls===c.k;})[0];if(l)rows.push({eb:c.n+' \u00b7 '+L2('leader','leader'),n:l.name,vl:Math.max(0,Math.min(100,Math.round((1-l.dtf/(l.dtfO>0?3542:hav(SM.lat,SM.lon,FIN.lat,FIN.lon)))*100)))+'%',sm:f0(l.dtf)+' nm '+L2('to go','restants')});}});
+  rows=rows.slice(0,8);
+  var W2=1080,H2=1350,c=document.createElement('canvas');c.width=W2;c.height=H2;var g=c.getContext('2d');
+  var gr=g.createLinearGradient(0,0,0,H2);gr.addColorStop(0,'#2A8CF5');gr.addColorStop(1,'#0B3A82');g.fillStyle=gr;g.fillRect(0,0,W2,H2);
+  var F='"Barlow Condensed","Arial Narrow",Arial,sans-serif',B='Barlow,system-ui,Arial,sans-serif';
+  g.fillStyle='#fff';var fs1=92;g.font='italic 800 '+fs1+'px '+F;while(g.measureText('ROUTE DU RHUM 2026').width>940&&fs1>40){fs1-=4;g.font='italic 800 '+fs1+'px '+F;}g.fillText('ROUTE DU RHUM 2026',70,140);
+  g.font='600 34px '+B;g.fillStyle='rgba(255,255,255,.85)';g.fillText(L2('Race recap','Bilan de course')+' \u00b7 '+(TL.t1>0?dayLabel(rp?rp.t:TL.t1):''),70,194);
+  g.font='700 30px '+B;g.fillStyle='#FFB067';g.fillText(fin.length+' '+L2('finished','arriv\u00e9s')+'  \u00b7  '+atSea.length+' '+L2('at sea','en mer')+'  \u00b7  '+outN+' '+L2('retired','abandons'),70,250);
+  var y=330;rows.forEach(function(x){
+    g.fillStyle='rgba(255,255,255,.14)';g.fillRect(70,y-52,940,112);
+    g.fillStyle='rgba(255,255,255,.75)';g.font='700 24px '+B;g.fillText(x.eb.toUpperCase(),96,y-14);
+    g.fillStyle='#fff';g.font='italic 800 48px '+F;g.fillText(x.n.toUpperCase().slice(0,22),96,y+34);
+    g.textAlign='right';g.fillStyle='#FFB067';g.font='italic 800 50px '+F;g.fillText(x.vl,984,y+10);g.fillStyle='rgba(255,255,255,.8)';g.font='600 22px '+B;g.fillText(x.sm.slice(0,34),984,y+42);g.textAlign='left';y+=126;});
+  g.fillStyle='rgba(255,255,255,.9)';g.font='600 30px '+B;g.fillText('raphaelribard.github.io/rhum',70,H2-80);g.font='400 22px '+B;g.fillStyle='rgba(255,255,255,.7)';g.fillText('Unofficial fan tracker \u2013 not affiliated with the Route du Rhum',70,H2-44);
+  c.toBlob(function(b){if(b)shareFile(b,'rhum-recap.png','Route du Rhum 2026 \u2013 race recap');},'image/png');
+}
 var TIPS={bTrail:['Trails','Traces'],bWind:['Wind','Vent'],bHl:['Ranking & highlights','Classement et faits marquants'],bFit:['Fit all','Tout voir'],bShare:['Share & more','Partager'],bData:['Import data','Importer']};
 function setTips(){Object.keys(TIPS).forEach(function(id){var e=document.getElementById(id);if(e)e.setAttribute('data-tip',TIPS[id][LANG==='fr'?1:0]);});}
 function updateRpBtn(){var b=document.getElementById('rpBtn');if(!b)return;var on=!rp&&TL.t1>TL.t0&&!listOpen&&!cmpMode;b.classList.toggle('on',on);b.style.bottom=(dockH()+12)+'px';}
@@ -844,7 +888,7 @@ document.getElementById('hlCopy').onclick=function(){var d=hlData().slice(0,6),d
   if(navigator.share){navigator.share({text:tx}).catch(function(){});return;}
   try{navigator.clipboard.writeText(tx).then(function(){toast('Recap copied');},function(){toast('Copy not available');});}catch(e){toast('Copy not available');}};
 /* ---------- English / French ---------- */
-var FRX={'Ranking':'Classement','Live feed':'Flux en direct','Imported data':'Données importées','Simulation · feed unavailable':'Simulation · flux indisponible','Feed error · showing last data':'Erreur de flux · dernières données','Last position':'Dernier point','Race time':'Temps de course','Race order':'Classement','View all':'Tout voir','Close':'Fermer','Following':'Suivi','Unfollow':'Ne plus suivre','Course':'Cap','To finish':"Vers l'arrivée",'LIVE':'DIRECT','Highlights':'Temps forts','Share stats card':'Partager la carte','No data yet.':'Pas encore de données.','Share & more':'Partager & plus','Share this view':'Partager cette vue','Link to the current boat and moment':'Lien vers le bateau et le moment affichés','Record the replay as a video':'Enregistrer le replay en vidéo','Plays the whole race and saves a video to share':'Rejoue toute la course et crée une vidéo à partager','Share highlights card':'Partager la carte des temps forts','An image with the key stats':'Une image avec les stats clés','About & data sources':'À propos & sources','Link copied':'Lien copié','Saved':'Enregistré','Favourite removed':'Favori retiré','Favourite saved – it opens first next time':"Favori enregistré – il s'ouvrira en premier",'Recording… tap the map to stop':"Enregistrement… touchez la carte pour arrêter",'Recording failed':"L'enregistrement a échoué",'Video recording is not supported on this browser':"L'enregistrement vidéo n'est pas pris en charge par ce navigateur",'No race history to record yet':"Pas encore d'historique à enregistrer",'Updated just now':"Mis à jour à l'instant",'Fastest now':'Le plus rapide','finished':'arrivé','Day & night: on':'Jour et nuit : oui','Day & night: off':'Jour et nuit : non','Shades the night side of the map':'Assombrit la nuit sur la carte','Retired':'Abandon','retired':'abandon','Winner':'Vainqueur','Race chart':'Évolution du classement','Share this boat\u2019s card':'Partager la carte du bateau','Select a boat first':'Choisissez d\u2019abord un bateau','Tap the chart to jump to that moment':'Touchez le graphique pour aller à ce moment','Close':'Fermer','Replay the race':'Rejouer la course','Got it':'Compris','How it works':'Comment ça marche','Tap a boat to follow it.':'Touchez un bateau pour le suivre.','Press ▶ to replay the race, then drag the slider to go back in time.':'Appuyez sur ▶ pour rejouer la course, puis faites glisser le curseur pour remonter le temps.','Use the round buttons for wind, highlights and more.':'Les boutons ronds : vent, faits marquants et plus.','Tap a boat, on the map or in the strip, to follow it.':'Touchez un bateau, sur la carte ou dans la bande, pour le suivre.','Press ▶ to replay the race from the start. Drag the slider to go back in time, and use the speed button to go faster.':'Appuyez sur ▶ pour rejouer la course depuis le départ. Le curseur remonte le temps, le bouton de vitesse accélère.','The round buttons: trails, wind, highlights, fit all, share and import.':'Les boutons ronds : traces, vent, faits marquants, tout voir, partager, importer.','With a boat selected, ⇄ compares it with another boat.':'Avec un bateau sélectionné, ⇄ le compare à un autre bateau.','Compare with…':'Comparer avec…','Lite mode: on':'Mode éco : oui','Lite mode: off':'Mode éco : non','Lighter wind animation for older phones':'Vent allégé pour les anciens téléphones','Copy recap text':'Copier le récap','Offline · last saved data':'Hors ligne · dernières données','Recap copied':'Récap copié','Stopped':'Arrêté','stopped':'arrêté','Decisive moment':'Moment décisif','Biggest climber (24 h)':'Plus belle remontée (24 h)','Closest duel':'Duel le plus serré','Import positions':'Importer des positions','Apply':'Appliquer','Choose file':'Choisir un fichier','Back to simulation':'Retour à la simulation','Use this feed':'Utiliser ce flux','Reset to default':'Réinitialiser','KN':'NDS','Favourite':'Favori','★ Favourite':'★ Favori','☆ Favourite':'☆ Favori','Unofficial fan tracker made by Raphael Ribard, built with AI assistance. Not affiliated with the Route du Rhum organisers, the teams or the skippers.':"Tracker de fan non officiel créé par Raphael Ribard, conçu avec l'aide de l'IA. Sans lien avec les organisateurs de la Route du Rhum, les équipes ou les skippers.",'Positions come from an unofficial relay of the public tracking feed plus community history, and may be late or wrong. Wind is model data from Open-Meteo.com (CC BY 4.0) on a coarse grid. Coastlines are simplified drawings.':"Les positions viennent d'un relais non officiel du flux de suivi public et d'un historique communautaire ; elles peuvent être en retard ou fausses. Le vent provient de modèles météo Open-Meteo.com (CC BY 4.0) sur une grille grossière. Les côtes sont des dessins simplifiés."};
+var FRX={'Share race recap card':'Partager le bilan de course','Winners, class leaders and race status':'Vainqueurs, leaders par classe et état de la course','Sea state: off':'État de la mer : désactivé','Sea state: on':'État de la mer : activé','Wave height ring around each boat, and wave shading on the map':'Anneau de hauteur des vagues autour de chaque bateau et ombrage des vagues sur la carte','Ranking':'Classement','Live feed':'Flux en direct','Imported data':'Données importées','Simulation · feed unavailable':'Simulation · flux indisponible','Feed error · showing last data':'Erreur de flux · dernières données','Last position':'Dernier point','Race time':'Temps de course','Race order':'Classement','View all':'Tout voir','Close':'Fermer','Following':'Suivi','Unfollow':'Ne plus suivre','Course':'Cap','To finish':"Vers l'arrivée",'LIVE':'DIRECT','Highlights':'Temps forts','Share stats card':'Partager la carte','No data yet.':'Pas encore de données.','Share & more':'Partager & plus','Share this view':'Partager cette vue','Link to the current boat and moment':'Lien vers le bateau et le moment affichés','Record the replay as a video':'Enregistrer le replay en vidéo','Plays the whole race and saves a video to share':'Rejoue toute la course et crée une vidéo à partager','Share highlights card':'Partager la carte des temps forts','An image with the key stats':'Une image avec les stats clés','About & data sources':'À propos & sources','Link copied':'Lien copié','Saved':'Enregistré','Favourite removed':'Favori retiré','Favourite saved – it opens first next time':"Favori enregistré – il s'ouvrira en premier",'Recording… tap the map to stop':"Enregistrement… touchez la carte pour arrêter",'Recording failed':"L'enregistrement a échoué",'Video recording is not supported on this browser':"L'enregistrement vidéo n'est pas pris en charge par ce navigateur",'No race history to record yet':"Pas encore d'historique à enregistrer",'Updated just now':"Mis à jour à l'instant",'Fastest now':'Le plus rapide','finished':'arrivé','Day & night: on':'Jour et nuit : oui','Day & night: off':'Jour et nuit : non','Shades the night side of the map':'Assombrit la nuit sur la carte','Retired':'Abandon','retired':'abandon','Winner':'Vainqueur','Race chart':'Évolution du classement','Share this boat\u2019s card':'Partager la carte du bateau','Select a boat first':'Choisissez d\u2019abord un bateau','Tap the chart to jump to that moment':'Touchez le graphique pour aller à ce moment','Close':'Fermer','Replay the race':'Rejouer la course','Got it':'Compris','How it works':'Comment ça marche','Tap a boat to follow it.':'Touchez un bateau pour le suivre.','Press ▶ to replay the race, then drag the slider to go back in time.':'Appuyez sur ▶ pour rejouer la course, puis faites glisser le curseur pour remonter le temps.','Use the round buttons for wind, highlights and more.':'Les boutons ronds : vent, faits marquants et plus.','Tap a boat, on the map or in the strip, to follow it.':'Touchez un bateau, sur la carte ou dans la bande, pour le suivre.','Press ▶ to replay the race from the start. Drag the slider to go back in time, and use the speed button to go faster.':'Appuyez sur ▶ pour rejouer la course depuis le départ. Le curseur remonte le temps, le bouton de vitesse accélère.','The round buttons: trails, wind, highlights, fit all, share and import.':'Les boutons ronds : traces, vent, faits marquants, tout voir, partager, importer.','With a boat selected, ⇄ compares it with another boat.':'Avec un bateau sélectionné, ⇄ le compare à un autre bateau.','Compare with…':'Comparer avec…','Lite mode: on':'Mode éco : oui','Lite mode: off':'Mode éco : non','Lighter wind animation for older phones':'Vent allégé pour les anciens téléphones','Copy recap text':'Copier le récap','Offline · last saved data':'Hors ligne · dernières données','Recap copied':'Récap copié','Stopped':'Arrêté','stopped':'arrêté','Decisive moment':'Moment décisif','Biggest climber (24 h)':'Plus belle remontée (24 h)','Closest duel':'Duel le plus serré','Import positions':'Importer des positions','Apply':'Appliquer','Choose file':'Choisir un fichier','Back to simulation':'Retour à la simulation','Use this feed':'Utiliser ce flux','Reset to default':'Réinitialiser','KN':'NDS','Favourite':'Favori','★ Favourite':'★ Favori','☆ Favourite':'☆ Favori','Unofficial fan tracker made by Raphael Ribard, built with AI assistance. Not affiliated with the Route du Rhum organisers, the teams or the skippers.':"Tracker de fan non officiel créé par Raphael Ribard, conçu avec l'aide de l'IA. Sans lien avec les organisateurs de la Route du Rhum, les équipes ou les skippers.",'Positions come from an unofficial relay of the public tracking feed plus community history, and may be late or wrong. Wind is model data from Open-Meteo.com (CC BY 4.0) on a coarse grid. Coastlines are simplified drawings.':"Les positions viennent d'un relais non officiel du flux de suivi public et d'un historique communautaire ; elles peuvent être en retard ou fausses. Le vent provient de modèles météo Open-Meteo.com (CC BY 4.0) sur une grille grossière. Les côtes sont des dessins simplifiés."};
 var FRR=[[/^(\d+)% done$/,'$1% parcouru'],[/^All (\d+)$/,'Tous $1'],[/^All$/,'Tous'],[/^All racers · (\d+)$/,'Tous les bateaux · $1'],[/^Day (\d+)/,'Jour $1'],[/\bDay (\d+)/g,'Jour $1'],[/ overall\b/g,' au général'],[/ in 24 h\b/g,' en 24 h'],[/^Updated (\d+) (min|h) ago$/,'Mis à jour il y a $1 $2'],[/^ETA (.+)$/,'Arrivée $1'],[/^Finished in (.+)$/,'Arrivé en $1'],[/^Finished (.+)$/,'Arrivé $1'],[/^Arrival #(\d+)$/,'Arrivée n°$1'],[/^(.+) winner$/,'Vainqueur $1'],[/^Live · (\d+) min ago$/,'En direct · il y a $1 min'],[/^Feed unreachable · last data (\d+) (min|h) ago$/,'Flux injoignable · dernières données il y a $1 $2'],[/^Feed unreachable · last data just now$/,"Flux injoignable · dernières données à l'instant"],
  [/\bBest 24 h( #\d)?$/,'Meilleur 24 h$1'],[/^(.+) leader$/,'Leader $1'],[/ to go$/,' restants'],[/ apart$/,' d’écart'],[/ vs overall leader$/,' du leader'],[/^Wind (\d+) kn/,'Vent $1 nds'],[/ from ([NSEW]{1,3})\b/,function(m,c){return ' de '+c.replace(/W/g,'O');}],[/\bkn\b/g,'nds'],[/^Following (.+) on the Route du Rhum$/,'Je suis $1 sur la Route du Rhum'],[/(\d)\.(\d)/g,'$1,$2']];
 function trs(str){var t=str.trim();if(!t)return str;var r=FRX[t];if(r!=null)return str.replace(t,r);var o=str;FRR.forEach(function(x){o=o.replace(x[0],x[1]);});return o;}
@@ -857,6 +901,10 @@ function setLang(l){LANG=l;setTips();lsSet('rdr_lang',l);document.documentElemen
   document.getElementById('mLangT').textContent=l==='fr'?'Langue : Français':'Language: English';
   T(document.getElementById('app'));renderDock();updateTL();updateFresh();if(!document.getElementById('hl').hidden)hlOpen();}
 function setLite(on){LITE=on;lsSet('rdr_lite',on?'1':'0');var e=document.getElementById('mLiteT');e.firstChild.textContent=on?'Lite mode: on':'Lite mode: off';if(window.T)T(e);PT.length=0;draw();}
+var SEA=lsGet('rdr_sea')==='1';
+function setSea(on){SEA=on;lsSet('rdr_sea',on?'1':'0');var e=document.getElementById('mSeaT');e.firstChild.textContent=on?L2('Sea state: on','\u00c9tat de la mer : activ\u00e9'):L2('Sea state: off','\u00c9tat de la mer : d\u00e9sactiv\u00e9');draw();}
+document.getElementById('mSea').onclick=function(){setSea(!SEA);if(SEA)loadWave();};
+if(SEA)document.getElementById('mSeaT').firstChild.textContent='Sea state: on';
 function setNight(on){NIGHT=on;lsSet('rdr_night',on?'1':'0');var e=document.getElementById('mNightT');e.firstChild.textContent=on?'Day & night: on':'Day & night: off';if(window.T)T(e);draw();}
 document.getElementById('mNight').onclick=function(){setNight(!NIGHT);};
 if(!NIGHT)document.getElementById('mNightT').firstChild.textContent='Day & night: off';
@@ -885,7 +933,7 @@ function draw0(){if(WIND&&windOn)setLeg();
   for(var a=Math.ceil(lo/step)*step;a<=hi;a+=step){var x=Math.round(X(a))+.5;ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
   var la0=myInv(v.my+H/2/v.k),la1=myInv(v.my-H/2/v.k);
   for(var b2=Math.ceil(la1/step)*step;b2<=la0;b2+=step){var y=Math.round(Y(b2))+.5;ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
-  drawWind();
+  drawSea();drawWind();
   ctx.fillStyle=css['--land'];ctx.strokeStyle=css['--landline'];ctx.lineWidth=1;ctx.lineJoin='round';
   ctx.beginPath();LANDP.forEach(function(r){r.forEach(function(q,i){var x=W/2+(q[0]-v.lon)*v.k,y=H/2-(q[2]-v.my)*v.k;i?ctx.lineTo(x,y):ctx.moveTo(x,y);});ctx.closePath();});
   ctx.fill();ctx.lineWidth=1.3;ctx.stroke();
@@ -925,6 +973,8 @@ function draw0(){if(WIND&&windOn)setLeg();
   vl.forEach(function(b,i){
     var x=X(b.lon),y=Y(b.lat);if(x<-60||y<-60||x>W+60||y>H+60)return;
     var on=hasSel&&sel.id===b.id,c=colB(b),a=(b.cog==null?0:b.cog)*D2R,dx=Math.sin(a),dy=-Math.cos(a),dim=!on&&b.id!==CMP&&(hasSel||b.out);
+    var wv0=SEA&&!b.out?((!rp&&b.x&&b.x.wh>0)?b.x.wh/10:waveAt(b.lat,b.lon,wtime())):null;
+    if(wv0!=null){var wv=wv0,wc=wv<2?'#3ddc84':wv<3.5?'#ffd23f':wv<5?'#ff9f43':'#ff4d4d';ctx.save();ctx.globalAlpha=.95;ctx.strokeStyle=wc;ctx.lineWidth=2.4;ctx.beginPath();ctx.arc(x,y,on?16:11,0,6.3);ctx.stroke();ctx.restore();if(v.k>=6)label(wv.toFixed(1)+' m',x+(on?20:15),y+16,11,wc);}
     if(b.ret){/* retired / stopped: dark marker with a cross at the last known position */
       var rr=on?8:6;ctx.globalAlpha=dim&&!on?.75:1;ctx.fillStyle='#161d2b';ctx.strokeStyle=on?css['--sel']:'#8d99ad';ctx.lineWidth=on?2:1.5;
       ctx.beginPath();ctx.arc(x,y,rr,0,6.3);ctx.fill();ctx.stroke();
@@ -1258,15 +1308,20 @@ function loadBoats(){
 }
 function setStatus(t){document.getElementById('mode').textContent=t;}
 var feedErr=false;
+var ARRSEEN=null;
+function announceArrivals(){if(rp)return;var f=boats.filter(function(b){return b.fin;}),nw=[];
+  if(ARRSEEN)nw=f.filter(function(b){return !ARRSEEN[b.id];});
+  ARRSEEN={};f.forEach(function(b){ARRSEEN[b.id]=1;});
+  if(nw.length){nw.sort(cmpB);toast(nw.slice(0,2).map(function(b){return b.name+' \u00b7 '+durStr(durOf(b));}).join('  |  ')+(nw.length>2?' +'+(nw.length-2):'')+L2(' finished',' arriv\u00e9'),6000);}}
 function updateFresh(){var e=document.getElementById('fresh');if(!e)return;
   if(mode!=='imp'||rp||!(TL.t1>0)){if(e.textContent){e.textContent='';e.__t=null;}e.className='';return;}
   var a=Date.now()-TL.t1,m=Math.max(0,Math.round(a/6e4)),t=m<2?'Updated just now':m<90?'Live \u00b7 '+m+' min ago':'Updated '+Math.round(m/60)+' h ago';
-  var stale=a>5*36e5||feedErr;if(feedErr)t='Feed unreachable \u00b7 '+t.replace('Updated','last data');
+  var late=a>135*6e4,stale=late||feedErr;if(late&&!feedErr)t=L2('Delayed \u00b7 last position '+Math.round(m/60)+' h ago','Retard \u00b7 derni\u00e8re position il y a '+Math.round(m/60)+' h');if(feedErr)t='Feed unreachable \u00b7 '+t.replace('Updated','last data');
   if(e.__t!==t||e.className!==(stale?'stale':'')){e.__t=t;e.textContent=t;e.className=stale?'stale':'';if(window.T)T(e);}}
 setInterval(updateFresh,30000);
 function loadFeed(force){
   if(manual&&!force)return;
-  loadWind();
+  loadWind();loadWave();
   var url=feedUrl+(feedUrl.indexOf('?')>-1?'&':'?')+'_='+Date.now();
   return loadBoats().then(function(){return baseRows();}).then(function(base){
     return (feedUrl===FEED_DEFAULT?mirrorGet('live.json'):Promise.reject()).catch(function(){return fetch(url,{cache:'no-store'}).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status+' on the feed URL.');return r.text();});}).then(function(txt){
@@ -1275,7 +1330,7 @@ function loadFeed(force){
     var mt=Object.keys(imp).filter(function(id){return BOATS[id];}).length;
     msg.textContent=n+' positions loaded for '+Object.keys(imp).length+' boats; '+mt+' matched a name. '+boatsInfo;
     document.getElementById('clkL').textContent='Last position';
-    feedErr=false;var first=firstLoad;firstLoad=false;histRange();tick(true);if(first){fit();applyDeep();}updateFresh();setTimeout(loadWind,1200);
+    feedErr=false;var first=firstLoad;firstLoad=false;histRange();tick(true);announceArrivals();if(first){fit();applyDeep();}updateFresh();setTimeout(loadWind,1200);
     });
   }).catch(function(err){
     feedErr=true;
