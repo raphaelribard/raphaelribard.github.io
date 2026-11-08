@@ -90,7 +90,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-acti
 #toast.on{opacity:1}
 .mv #body{display:none}
 #wLeg{position:absolute;left:16px;z-index:2;pointer-events:none;display:grid;grid-template-columns:repeat(4,1fr);gap:0;width:170px;font:600 10px var(--f-body);color:var(--ink);text-shadow:0 0 3px var(--bg)}
-#wLeg[hidden]{display:none}
+#wLeg[hidden],#sLeg[hidden]{display:none}#sLeg{position:absolute;left:16px;z-index:2;pointer-events:none;display:grid;grid-template-columns:repeat(4,1fr);width:170px;font:600 10px var(--f-body);color:var(--ink);text-shadow:0 0 3px var(--bg)}#sLeg i{grid-column:1/-1;height:6px;border-radius:3px;margin-bottom:2px;background:linear-gradient(90deg,rgba(255,255,255,.7),rgba(255,214,120,.95),rgba(255,120,90,1))}#sLeg span{white-space:nowrap}#sLeg span:last-child{text-align:right}
 #wLeg i{grid-column:1/-1;height:6px;border-radius:3px;margin-bottom:2px;background:linear-gradient(90deg,rgba(40,170,200,.5),rgba(40,190,120,.8),rgba(170,210,60,.9),rgba(250,190,40,.95),rgba(250,120,40,1),rgba(240,60,60,1),rgba(190,40,160,1))}
 #wLeg span{white-space:nowrap}
 #wLeg span:last-child{text-align:right}
@@ -234,13 +234,13 @@ input[type=url]{width:100%;background:var(--soft);color:var(--ink);border:1px so
     <button class="mrow" id="mLite"><span class="ic">\u26a1</span><span id="mLiteT">Lite mode: off<small>Lighter wind animation for older phones</small></span></button>
     <button class="mrow" id="mHow"><span class="ic">?</span><span>How it works</span></button>
     <div id="howBox" hidden><ol><li>Tap a boat, on the map or in the strip, to follow it.</li><li>Press ▶ to replay the race from the start. Drag the slider to go back in time, and use the speed button to go faster.</li><li>The round buttons: trails, wind, highlights, fit all, share and import.</li><li>With a boat selected, ⇄ compares it with another boat.</li></ol></div>
-    <button class="mrow" id="mSea"><span class="ic">&#8776;</span><span id="mSeaT">Sea state: off<small>Wave height ring around each boat, and wave shading on the map</small></span></button>
     <button class="mrow" id="mRecap"><span class="ic">&#9873;</span><span>Share race recap card<small>Winners, class leaders and race status</small></span></button>
     <button class="mrow" id="mNight"><span class="ic">&#9790;</span><span id="mNightT">Day &amp; night: on<small>Shades the night side of the map</small></span></button>
     <button class="mrow" id="mAbout"><span class="ic">i</span><span>About &amp; data sources</span></button>
     <div id="aboutBox" hidden><p>Unofficial fan tracker made by Raphael Ribard, built with AI assistance. Not affiliated with the Route du Rhum organisers, the teams or the skippers.</p><p>Positions come from an unofficial relay of the public tracking feed plus community history, and may be late or wrong. Wind is model data from Open-Meteo.com (CC BY 4.0) on a coarse grid. Coastlines are simplified drawings.</p></div>
     <div class="btns"><button class="btn" id="mmClose">Close</button></div></div></div>
   <div id="hl" class="sx" hidden><div class="sheet pad"><div class="hltabs"><button id="hlTr" class="on">Ranking</button><button id="hlTh">Highlights</button></div><div class="sub2" id="hlS"></div><div id="hlCh" class="hlch"></div><div id="hlB"></div><div class="btns"><button class="btn p" id="hlShare">Share stats card</button><button class="btn" id="hlCopy">Copy recap text</button><button class="btn" id="hlChart">Race chart</button><button class="btn" id="hlClose">Close</button></div></div></div>
+  <div id="sLeg" hidden><i></i><span>2</span><span>4</span><span>6</span><span>8+ m</span></div>
   <div id="wLeg" hidden><i></i><span>0</span><span>10</span><span>20</span><span>30+ kn</span></div>
   <section id="dock" class="glass" aria-label="Racers"><div class="spd pad" id="tSpd" hidden></div><div class="tl pad" id="tl" hidden><button id="tPlay" aria-label="Replay the race">&#9654;</button><button id="tSp" aria-label="Replay speed">&times;1</button><div class="tm"><div class="tl2"><span id="tA">D1</span><b id="tD">--</b><span id="tB">D1</span></div><input type="range" id="tR" min="0" max="2000" step="1" value="2000" aria-label="Race time"></div><button id="tLive" aria-label="Back to live">LIVE</button></div><div id="body"></div></section>
   <div id="modal" hidden>
@@ -475,8 +475,8 @@ function loadWind(force){
 var DOCKH=0;function toolsFit(){updateRpBtn();var d=document.getElementById('dock'),t=document.querySelector('.tools'),a=document.getElementById('app');if(!d||!t||!a)return;a.classList.toggle('tlh',d.getBoundingClientRect().top<t.getBoundingClientRect().bottom+6);}
 function dockH(){return document.getElementById('dock').offsetHeight||DOCKH;}
 if(window.ResizeObserver)new ResizeObserver(function(){DOCKH=document.getElementById('dock').offsetHeight;toolsFit();setLeg();}).observe(document.getElementById('dock'));
-function setLeg(){var l=document.getElementById('wLeg');l.hidden=!(windOn&&WIND);l.style.bottom=(dockH()+8)+'px';}
-function setWindBtn(){setLeg();var b=document.getElementById('bWind');b.setAttribute('aria-pressed',windOn);b.style.opacity=(WBAD&&!WIND)?.45:1;b.setAttribute('aria-label',(WBAD&&!WIND)?'Wind data unavailable':'Toggle wind');}
+function setLeg(){var l=document.getElementById('wLeg'),m=document.getElementById('sLeg'),bt=(dockH()+8)+'px';l.hidden=!(windOn&&WIND&&!SEA);m.hidden=!(SEA&&WAVE);l.style.bottom=bt;m.style.bottom=bt;}
+function setWindBtn(){setLeg();var b=document.getElementById('bWind');b.setAttribute('aria-pressed',windOn||SEA);b.style.opacity=(WBAD&&!WIND)?.45:1;b.setAttribute('aria-label',(WBAD&&!WIND)?'Wind data unavailable':'Toggle wind');}
 function windAt(lat,lon,T){
   if(!WIND||WIND.n<3)return null;
   var h=(T/1000-WIND.t0)/3600;h=Math.max(0,Math.min(WIND.n-1.001,h));var i0=Math.floor(h),f=h-i0;
@@ -493,7 +493,7 @@ var WAVE=null,WAVEF=0,WAVEP=null;
 function loadWave(force){if(WAVE||(!force&&Date.now()-WAVEF<3e5))return WAVEP;WAVEF=Date.now();
   WAVEP=fetch('wave.json?'+Math.floor(Date.now()/6e5)).then(function(r){if(!r.ok)throw 0;return r.json();}).then(function(j){
     if(!Array.isArray(j)||j.length!==WLA.length*WLO.length)throw 0;var t=j[0].hourly.time,H=j.map(function(L){return L.hourly.wave_height.map(function(x){return x==null?NaN:+x;});});
-    WAVE={t0:t[0],n:t.length,H:H};draw();}).catch(function(){});return WAVEP;}
+    WAVE={t0:t[0],n:t.length,H:H};setLeg();draw();}).catch(function(){});return WAVEP;}
 function waveAt(lat,lon,T){
   if(!WAVE||lat<WLA[0]||lat>WLA[WLA.length-1]||lon<WLO[0]||lon>WLO[WLO.length-1])return null;var h=(T/1000-WAVE.t0)/3600;h=Math.max(0,Math.min(WAVE.n-1.001,h));var i0=Math.floor(h),f=h-i0;
   var fy=(Math.max(WLA[0],Math.min(WLA[WLA.length-1]-1e-6,lat))-WLA[0])/WST6,fx=(Math.max(WLO[0],Math.min(WLO[WLO.length-1]-1e-6,lon))-WLO[0])/WST6,
@@ -519,14 +519,14 @@ function seaBuild(T,cs){var cw=Math.ceil(W/cs)+1,ch=Math.ceil(H/cs)+1,G=[],i,j,k
   tx.putImageData(im,0,0);SEAC.segs=segs;SEAC.tint=tc;}
 function drawSea(){if(!SEA||!WAVE)return;var T=Math.floor(wtime()/18e5)*18e5,cs=12,key=T+'|'+W+'|'+H+'|'+v.lon.toFixed(3)+'|'+v.my.toFixed(4)+'|'+v.k.toFixed(2)+'|'+WAVE.t0;
   if(SEAC.key!==key){seaBuild(T,cs);SEAC.key=key;}
-  ctx.save();ctx.imageSmoothingEnabled=true;ctx.drawImage(SEAC.tint,0,0,SEAC.tint.width*cs,SEAC.tint.height*cs);
+  ctx.save();ctx.imageSmoothingEnabled=true;if(!windOn)ctx.drawImage(SEAC.tint,0,0,SEAC.tint.width*cs,SEAC.tint.height*cs);
   ctx.lineCap='round';var acc={};
   WLV.forEach(function(th){ctx.beginPath();SEAC.segs.forEach(function(g){if(g[0]===th){ctx.moveTo(g[1],g[2]);ctx.lineTo(g[3],g[4]);}});
     ctx.strokeStyle=th<4?'rgba(255,255,255,.55)':th<6?'rgba(255,214,120,.8)':'rgba(255,120,90,.9)';ctx.lineWidth=th<4?.9:1.3;ctx.stroke();});
   ctx.restore();
   var placed=[];
   SEAC.segs.forEach(function(g){var th=g[0],L=Math.hypot(g[3]-g[1],g[4]-g[2]);acc[th]=(acc[th]||250)+L;
-    if(acc[th]>420){var mx=(g[1]+g[3])/2,my2=(g[2]+g[4])/2;if(mx>30&&mx<W-30&&my2>140&&my2<H-170&&!placed.some(function(q){return Math.abs(q[0]-mx)<64&&Math.abs(q[1]-my2)<22;})){acc[th]=0;placed.push([mx,my2]);label(th+' m',mx,my2+3,10,th<4?'rgba(255,255,255,.9)':th<6?'#ffd678':'#ff8a6b','center');}}});}
+    if(acc[th]>420){var mx=(g[1]+g[3])/2,my2=(g[2]+g[4])/2;if(mx>30&&mx<W-30&&my2>140&&my2<H-170&&!placed.some(function(q){return Math.abs(q[0]-mx)<64&&Math.abs(q[1]-my2)<22;})){acc[th]=0;placed.push([mx,my2]);ctx.save();ctx.font='italic 700 10px "Barlow Condensed","Arial Narrow",sans-serif';ctx.textAlign='center';ctx.lineJoin='round';ctx.lineWidth=2.5;ctx.strokeStyle='rgba(5,25,70,.45)';ctx.strokeText(th+' m',mx,my2+3);ctx.fillStyle=th<4?'rgba(255,255,255,.92)':th<6?'#ffd678':'#ff8a6b';ctx.fillText(th+' m',mx,my2+3);ctx.restore();}}});}
 function wtime(){return rp?rp.t:(TL.t1||Date.now());}
 var WST=[[0,60,120,230,0],[4,40,170,200,.22],[8,40,190,120,.4],[12,170,210,60,.5],[17,250,190,40,.55],[22,250,120,40,.6],[28,240,60,60,.66],[36,190,40,160,.72]];
 function wramp(sp,o){var i=1;while(i<WST.length-1&&sp>WST[i][0])i++;var A=WST[i-1],B=WST[i],f=Math.max(0,Math.min(1,(sp-A[0])/(B[0]-A[0])));
@@ -562,7 +562,7 @@ function drawParticles(T){
   ctx.restore();
 }
 function drawWind(){
-  if(!windOn||!WIND)return;var T=wtime();drawHeat(T);drawParticles(T);
+  if(!windOn||!WIND)return;var T=wtime();if(!SEA)drawHeat(T);drawParticles(T);
 }
 var wLoopOn=false,wLast=0;
 function wLoop(now){if(!windOn||!WIND||document.hidden){wLoopOn=false;return;}
@@ -605,7 +605,7 @@ function recapCard(){
   g.fillStyle='rgba(255,255,255,.9)';g.font='600 30px '+B;g.fillText('raphaelribard.github.io/rhum',70,H2-80);g.font='400 22px '+B;g.fillStyle='rgba(255,255,255,.7)';g.fillText('Unofficial fan tracker \u2013 not affiliated with the Route du Rhum',70,H2-44);
   c.toBlob(function(b){if(b)shareFile(b,'rhum-recap.png','Route du Rhum 2026 \u2013 race recap');},'image/png');
 }
-var TIPS={bTrail:['Trails','Traces'],bWind:['Wind','Vent'],bHl:['Ranking & highlights','Classement et faits marquants'],bFit:['Fit all','Tout voir'],bShare:['Share & more','Partager'],bData:['Import data','Importer']};
+var TIPS={bTrail:['Trails','Traces'],bWind:['Wind & waves','Vent et vagues'],bHl:['Ranking & highlights','Classement et faits marquants'],bFit:['Fit all','Tout voir'],bShare:['Share & more','Partager'],bData:['Import data','Importer']};
 function setTips(){Object.keys(TIPS).forEach(function(id){var e=document.getElementById(id);if(e)e.setAttribute('data-tip',TIPS[id][LANG==='fr'?1:0]);});}
 function updateRpBtn(){var b=document.getElementById('rpBtn');if(!b)return;var on=!rp&&TL.t1>TL.t0&&!listOpen&&!cmpMode;b.classList.toggle('on',on);b.style.bottom=(dockH()+12)+'px';}
 document.getElementById('rpBtn').onclick=function(){hintHide();document.getElementById('tPlay').click();};
@@ -921,9 +921,6 @@ function setLang(l){LANG=l;setTips();lsSet('rdr_lang',l);document.documentElemen
   T(document.getElementById('app'));renderDock();updateTL();updateFresh();if(!document.getElementById('hl').hidden)hlOpen();}
 function setLite(on){LITE=on;lsSet('rdr_lite',on?'1':'0');var e=document.getElementById('mLiteT');e.firstChild.textContent=on?'Lite mode: on':'Lite mode: off';if(window.T)T(e);PT.length=0;draw();}
 var SEA=lsGet('rdr_sea')==='1';
-function setSea(on){SEA=on;lsSet('rdr_sea',on?'1':'0');var e=document.getElementById('mSeaT');e.firstChild.textContent=on?L2('Sea state: on','\u00c9tat de la mer : activ\u00e9'):L2('Sea state: off','\u00c9tat de la mer : d\u00e9sactiv\u00e9');draw();}
-document.getElementById('mSea').onclick=function(){setSea(!SEA);if(SEA){mmEl.hidden=true;var pw=loadWave(true);if(pw)pw.then(function(){if(!WAVE)toast(L2('Wave data not available yet. Update the GitHub job and run it once.','Donn\u00e9es de vagues indisponibles. Mettez \u00e0 jour le job GitHub et lancez-le une fois.'),5000);else toast(L2('Sea state on: lines every metre','\u00c9tat de la mer : lignes chaque m\u00e8tre'),2500);});}};
-if(SEA)document.getElementById('mSeaT').firstChild.textContent='Sea state: on';
 function setNight(on){NIGHT=on;lsSet('rdr_night',on?'1':'0');var e=document.getElementById('mNightT');e.firstChild.textContent=on?'Day & night: on':'Day & night: off';if(window.T)T(e);draw();}
 document.getElementById('mNight').onclick=function(){setNight(!NIGHT);};
 if(!NIGHT)document.getElementById('mNightT').firstChild.textContent='Day & night: off';
@@ -941,7 +938,7 @@ function drawNight(){if(!NIGHT)return;var T=rp?rp.t:(TL.t1>0&&mode==='imp'?TL.t1
     for(var i=0;i<cw;i++){var lon=v.lon+((i+.5)*14-W/2)/v.k,el=Math.asin(Math.max(-1,Math.min(1,sl*sd+cl*cd*Math.cos((lon-sp.lon)*D2R))))/D2R,
       a=el>=2?0:el<=-12?.34:.34*(2-el)/14,o=(j*cw+i)*4;dd[o]=4;dd[o+1]=14;dd[o+2]=48;dd[o+3]=Math.round(a*255);}}
   nx.putImageData(im,0,0);ctx.save();ctx.imageSmoothingEnabled=true;ctx.drawImage(NC,0,0,cw*14,ch*14);ctx.restore();}
-function draw0(){if(WIND&&windOn)setLeg();
+function draw0(){if((WIND&&windOn)||SEA)setLeg();
   if(!css)readCss();
   ctx.setTransform(dpr,0,0,dpr,0,0);
   var g=ctx.createRadialGradient(W*.5,H*.38,0,W*.5,H*.38,Math.max(W,H)*.85);g.addColorStop(0,css['--sea1']);g.addColorStop(1,css['--sea2']);
@@ -992,8 +989,6 @@ function draw0(){if(WIND&&windOn)setLeg();
   vl.forEach(function(b,i){
     var x=X(b.lon),y=Y(b.lat);if(x<-60||y<-60||x>W+60||y>H+60)return;
     var on=hasSel&&sel.id===b.id,c=colB(b),a=(b.cog==null?0:b.cog)*D2R,dx=Math.sin(a),dy=-Math.cos(a),dim=!on&&b.id!==CMP&&(hasSel||b.out);
-    var wv0=SEA&&!b.out?((!rp&&b.x&&b.x.wh>0)?b.x.wh/10:waveAt(b.lat,b.lon,wtime())):null;
-    if(wv0!=null){var wv=wv0,wc=wv<2?'#3ddc84':wv<3.5?'#ffd23f':wv<5?'#ff9f43':'#ff4d4d';ctx.save();ctx.globalAlpha=.95;ctx.strokeStyle=wc;ctx.lineWidth=2.4;ctx.beginPath();ctx.arc(x,y,on?16:11,0,6.3);ctx.stroke();ctx.restore();if(v.k>=6)label(wv.toFixed(1)+' m',x+(on?20:15),y+16,11,wc);}
     if(b.ret){/* retired / stopped: dark marker with a cross at the last known position */
       var rr=on?8:6;ctx.globalAlpha=dim&&!on?.75:1;ctx.fillStyle='#161d2b';ctx.strokeStyle=on?css['--sel']:'#8d99ad';ctx.lineWidth=on?2:1.5;
       ctx.beginPath();ctx.arc(x,y,rr,0,6.3);ctx.fill();ctx.stroke();
@@ -1113,7 +1108,7 @@ function moreRows(b){var x=!rp&&b.x;if(!x)return '';var u=windUnit(),it=[];
 function windRow(b){if(!WIND||b.cog==null||b.fin)return '';var w=windAt(b.lat,b.lon,rp?rp.t:TL.t1);if(!w)return '';
   var u=windUnit();if(!rp&&b.x&&b.x.ws>0&&u){w={spd:b.x.ws*u,dir:b.x.wd};}
   var sg=((w.dir-b.cog+540)%360)-180,twa=Math.abs(sg);
-  return '<div class="wn">'+L2('Wind ','Vent ')+f0(w.spd)+' kn '+L2('from ','de ')+CPT[Math.round(w.dir/22.5)%16]+' \u00b7 '+L2('angle ','angle ')+f0(twa)+'\u00b0 \u00b7 '+(sg>0?L2('starboard tack','amures tribord'):L2('port tack','amures b\u00e2bord'))+(!rp&&b.x?'<button class="mt" id="more" aria-expanded="'+MORE+'">'+(MORE?L2('Less','Moins')+' \u25b4':L2('More','Plus')+' \u25be')+'</button>':'')+'</div>'+(MORE?moreRows(b):'');}
+  return '<div class="wn">'+L2('Wind ','Vent ')+f0(w.spd)+' kn '+L2('from ','de ')+CPT[Math.round(w.dir/22.5)%16]+' \u00b7 '+L2('angle ','angle ')+f0(twa)+'\u00b0 \u00b7 '+(sg>0?L2('starboard tack','amures tribord'):L2('port tack','amures b\u00e2bord'))+(function(){var wv=(!rp&&b.x&&b.x.wh>0)?b.x.wh/10:waveAt(b.lat,b.lon,rp?rp.t:TL.t1);return wv!=null?' \u00b7 '+L2('waves ','vagues ')+wv.toFixed(1)+' m':'';})()+(!rp&&b.x?'<button class="mt" id="more" aria-expanded="'+MORE+'">'+(MORE?L2('Less','Moins')+' \u25b4':L2('More','Plus')+' \u25be')+'</button>':'')+'</div>'+(MORE?moreRows(b):'');}
 function cmpRow(b){var o=CMP&&CMP!==b.id&&boats.filter(function(x){return x.id===CMP;})[0];if(!o)return '';
   var g=o.dtf-b.dtf,ab=Math.abs(g),dv=(b.sog!=null&&o.sog!=null)?o.sog-b.sog:null;
   var tx='\u21c4 <b>'+esc(o.name)+'</b> \u00b7 '+f0(ab)+' nm / '+f0(km(ab))+' km '+(g>0?L2('behind','derri\u00e8re'):L2('ahead','devant'))+(dv!=null?' \u00b7 '+(dv>=0?'+':'')+f1(dv)+' kn':'');
@@ -1150,7 +1145,13 @@ function buildFilters(){
   fEl.innerHTML=all.map(function(c){return '<button class="chip glass" data-k="'+c.k+'" aria-pressed="'+(filter===c.k)+'" style="'+(c.v?'--c:var('+c.v+')':'')+'">'+(c.v?'<i></i>':'')+c.s+'</button>';}).join('');
 }
 fEl.addEventListener('click',function(e){var b=e.target.closest('.chip');if(!b)return;filter=b.dataset.k;if(sel){var s=boats.filter(function(x){return x.id===sel.id;})[0];if(s&&!vis(s))sel=null;}buildFilters();renderDock();draw();});
-document.getElementById('bWind').onclick=function(){if(WBAD&&!WIND){toast(L2('Wind service unavailable ('+(WERR||'?')+'). Trying again\u2026','Service vent indisponible ('+(WERR||'?')+'). Nouvel essai\u2026'));loadWind(true);return;}windOn=!windOn;lsSet('rdr_wind',windOn?'1':'0');setWindBtn();if(windOn&&!WIND)loadWind();wStart();draw();};
+document.getElementById('bWind').onclick=function(){
+  var st=(windOn?1:0)+(SEA?2:0),order=[1,2,3,0],nx=order[(order.indexOf(st)+1)%4];
+  if(WBAD&&!WIND&&(nx&1)){toast(L2('Wind service unavailable ('+(WERR||'?')+'). Trying again\u2026','Service vent indisponible ('+(WERR||'?')+'). Nouvel essai\u2026'));loadWind(true);return;}
+  function go(n){windOn=!!(n&1);SEA=!!(n&2);lsSet('rdr_wind',windOn?'1':'0');lsSet('rdr_sea',SEA?'1':'0');setWindBtn();if(windOn&&!WIND)loadWind();wStart();draw();
+    toast([L2('Layers off','Calques masqu\u00e9s'),L2('Wind','Vent'),L2('Waves','Vagues'),L2('Wind + waves','Vent + vagues')][n],1600);}
+  if((nx&2)&&!WAVE){var pw=loadWave(true);if(pw)pw.then(function(){if(WAVE)go(nx);else{toast(L2('Wave data not available yet. Update the GitHub job and run it once.','Donn\u00e9es de vagues indisponibles. Mettez \u00e0 jour le job GitHub et lancez-le une fois.'),4500);go(0);}});return;}
+  go(nx);};
 var bT=document.getElementById('bTrail');bT.onclick=function(){trails=!trails;bT.setAttribute('aria-pressed',trails);draw();};
 document.getElementById('bFit').onclick=fit;
 var modal=document.getElementById('modal'),ta=document.getElementById('ta'),msg=document.getElementById('msg');
