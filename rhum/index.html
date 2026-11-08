@@ -489,11 +489,11 @@ function windAt(lat,lon,T){
 }
 var CPT=['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
 /* Waves: hourly model wave height on the same grid as the wind, fetched by the GitHub job (wave.json). */
-var WAVE=null,WAVEF=0;
-function loadWave(){if(WAVE||Date.now()-WAVEF<3e5)return;WAVEF=Date.now();
-  fetch('wave.json?'+Math.floor(Date.now()/6e5)).then(function(r){if(!r.ok)throw 0;return r.json();}).then(function(j){
+var WAVE=null,WAVEF=0,WAVEP=null;
+function loadWave(force){if(WAVE||(!force&&Date.now()-WAVEF<3e5))return WAVEP;WAVEF=Date.now();
+  WAVEP=fetch('wave.json?'+Math.floor(Date.now()/6e5)).then(function(r){if(!r.ok)throw 0;return r.json();}).then(function(j){
     if(!Array.isArray(j)||j.length!==WLA.length*WLO.length)throw 0;var t=j[0].hourly.time,H=j.map(function(L){return L.hourly.wave_height.map(function(x){return x==null?NaN:+x;});});
-    WAVE={t0:t[0],n:t.length,H:H};draw();}).catch(function(){});}
+    WAVE={t0:t[0],n:t.length,H:H};draw();}).catch(function(){});return WAVEP;}
 function waveAt(lat,lon,T){
   if(!WAVE||lat<WLA[0]||lat>WLA[WLA.length-1]||lon<WLO[0]||lon>WLO[WLO.length-1])return null;var h=(T/1000-WAVE.t0)/3600;h=Math.max(0,Math.min(WAVE.n-1.001,h));var i0=Math.floor(h),f=h-i0;
   var fy=(Math.max(WLA[0],Math.min(WLA[WLA.length-1]-1e-6,lat))-WLA[0])/WST6,fx=(Math.max(WLO[0],Math.min(WLO[WLO.length-1]-1e-6,lon))-WLO[0])/WST6,
@@ -922,7 +922,7 @@ function setLang(l){LANG=l;setTips();lsSet('rdr_lang',l);document.documentElemen
 function setLite(on){LITE=on;lsSet('rdr_lite',on?'1':'0');var e=document.getElementById('mLiteT');e.firstChild.textContent=on?'Lite mode: on':'Lite mode: off';if(window.T)T(e);PT.length=0;draw();}
 var SEA=lsGet('rdr_sea')==='1';
 function setSea(on){SEA=on;lsSet('rdr_sea',on?'1':'0');var e=document.getElementById('mSeaT');e.firstChild.textContent=on?L2('Sea state: on','\u00c9tat de la mer : activ\u00e9'):L2('Sea state: off','\u00c9tat de la mer : d\u00e9sactiv\u00e9');draw();}
-document.getElementById('mSea').onclick=function(){setSea(!SEA);if(SEA)loadWave();};
+document.getElementById('mSea').onclick=function(){setSea(!SEA);if(SEA){mmEl.hidden=true;var pw=loadWave(true);if(pw)pw.then(function(){if(!WAVE)toast(L2('Wave data not available yet. Update the GitHub job and run it once.','Donn\u00e9es de vagues indisponibles. Mettez \u00e0 jour le job GitHub et lancez-le une fois.'),5000);else toast(L2('Sea state on: lines every metre','\u00c9tat de la mer : lignes chaque m\u00e8tre'),2500);});}};
 if(SEA)document.getElementById('mSeaT').firstChild.textContent='Sea state: on';
 function setNight(on){NIGHT=on;lsSet('rdr_night',on?'1':'0');var e=document.getElementById('mNightT');e.firstChild.textContent=on?'Day & night: on':'Day & night: off';if(window.T)T(e);draw();}
 document.getElementById('mNight').onclick=function(){setNight(!NIGHT);};
