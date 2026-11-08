@@ -429,7 +429,7 @@ function compute(){
   var byc={};list.forEach(function(b){(byc[b.cls]=byc[b.cls]||[]).push(b);});
   Object.keys(byc).forEach(function(k){byc[k].sort(function(a,b){return a.id<b.id?-1:a.id>b.id?1:0;}).forEach(function(b,i){b.si=i;});});
   var Tn=rp?rp.t:TL.t1;list=list.filter(function(b){return !(HIDDEN[b.id]&&Tn>=HIDDEN[b.id]);});
-  list.forEach(function(b){b.fin=(ARRT[b.id]&&ARRT[b.id]<=Tn?ARRT[b.id]:null)||finOf(b,Tn)||(b.st&&/^(ARR|FIN)/.test(b.st)?(imp[b.id]&&imp[b.id].hist.length?imp[b.id].hist[imp[b.id].hist.length-1].t:Tn):null);b.out=!b.fin&&(b.st?/^(RET|DNS|DSQ|DNF|ABN|DNC|OCS)/.test(b.st):isOut(b,Tn));});
+  list.forEach(function(b){b.fin=(ARRT[b.id]&&ARRT[b.id]<=Tn?ARRT[b.id]:null)||finOf(b,Tn)||(b.st&&/^(ARR|ARV|FIN)/.test(b.st)?(imp[b.id]&&imp[b.id].hist.length?imp[b.id].hist[imp[b.id].hist.length-1].t:Tn):null);b.out=!b.fin&&(b.st?/^(RET|DNS|DSQ|DNF|ABN|DNC|OCS)/.test(b.st):isOut(b,Tn));});
   list.sort(cmpB);
   var cc={};list.forEach(function(b,i){b.rank=i+1;cc[b.cls]=(cc[b.cls]||0)+1;b.crank=cc[b.cls];});
   boats=list;
@@ -656,7 +656,11 @@ function etaWind(b,T){
     if(done&&hrs<480)res=fmtEta(T+hrs*36e5);
   }
   if(Object.keys(ETC).length>400)ETC={};ETC[key]=res;return res;}
-var RACE_T0=Date.UTC(2026,10,1,12,2,0);function dayNo(T){return Math.max(1,Math.floor((T-RACE_T0)/864e5)+1);}
+var RACE_T0=Date.UTC(2026,10,1,12,2,0);/* official race time comes from the arrivals list (elapsed seconds); a class start is deduced from its first arrival and used for the rest of the class */
+var ARRE={};
+function startOf(b){var e=ARRE[b.id];if(e&&ARRT[b.id])return ARRT[b.id]-e;var k,q;for(k in ARRE){q=boats.filter(function(x){return x.id===k;})[0];if(q&&q.cls===b.cls&&ARRT[k])return ARRT[k]-ARRE[k];}return RACE_T0;}
+function durOf(b){return ARRE[b.id]||(b.fin-startOf(b));}
+function dayNo(T){return Math.max(1,Math.floor((T-RACE_T0)/864e5)+1);}
 var START_PT={lat:48.7167,lon:-1.85},ESTEND=0,LBB=null;
 /* Sea corridor from the start line, north of the Brittany coast, past Ushant and out into the Atlantic. */
 var CORR=[[48.90,-2.30],[49.00,-3.00],[48.95,-4.00],[48.85,-4.90],[48.60,-5.60],[47.50,-6.50],[46.00,-7.50],[44.50,-9.00]];
@@ -686,10 +690,16 @@ function fillStart(){var e=Infinity;Object.keys(imp).forEach(function(id){var H=
     if(P.t<e)e=P.t;});
   ESTEND=isFinite(e)?e:0;}
 var FIDX={};
+var FIDT={};
 function finOf(b,T){var H=imp[b.id]&&imp[b.id].hist;if(!H||!H.length)return null;var k=b.id+'|'+H.length,ix=FIDX[k];
-  if(ix===undefined){ix=-1;for(var i=0;i<H.length;i++){if(hav(H[i].lat,H[i].lon,FIN.lat,FIN.lon)<5){ix=i;break;}}if(Object.keys(FIDX).length>500)FIDX={};FIDX[k]=ix;}
-  return ix>=0&&H[ix].t<=T?H[ix].t:null;}
-function durStr(ms){var m=Math.max(0,Math.round(ms/6e4)),d=Math.floor(m/1440),h=Math.floor(m%1440/60),n=m%60;return d+'d '+pad(h)+'h '+pad(n)+'m';}
+  if(ix===undefined){ix=-1;var ft=null;for(var i=0;i<H.length;i++){var dB=hav(H[i].lat,H[i].lon,FIN.lat,FIN.lon);if(dB<5){ix=i;ft=H[i].t;
+      /* positions are about an hour apart: estimate when the line was actually crossed instead of using the first report inside the zone */
+      if(i>0){var A=H[i-1],dA=hav(A.lat,A.lon,FIN.lat,FIN.lon),dt=H[i].t-A.t;
+        if(dA>dB&&dt>0&&dt<8*36e5){var fr=dB<.6?(dA-.2)/(dA-dB):1+(dB-.2)/(dA-dB);ft=A.t+Math.max(0,fr)*dt;if(ft>H[i].t+dt)ft=H[i].t+dt;}}
+      break;}}
+    if(Object.keys(FIDX).length>500){FIDX={};FIDT={};}FIDX[k]=ix;FIDT[k]=ft;}
+  return ix>=0&&FIDT[k]!=null&&FIDT[k]<=T?FIDT[k]:null;}
+function durStr(ms){var m=Math.max(0,Math.floor(ms/6e4)),d=Math.floor(m/1440),h=Math.floor(m%1440/60),n=m%60;return d+'d '+pad(h)+'h '+pad(n)+'m';}
 function grp(b){return b.fin?0:b.out?2:1;}
 function cmpB(a,b){return grp(a)-grp(b)||(a.fin&&b.fin?a.fin-b.fin:a.dtf-b.dtf);}/* overall order = distance still to sail, so it always matches the % done */
 /* A boat that stopped reporting or hasn't moved for hours (capsize, retirement) is left out of the highlights */
@@ -713,8 +723,8 @@ function momentOf(){
 function hlData(){
   var T=rp?rp.t:TL.t1,out=[],all=boats.filter(function(b){return !b.out;});if(!all.length)return out;
   var ord=all.slice().sort(cmpB),L0=ord[0],ordA=ord.filter(function(b){return !b.fin;});
-  if(L0.fin){out.push({eb:'Winner',b:L0,vl:durStr(L0.fin-RACE_T0),sm:'Finished '+fmtEta(L0.fin)});
-    ord.filter(function(b){return b.fin;}).slice(1,3).forEach(function(b,i){out.push({eb:'Arrival #'+(i+2),b:b,vl:durStr(b.fin-RACE_T0),sm:'Finished '+fmtEta(b.fin)});});}
+  if(L0.fin){out.push({eb:'Winner',b:L0,vl:durStr(durOf(L0)),sm:'Finished '+fmtEta(L0.fin)});
+    ord.filter(function(b){return b.fin;}).slice(1,3).forEach(function(b,i){out.push({eb:'Arrival #'+(i+2),b:b,vl:durStr(durOf(b)),sm:'Finished '+fmtEta(b.fin)});});}
   else out.push({eb:'Leader',b:L0,vl:f0(L0.dtf)+' nm',sm:f0(km(L0.dtf))+' km to go'});
   var fs=all.filter(function(b){return b.sog!=null&&!b.fin;}).sort(function(a,b){return b.sog-a.sog;})[0];
   if(fs)out.push({eb:'Fastest now',b:fs,vl:f1(fs.sog)+' kn',sm:f1(km(fs.sog))+' km/h'});
@@ -726,7 +736,7 @@ function hlData(){
   if(cl)out.push({eb:'Biggest climber (24 h)',b:cl.b,vl:'+'+cl.g,sm:'places'});
   var du=null;for(var i=0;i<Math.min(ordA.length-1,25);i++){var g=ordA[i+1].dtf-ordA[i].dtf;if(!du||g<du.g)du={g:g,a:ordA[i],b:ordA[i+1],i:i};}
   if(du)out.push({eb:'Closest duel',b:du.a,nm2:du.b.name,vl:f0(du.g)+' nm',sm:f0(km(du.g))+' km apart'});
-  var seen={};ord.forEach(function(b){if(seen[b.cls])return;seen[b.cls]=1;if(b!==L0)out.push(b.fin?{eb:clsName(b.cls)+' winner',b:b,vl:durStr(b.fin-RACE_T0),sm:'Finished '+fmtEta(b.fin)}:{eb:clsName(b.cls)+' leader',b:b,vl:f0(b.dtf)+' nm',sm:L0.fin?f0(km(b.dtf))+' km to go':'+'+f0(b.dtf-L0.dtf)+' nm vs overall leader'});});
+  var seen={};ord.forEach(function(b){if(seen[b.cls])return;seen[b.cls]=1;if(b!==L0)out.push(b.fin?{eb:clsName(b.cls)+' winner',b:b,vl:durStr(durOf(b)),sm:'Finished '+fmtEta(b.fin)}:{eb:clsName(b.cls)+' leader',b:b,vl:f0(b.dtf)+' nm',sm:L0.fin?f0(km(b.dtf))+' km to go':'+'+f0(b.dtf-L0.dtf)+' nm vs overall leader'});});
   return out;
 }
 var hlTab='rank',hlCls='all';
@@ -743,7 +753,7 @@ function hlRender(){
     ch.innerHTML=cs;ch.hidden=false;
     var list=boats.slice().sort(cmpB).filter(function(b){return hlCls==='all'||b.cls===hlCls;});
     list.forEach(function(b,i){var pc=b.fin?100:Math.max(0,Math.min(100,Math.round((1-b.dtf/(b.dtfO>0?3542:hav(SM.lat,SM.lon,FIN.lat,FIN.lon)))*100)));
-      h+='<button class="hi'+(b.out?' out':'')+(b.fin?' fn':'')+'" data-id="'+esc(b.id)+'" style="--c:'+colB(b)+'"><span class="rn">'+(b.out?'\u2013':i+1)+'</span>'+blSvg(b,26)+'<span class="tx"><span class="eb">'+esc(b.boat||clsName(b.cls))+(hlCls==='all'?' \u00b7 '+clsName(b.cls):'')+'</span><span class="nm">'+esc(b.name)+'</span></span><span class="vl">'+(b.fin?durStr(b.fin-RACE_T0):b.out?'':pc+'%')+'<small>'+(b.fin?L2('Finished ','Arriv\u00e9 ')+fmtEta(b.fin):gapOf(b,list[0],i))+'</small></span></button>';});
+      h+='<button class="hi'+(b.out?' out':'')+(b.fin?' fn':'')+'" data-id="'+esc(b.id)+'" style="--c:'+colB(b)+'"><span class="rn">'+(b.out?'\u2013':i+1)+'</span>'+blSvg(b,26)+'<span class="tx"><span class="eb">'+esc(b.boat||clsName(b.cls))+(hlCls==='all'?' \u00b7 '+clsName(b.cls):'')+'</span><span class="nm">'+esc(b.name)+'</span></span><span class="vl">'+(b.fin?durStr(durOf(b)):b.out?'':pc+'%')+'<small>'+(b.fin?L2('Finished ','Arriv\u00e9 ')+fmtEta(b.fin):gapOf(b,list[0],i))+'</small></span></button>';});
     el.innerHTML=h||'<p>No data yet.</p>';
   }else{
     ch.hidden=true;var d=hlData();
@@ -814,7 +824,7 @@ function boatCard(){
     g.fillStyle='rgba(255,255,255,.2)';g.fillRect(70,420,940,34);g.fillStyle='#FFB067';g.fillRect(70,420,940*pc/100,34);
     g.fillStyle='#fff';g.font='italic 800 90px '+F;g.fillText(pc+'% done',70,545);
     g.textAlign='right';g.font='600 36px '+B;g.fillStyle='rgba(255,255,255,.85)';g.fillText(b.fin?'Finished '+fmtEta(b.fin):(etaT?'ETA '+etaT:''),1010,545);g.textAlign='left';
-    if(b.fin){g.fillStyle='#fff';g.font='italic 800 170px '+F;g.fillText(durStr(b.fin-RACE_T0),70,800);g.font='700 40px '+B;g.fillStyle='rgba(255,255,255,.85)';g.fillText('RACE TIME',70,730);}
+    if(b.fin){g.fillStyle='#fff';g.font='italic 800 170px '+F;g.fillText(durStr(durOf(b)),70,800);g.font='700 40px '+B;g.fillStyle='rgba(255,255,255,.85)';g.fillText('RACE TIME',70,730);}
     else{g.fillStyle='#fff';g.font='italic 800 230px '+F;g.fillText(f1(b.sog),70,820);var wv=g.measureText(f1(b.sog)).width;
     g.font='700 54px '+B;g.fillStyle='rgba(255,255,255,.85)';g.fillText('kn',90+wv,820);g.font='600 44px '+B;g.fillText(f1(km(b.sog))+' km/h',90+wv,770);}
     var st=[['TO FINISH',f0(b.dtf)+' nm',f0(km(b.dtf))+' km'],['LAST 24 H',b.d24!=null?f0(b.d24)+' nm':'\u2013',b.d24!=null?f0(km(b.d24))+' km':''],b.fin?['CLASS RANK','P'+b.crank,clsName(b.cls)]:['VMG',f1(b.vmg)+' kn',f1(km(b.vmg))+' km/h']];
@@ -889,7 +899,7 @@ function draw0(){if(WIND&&windOn)setLeg();
   PODS=[];
   if(v.k>=7){var fb=boats.filter(function(q){return q.fin&&vis(q);}).sort(cmpB);
     if(fb.length){ctx.font='700 12px "Barlow Condensed","Arial Narrow",sans-serif';ctx.textAlign='left';
-      fb.slice(0,6).forEach(function(q,i){var txt=(i+1)+'  '+q.name+'  '+durStr(q.fin-RACE_T0),w=ctx.measureText(txt).width+14,x0=fx+14,y0=fy+16+i*21;
+      fb.slice(0,6).forEach(function(q,i){var txt=(i+1)+'  '+q.name+'  '+durStr(durOf(q)),w=ctx.measureText(txt).width+14,x0=fx+14,y0=fy+16+i*21;
         ctx.fillStyle=css['--labline'];ctx.fillRect(x0,y0,w,18);ctx.fillStyle=i===0?'#3ddc84':css['--lab'];ctx.fillRect(x0,y0,3,18);
         ctx.fillStyle=css['--lab'];ctx.fillText(txt,x0+8,y0+13);PODS.push({id:q.id,x:x0,y:y0,w:w,h:18});});
       if(fb.length>6){ctx.fillStyle=css['--lab'];ctx.fillText('+'+(fb.length-6)+L2(' more \u2192 use the list',' autres \u2192 voir la liste'),fx+22,fy+16+6*21+12);}}}
@@ -983,14 +993,14 @@ function dg(n){return n==null||isNaN(n)?'---':('00'+(Math.round(n)%360)).slice(-
 function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
 function clsName(k){var c=CLASSES.filter(function(x){return x.k===k})[0];return c?c.n:'Other';}
 var bodyEl=document.getElementById('body'),dock=document.getElementById('dock');
-function gapOf(b,lead,i){if(b.fin)return 'Finished '+durStr(b.fin-RACE_T0);if(b.out)return b.st==='RET'?'Retired':'Stopped';return i===0?'Leader':'+'+f0(b.dtf-lead.dtf)+' nm \u00b7 '+f0(km(b.dtf-lead.dtf))+' km';}
+function gapOf(b,lead,i){if(b.fin)return 'Finished '+durStr(durOf(b));if(b.out)return b.st==='RET'?'Retired':'Stopped';return i===0?'Leader':'+'+f0(b.dtf-lead.dtf)+' nm \u00b7 '+f0(km(b.dtf-lead.dtf))+' km';}
 function renderDock(){
   var sc=bodyEl.querySelector('.strip'),list=bodyEl.querySelector('.list'),sl=sc?sc.scrollLeft:0,st=list?list.scrollTop:0;
   var b=sel&&boats.filter(function(x){return x.id===sel.id;})[0],h='';
   if(b&&!selCompact&&!cmpMode){
     var c=colB(b),vl=boats.filter(vis),pc=Math.max(0,Math.min(100,Math.round((1-b.dtf/(b.dtfO>0?3542:hav(SM.lat,SM.lon,FIN.lat,FIN.lon)))*100))),pc=b.fin?100:pc,eta=(function(){var Tn=rp?rp.t:TL.t1,w=etaWind(b,Tn);if(w)return w;var o=etaOf(b,Tn);return o?'~'+o:null;})();
     h='<div class="pad"><div class="dtl-h" style="--c:'+c+'">'+blSvg(b,32)+'<h3>'+esc(b.name)+'</h3><button class="x" id="cmp" aria-label="Compare">\u21c4</button><button class="x star" id="fav" aria-label="Favourite">'+(FAV===b.id?'\u2605':'\u2606')+'</button><button class="x" id="xs" aria-label="Close">×</button></div>'+
-    '<p class="sub">'+(b.fin?'<b style="color:var(--hot)">Finished in '+durStr(b.fin-RACE_T0)+'</b> \u00b7 ':'')+(b.out?'<b style="color:var(--hot)">'+(b.st==='RET'?'Retired':'Stopped')+'</b> \u00b7 ':'')+(b.boat?esc(b.boat)+' · ':'')+'P'+b.rank+' overall · P'+b.crank+' '+esc(clsName(b.cls))+(b.d24!=null?' · '+f0(b.d24)+' nm / '+f0(km(b.d24))+' km in 24 h':'')+'</p>'+
+    '<p class="sub">'+(b.fin?'<b style="color:var(--hot)">Finished in '+durStr(durOf(b))+'</b> \u00b7 '+L2('start ','d\u00e9part ')+fmtEta(startOf(b))+' \u00b7 ':'')+(b.out?'<b style="color:var(--hot)">'+(b.st==='RET'?'Retired':'Stopped')+'</b> \u00b7 ':'')+(b.boat?esc(b.boat)+' · ':'')+'P'+b.rank+' overall · P'+b.crank+' '+esc(clsName(b.cls))+(b.d24!=null?' · '+f0(b.d24)+' nm / '+f0(km(b.d24))+' km in 24 h':'')+'</p>'+
     '<div class="pr'+(b.fin?' fin':'')+'" style="--c:'+c+'"><i><b style="width:'+pc+'%"></b></i>'+pc+'% done'+(b.fin?'<em>Finished '+fmtEta(b.fin)+'</em>':eta?'<em>ETA '+eta+'</em>':'')+'</div>'+cmpRow(b)+'<div class="hero" style="--c:'+c+'"><div class="speed"><b>'+f1(b.sog)+'</b><span>KN</span><span class="kh">'+f1(km(b.sog))+' km/h</span></div>'+dial(b,c)+'</div>'+windRow(b)+
     '<div class="stats">'+stat('Course',dg(b.cog),'°')+stat('To finish',dg(b.brgF),'°')+stat('Distance',f0(b.dtf),'nm',f0(km(b.dtf))+' km')+stat('VMG',f1(b.vmg),'kn',f1(km(b.vmg))+' km/h')+'</div></div>';
   }else if(listOpen){
@@ -1181,7 +1191,7 @@ function geovoileRows(j){
   var bi=ix('boat'),ti=ix('track'),ni=ix('name'),si=ix('skipper'),bni=ix('boatname'),ci=ix('class'),cli=ix('classe'),di=ix('division'),
       hi=ix('heading'),spi=ix('speed'),sti=ix('racestatus'),dti=ix('dtf'),XI={rk:ix('rank'),dtl:ix('dtl'),v24:ix('vitmax24'),a48:ix('vitmoy48'),wd:ix('winddir'),ws:ix('windspeed'),wg:ix('windgust'),cd:ix('currentdir'),cs:ix('currentspeed'),wh:ix('waveheight'),tw:ix('tempwater')};
   HIDDEN={};(Array.isArray(rep.hidden)?rep.hidden:[]).forEach(function(e){var id=Array.isArray(e)?e[0]:e&&(e.boat||e.id),t=Array.isArray(e)?Date.parse(e[1]):Date.parse(e&&(e.date||e.time));if(id!=null&&!isNaN(t))HIDDEN[String(id)]=t;});
-  ARRT={};(Array.isArray(rep.arrivals)?rep.arrivals:[]).forEach(function(e){var id=Array.isArray(e)?e[0]:e&&(e.boat||e.id),v0=Array.isArray(e)?e[1]:e&&(e.time||e.date||e.ts||e.arrival),t=typeof v0==='number'?(v0<1e11?v0*1000:v0):Date.parse(v0);if(id!=null&&!isNaN(t))ARRT[String(id)]=t;});
+  ARRT={};ARRE={};(Array.isArray(rep.arrivals)?rep.arrivals:[]).forEach(function(e){var id=Array.isArray(e)?e[0]:e&&(e.boat||e.id),v0=Array.isArray(e)?e[1]:e&&(e.time||e.date||e.ts||e.arrival),t=typeof v0==='number'?(v0<1e11?v0*1000:v0):Date.parse(v0);if(id!=null&&!isNaN(t))ARRT[String(id)]=t;var el=Array.isArray(e)?+e[2]:NaN;if(id!=null&&!isNaN(t)&&el>1e5&&el<4e7)ARRE[String(id)]=el*1000;});
   if(bi<0||ti<0)return null;
   var rows=[];
   rep.history.forEach(function(h){
