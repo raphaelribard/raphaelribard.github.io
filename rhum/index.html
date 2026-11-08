@@ -351,8 +351,8 @@ function vis(b){return filter==='ALL'||b.cls===filter;}
 var SPD=[.5,1,2,4,8],spI=1,rp=null,FULLV=null,rafId=0,TL={t0:0,t1:0};
 function cutHist(H,T){var n=H.length,i=0;if(H[0].t>=T)return [H[0]];while(i<n&&H[i].t<=T)i++;var a=H.slice(0,i);if(i>=n)return a;
   var p=a[a.length-1],q=H[i],f=(T-p.t)/(q.t-p.t),dt=(q.t-p.t)/3600000,sg=q.sog!=null?q.sog:(dt>0?hav(p.lat,p.lon,q.lat,q.lon)/dt:null);
-  var p0=H[i-2]||p,p3=H[i+1]||q,c1=crPt(p0,p,q,p3,f),c0=crPt(p0,p,q,p3,Math.max(0,f-.02)),c2=crPt(p0,p,q,p3,Math.min(1,f+.02));
-  a.push({t:T,lat:c1.lat,lon:c1.lon,sog:sg,cog:(c0.lat===c2.lat&&c0.lon===c2.lon)?brg(p.lat,p.lon,q.lat,q.lon):brg(c0.lat,c0.lon,c2.lat,c2.lon)});return a;}
+  var p0=H[i-2]||p,c1=crPt(p0,p,q,f),c0=crPt(p0,p,q,Math.max(0,f-.02)),c2=crPt(p0,p,q,Math.min(1,f+.02));
+  a.push({t:T,lat:c1.lat,lon:c1.lon,sog:sg,cog:(c0.lat===c2.lat&&c0.lon===c2.lon)?brg(p.lat,p.lon,q.lat,q.lon):brg(c0.lat,c0.lon,c2.lat,c2.lon),qx:q,fx:f});return a;}
 function sm3(x){x=Math.max(0,Math.min(1,x));return x*x*(3-2*x);}
 function tgt(vb,F,fr,pad,kmax){var L=vb[0],hv=Math.max(120,H-170-(rp?170:110)),g=vb.slice(0,Math.max(3,Math.ceil(vb.length*fr))),a=[1e9,-1e9,1e9,-1e9];
   g.forEach(function(b){var m=my(b.lat);a[0]=Math.min(a[0],m);a[1]=Math.max(a[1],m);a[2]=Math.min(a[2],b.lon);a[3]=Math.max(a[3],b.lon);});
@@ -1290,25 +1290,24 @@ document.getElementById('bFeed').onclick=function(){var u=document.getElementByI
 document.getElementById('bReset').onclick=function(){feedUrl=FEED_DEFAULT;lsSet('rdr_feed',null);boatsUrl=BOATS_DEFAULT;BOATS={};lsSet('rdr_boats',null);document.getElementById('feedUrl').value=FEED_DEFAULT;document.getElementById('boatsUrl').value=BOATS_DEFAULT;firstLoad=true;msg.textContent='Loading…';loadFeed(true);};
 
 /* Positions arrive about an hour apart, so a straight join shows sharp corners that never happened. Catmull-Rom curve through the reports instead. */
-/* Passes exactly through every report. Tangents follow the average heading at each report and shrink on sharp turns, so the curve stays close to the straight segments instead of overshooting. */
-function crPt(p0,p1,p2,p3,f){var cl=Math.cos(p1.lat*D2R)||1;
+/* Causal smoothing: a curve segment only depends on the reports up to its end, so adding new positions never changes a trail that is already drawn.
+   The curve leaves each report along the previous heading and arrives along the heading of its own segment, and it passes exactly through every report. */
+function crPt(p0,p1,p2,f){var cl=Math.cos(p1.lat*D2R)||1;
   function V(a,b){return [(b.lon-a.lon)*cl,b.lat-a.lat];}
   function N(v){var l=Math.hypot(v[0],v[1]);return l>1e-9?[v[0]/l,v[1]/l]:null;}
   var sg=V(p1,p2),L=Math.hypot(sg[0],sg[1]);if(L<1e-9)return {lat:p1.lat,lon:p1.lon};
-  var ub=N(sg),ua=N(V(p0,p1))||ub,uc=N(V(p2,p3))||ub,
-      K=.5,m1=[(ua[0]+ub[0])/2*L*K,(ua[1]+ub[1])/2*L*K],m2=[(ub[0]+uc[0])/2*L*K,(ub[1]+uc[1])/2*L*K],
-      f2=f*f,f3=f2*f,h00=2*f3-3*f2+1,h10=f3-2*f2+f,h01=-2*f3+3*f2,h11=f3-f2,
-      x=h00*0+h10*m1[0]+h01*sg[0]+h11*m2[0],y=h10*m1[1]+h01*sg[1]+h11*m2[1]+h00*0;
+  var ub=N(sg),ua=N(V(p0,p1))||ub,turn=Math.acos(Math.max(-1,Math.min(1,ua[0]*ub[0]+ua[1]*ub[1])))/D2R,K=turn<8?1:.5,
+      f2=f*f,f3=f2*f,h10=f3-2*f2+f,h01=-2*f3+3*f2,h11=f3-f2,
+      x=h10*ua[0]*L*K+h01*sg[0]+h11*ub[0]*L*K,y=h10*ua[1]*L*K+h01*sg[1]+h11*ub[1]*L*K;
   return {lat:p1.lat+y,lon:p1.lon+x/cl};}
-function smoothTrail(tr){var n=tr.length;if(n<3)return tr;var o=[tr[0]],i,k,j;
-  for(i=0;i<n-1;i++){var p0=tr[i-1]||tr[i],p1=tr[i],p2=tr[i+1],p3=tr[i+2]||tr[i+1];
-    var b0=brg(p0.lat,p0.lon,p1.lat,p1.lon),b1=brg(p1.lat,p1.lon,p2.lat,p2.lon),b2=brg(p2.lat,p2.lon,p3.lat,p3.lon);
-    var tn=Math.max(p0===p1?0:angd(b0,b1),p2===p3?0:angd(b1,b2));
-    k=tn>5?Math.min(10,Math.ceil(tn/6)):1;
-    for(j=1;j<k;j++)o.push(crPt(p0,p1,p2,p3,j/k));
-    o.push({lat:p2.lat,lon:p2.lon});}
+function smoothTrail(tr,part){var n=tr.length;if(n<2)return tr;var o=[tr[0]],i,j;
+  for(i=0;i<n-1;i++){var p0=tr[i-1]||tr[i],p1=tr[i],last=i===n-2&&part,p2=last?part.q:tr[i+1],fe=last?part.f:1,
+      tn=(p0===p1||(p0.lat===p1.lat&&p0.lon===p1.lon))?0:angd(brg(p0.lat,p0.lon,p1.lat,p1.lon),brg(p1.lat,p1.lon,p2.lat,p2.lon)),
+      k=tn>5?Math.min(10,Math.ceil(tn/6)):1;
+    for(j=1;j<k;j++){var f=j/k;if(f<fe)o.push(crPt(p0,p1,p2,f));}
+    o.push(last?crPt(p0,p1,p2,fe):{lat:p2.lat,lon:p2.lon});}
   return o;}
-function thin(h){var st=Math.max(1,Math.ceil(h.length/140)),o=[];for(var i=0;i<h.length;i+=st)o.push({lat:h[i].lat,lon:h[i].lon});var L=h[h.length-1];if(o[o.length-1].lat!==L.lat||o[o.length-1].lon!==L.lon)o.push({lat:L.lat,lon:L.lon});return smoothTrail(o);}
+function thin(h){var st=h.length<=600?1:Math.pow(2,Math.ceil(Math.log(h.length/600)/Math.LN2)),o=[];for(var i=0;i<h.length;i+=st)o.push({lat:h[i].lat,lon:h[i].lon});var L=h[h.length-1];if(o[o.length-1].lat!==L.lat||o[o.length-1].lon!==L.lon)o.push({lat:L.lat,lon:L.lon});return smoothTrail(o,(L.qx&&st===1&&o.length>=2)?{q:L.qx,f:L.fx}:null);}
 function tick(full){compute();readCss();tickN++;if(full||sel||tickN%5===0)renderDock();draw();}
 window.addEventListener('resize',function(){resize();});
 /* keep the bitmap matching the on-screen size, otherwise circles turn into ovals (iOS toolbar, rotation, zoom) */
