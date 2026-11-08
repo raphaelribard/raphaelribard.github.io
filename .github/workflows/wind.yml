@@ -22,11 +22,12 @@ jobs:
           mkdir -p rhum
           python3 - <<'PY'
           import json, os, sys, time, urllib.request, urllib.parse
-          LA = list(range(8, 57, 2))
-          LO = list(range(-68, 5, 2))
+          LA = [8 + 1.5 * k for k in range(33)]
+          LO = [-68 + 1.5 * k for k in range(49)]
           PTS = [(a, b) for a in LA for b in LO]
           DT = 10800
           OUT = 'rhum/wave.json'
+          SLEEP = 12  # stay under the free limit of 600 calls a minute
 
           def fetch(chunk, past, fut):
               q = {'latitude': ','.join(str(p[0]) for p in chunk), 'longitude': ','.join(str(p[1]) for p in chunk),
@@ -54,6 +55,8 @@ jobs:
           def main(fetch=fetch, now=None):
               now = now or time.time()
               old = load_old()
+              if old and old.get('u') and now - old['u'] < 5 * 3600 and os.environ.get('GITHUB_EVENT_NAME') != 'workflow_dispatch':
+                  print('waves are recent, skipping'); return
               past, fut = (3, 4) if old else (40, 4)
               series = [dict() for _ in PTS]
               if old:
@@ -69,11 +72,11 @@ jobs:
                       for t, h in zip(tt, hh):
                           if t % DT == 0:
                               series[s + i][t] = -1 if h is None else int(round(h * 10))
-                  time.sleep(1)
+                  time.sleep(SLEEP)
               t0 = min(min(d) for d in series if d); t1 = max(max(d) for d in series if d)
               n = (t1 - t0) // DT + 1
               h = [[d.get(t0 + k * DT, -1) for k in range(n)] for d in series]
-              out = {'t0': t0, 'dt': DT, 'la': LA, 'lo': LO, 'h': h}
+              out = {'t0': t0, 'dt': DT, 'la': LA, 'lo': LO, 'u': int(now), 'h': h}
               tmp = OUT + '.tmp'
               json.dump(out, open(tmp, 'w'), separators=(',', ':'))
               os.replace(tmp, OUT)
