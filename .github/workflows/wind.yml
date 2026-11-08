@@ -16,32 +16,40 @@ jobs:
           curl -fsS --retry 3 --retry-delay 20 'https://api.open-meteo.com/v1/forecast?latitude=8,8,8,8,8,8,8,8,8,8,8,8,8,14,14,14,14,14,14,14,14,14,14,14,14,14,20,20,20,20,20,20,20,20,20,20,20,20,20,26,26,26,26,26,26,26,26,26,26,26,26,26,32,32,32,32,32,32,32,32,32,32,32,32,32,38,38,38,38,38,38,38,38,38,38,38,38,38,44,44,44,44,44,44,44,44,44,44,44,44,44,50,50,50,50,50,50,50,50,50,50,50,50,50,56,56,56,56,56,56,56,56,56,56,56,56,56&longitude=-68,-62,-56,-50,-44,-38,-32,-26,-20,-14,-8,-2,4,-68,-62,-56,-50,-44,-38,-32,-26,-20,-14,-8,-2,4,-68,-62,-56,-50,-44,-38,-32,-26,-20,-14,-8,-2,4,-68,-62,-56,-50,-44,-38,-32,-26,-20,-14,-8,-2,4,-68,-62,-56,-50,-44,-38,-32,-26,-20,-14,-8,-2,4,-68,-62,-56,-50,-44,-38,-32,-26,-20,-14,-8,-2,4,-68,-62,-56,-50,-44,-38,-32,-26,-20,-14,-8,-2,4,-68,-62,-56,-50,-44,-38,-32,-26,-20,-14,-8,-2,4,-68,-62,-56,-50,-44,-38,-32,-26,-20,-14,-8,-2,4&hourly=wind_speed_10m,wind_direction_10m&wind_speed_unit=kn&timeformat=unixtime&past_days=36&forecast_days=4' -o rhum/wind.tmp
           python3 -c "import json;j=json.load(open('rhum/wind.tmp'));assert len(j)==117"
           mv rhum/wind.tmp rhum/wind.json
-      - name: Fetch waves
+      - name: Fetch sea state
         continue-on-error: true
         run: |
           mkdir -p rhum
           python3 - <<'PY'
           import json, os, sys, time, urllib.request, urllib.parse
-          LA = [8 + 1.5 * k for k in range(33)]
-          LO = [-68 + 1.5 * k for k in range(49)]
+          LA = list(range(8, 57, 2))
+          LO = list(range(-68, 5, 2))
           PTS = [(a, b) for a in LA for b in LO]
-          DT = 10800
-          OUT = 'rhum/wave.json'
+          DT = 21600
+          OUT = 'rhum/sea.json'
           SLEEP = 12  # stay under the free limit of 600 calls a minute
+          VARS = ['wave_height', 'wave_period', 'wave_direction']
 
           def fetch(chunk, past, fut):
               q = {'latitude': ','.join(str(p[0]) for p in chunk), 'longitude': ','.join(str(p[1]) for p in chunk),
-                   'hourly': 'wave_height', 'timeformat': 'unixtime', 'past_days': past, 'forecast_days': fut}
+                   'hourly': ','.join(VARS), 'timeformat': 'unixtime', 'past_days': past, 'forecast_days': fut}
               url = 'https://marine-api.open-meteo.com/v1/marine?' + urllib.parse.urlencode(q, safe=',')
               for k in range(4):
                   try:
-                      with urllib.request.urlopen(url, timeout=60) as r:
+                      with urllib.request.urlopen(url, timeout=90) as r:
                           j = json.load(r)
                       return j if isinstance(j, list) else [j]
                   except Exception as e:
                       print('retry', k, e, file=sys.stderr)
-                      time.sleep(15 * (k + 1))
-              raise SystemExit('wave fetch failed')
+                      time.sleep(20 * (k + 1))
+              raise SystemExit('sea fetch failed')
+
+          def enc(name, x):
+              if x is None:
+                  return -1
+              if name == 'wave_direction':
+                  return int(round(x / 5.0)) % 72
+              return int(round(x * 10))
 
           def load_old():
               try:
@@ -56,31 +64,36 @@ jobs:
               now = now or time.time()
               old = load_old()
               if old and old.get('u') and now - old['u'] < 5 * 3600 and os.environ.get('GITHUB_EVENT_NAME') != 'workflow_dispatch':
-                  print('waves are recent, skipping'); return
+                  print('sea data is recent, skipping'); return
               past, fut = (3, 4) if old else (40, 4)
-              series = [dict() for _ in PTS]
+              series = {v: [dict() for _ in PTS] for v in VARS}
+              keys = {'wave_height': 'h', 'wave_period': 'p', 'wave_direction': 'd'}
               if old:
-                  for i, row in enumerate(old['h']):
-                      for k, v in enumerate(row):
-                          series[i][old['t0'] + k * DT] = v
+                  for v in VARS:
+                      for i, row in enumerate(old[keys[v]]):
+                          for k, x in enumerate(row):
+                              series[v][i][old['t0'] + k * DT] = x
               for s in range(0, len(PTS), 100):
                   chunk = PTS[s:s + 100]
                   res = fetch(chunk, past, fut)
                   assert len(res) == len(chunk), 'unexpected answer'
                   for i, L in enumerate(res):
-                      tt = L['hourly']['time']; hh = L['hourly']['wave_height']
-                      for t, h in zip(tt, hh):
-                          if t % DT == 0:
-                              series[s + i][t] = -1 if h is None else int(round(h * 10))
+                      tt = L['hourly']['time']
+                      for v in VARS:
+                          for t, x in zip(tt, L['hourly'].get(v, [None] * len(tt))):
+                              if t % DT == 0:
+                                  series[v][s + i][t] = enc(v, x)
                   time.sleep(SLEEP)
-              t0 = min(min(d) for d in series if d); t1 = max(max(d) for d in series if d)
+              allt = [t for d in series['wave_height'] for t in d]
+              t0, t1 = min(allt), max(allt)
               n = (t1 - t0) // DT + 1
-              h = [[d.get(t0 + k * DT, -1) for k in range(n)] for d in series]
-              out = {'t0': t0, 'dt': DT, 'la': LA, 'lo': LO, 'u': int(now), 'h': h}
+              out = {'t0': t0, 'dt': DT, 'la': LA, 'lo': LO, 'u': int(now)}
+              for v in VARS:
+                  out[keys[v]] = [[d.get(t0 + k * DT, -1) for k in range(n)] for d in series[v]]
               tmp = OUT + '.tmp'
               json.dump(out, open(tmp, 'w'), separators=(',', ':'))
               os.replace(tmp, OUT)
-              print('waves', len(PTS), 'points', n, 'steps')
+              print('sea', len(PTS), 'points', n, 'steps')
 
           if __name__ == '__main__':
               main()
