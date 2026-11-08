@@ -86,6 +86,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-acti
 #hint button{background:var(--hot);color:#fff;border-radius:999px;padding:8px 16px;font:700 13px var(--f-body)}
 #howBox ol{margin:8px 0 4px;padding-left:20px;font-size:14px;line-height:1.5;color:var(--mute)}#howBox[hidden]{display:none}
 .tools{transition:opacity .15s}#app.tlh .tools{opacity:0}#app.tlh .tools,#app.tlh .tools *{pointer-events:none!important}
+#pc{position:absolute;left:12px;right:12px;margin:0 auto;max-width:420px;z-index:4;padding:11px 14px 10px;border-radius:16px;font:600 12px var(--f-body);color:var(--ink);box-shadow:0 6px 24px rgba(0,0,0,.25)}#pc[hidden]{display:none}#pc h4{margin:0 0 6px;font:700 13px var(--f-body);display:flex;justify-content:space-between;align-items:center;gap:8px}#pc h4 button{font:700 18px var(--f-body);color:var(--mute);padding:0 4px;line-height:1}#pc .g{display:grid;grid-template-columns:1fr 1fr;gap:3px 14px}#pc .g div{display:flex;justify-content:space-between;gap:6px}#pc .g span{color:var(--mute)}#pc .g b{text-align:right}#pc .nd{color:var(--mute);padding:6px 0}#pc svg{display:block;width:100%;height:50px;margin-top:8px}#pc .lg{display:flex;gap:12px;color:var(--mute);font-size:10px;margin-top:2px}#pc .lg i{display:inline-block;width:8px;height:3px;border-radius:2px;margin-right:4px;vertical-align:middle}
 #toast{position:absolute;left:50%;top:44%;transform:translateX(-50%);z-index:5;background:var(--ink);color:var(--bg);font:600 13px var(--f-body);padding:10px 16px;border-radius:999px;pointer-events:none;opacity:0;transition:opacity .25s}
 #toast.on{opacity:1}
 .mv #body{display:none}
@@ -224,6 +225,7 @@ input[type=url]{width:100%;background:var(--soft);color:var(--ink);border:1px so
   <button id="rpBtn" aria-label="Replay the race">▶ <span>Replay the race</span></button>
   <div id="hint" hidden><ul><li>Tap a boat to follow it.</li><li>Press ▶ to replay the race, then drag the slider to go back in time.</li><li>Use the round buttons for wind, highlights and more.</li></ul><button id="hintOk">Got it</button></div>
   <div id="rk" class="sx" hidden><div class="sheet pad"><h2>Race chart</h2><div class="sub2">Tap the chart to jump to that moment</div><canvas id="rkC" class="rkc"></canvas><div class="btns"><button class="btn" id="rkClose">Close</button></div></div></div>
+  <div id="pc" class="glass" hidden></div>
   <div id="toast" role="status"></div>
   <div id="mm" class="sx" hidden><div class="sheet pad"><h2>Share &amp; more</h2>
     <button class="mrow" id="mLink"><span class="ic">&#8599;</span><span>Share this view<small>Link to the current boat and moment</small></span></button>
@@ -982,7 +984,8 @@ function drawNight(){if(!NIGHT)return;var T=rp?rp.t:(TL.t1>0&&mode==='imp'?TL.t1
     for(var i=0;i<cw;i++){var lon=v.lon+((i+.5)*14-W/2)/v.k,el=Math.asin(Math.max(-1,Math.min(1,sl*sd+cl*cd*Math.cos((lon-sp.lon)*D2R))))/D2R,
       a=el>=2?0:el<=-12?.34:.34*(2-el)/14,o=(j*cw+i)*4;dd[o]=4;dd[o+1]=14;dd[o+2]=48;dd[o+3]=Math.round(a*255);}}
   nx.putImageData(im,0,0);ctx.save();ctx.imageSmoothingEnabled=true;ctx.drawImage(NC,0,0,cw*14,ch*14);ctx.restore();}
-function draw0(){if((WIND&&windOn)||SEA||SWL)setLeg();
+function draw0(){draw00();drawPin();}
+function draw00(){if((WIND&&windOn)||SEA||SWL)setLeg();
   if(!css)readCss();
   ctx.setTransform(dpr,0,0,dpr,0,0);
   var g=ctx.createRadialGradient(W*.5,H*.38,0,W*.5,H*.38,Math.max(W,H)*.85);g.addColorStop(0,css['--sea1']);g.addColorStop(1,css['--sea2']);
@@ -1099,8 +1102,55 @@ function tapAt(px,py){var now=Date.now();
   LT.t=now;LT.x=px;LT.y=py;
   if(hitAt(px,py)||!sel){pick(px,py);return;}
   LT.h=setTimeout(function(){pick(px,py);},300);}
+
+/* Conditions card: tap the sea (or "Conditions" in a boat panel) to read wind, sea, rain... at that spot, at the time on screen. One small request per tap, made from the viewer's own browser. */
+var PC=null;
+function pcIdx(h){var T=wtime()/1000;return Math.max(0,Math.min(h.time.length-1,Math.floor((T-h.time[0])/3600)));}
+function pcAt(h,k,i){return h&&h[k]&&h[k][i]!=null?h[k][i]:null;}
+function openPC(lat,lon,name){var key=PC={lat:lat,lon:lon,name:name||'',d:null,err:false,idx:-9,loaded:false},la=lat.toFixed(2),lo=lon.toFixed(2);pcRender();
+  function g(u){return fetch(u).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;});}
+  Promise.all([g('https://api.open-meteo.com/v1/forecast?latitude='+la+'&longitude='+lo+'&hourly=wind_speed_10m,wind_gusts_10m,wind_direction_10m,precipitation,cloud_cover,pressure_msl,temperature_2m&wind_speed_unit=kn&timeformat=unixtime&past_days=21&forecast_days=3'),
+    g('https://marine-api.open-meteo.com/v1/marine?latitude='+la+'&longitude='+lo+'&hourly=wave_height,wave_period,wave_direction,swell_wave_height,swell_wave_period,ocean_current_velocity,ocean_current_direction,sea_surface_temperature&timeformat=unixtime&past_days=21&forecast_days=3')]).then(function(a){
+    if(PC!==key)return;PC.loaded=true;var A=a[0]&&a[0].hourly,M=a[1]&&a[1].hourly;if(!A&&!M)PC.err=true;else PC.d={a:A,m:M};PC.idx=-9;pcRender();draw();});}
+function closePC(){PC=null;document.getElementById('pc').hidden=true;draw();}
+function pcRender(){var e=document.getElementById('pc');if(!PC){e.hidden=true;return;}e.hidden=false;e.style.bottom=(dockH()+44)+'px';
+  var ttl=PC.name?esc(PC.name):L2('Conditions','Conditions')+' · '+Math.abs(PC.lat).toFixed(1)+'°'+(PC.lat>=0?'N':'S')+' '+Math.abs(PC.lon).toFixed(1)+'°'+(PC.lon>=0?'E':'W'),
+    h='<h4><span>'+ttl+'</span><button id="pcx" aria-label="Close">×</button></h4>';
+  if(!PC.loaded){e.innerHTML=h+'<div class="nd">'+L2('Loading…','Chargement…')+'</div>';return;}
+  if(PC.err||!PC.d){e.innerHTML=h+'<div class="nd">'+L2('No data here right now. Try again in a moment.','Pas de données ici pour l’instant. Réessayez dans un instant.')+'</div>';return;}
+  var A=PC.d.a,M=PC.d.m,ia=A?pcIdx(A):0,im=M?pcIdx(M):0;PC.idx=ia+'|'+im;var it=[];
+  function add(l,v){if(v!=null&&v!=='')it.push('<div><span>'+l+'</span><b>'+v+'</b></div>');}
+  var ws=pcAt(A,'wind_speed_10m',ia),wg=pcAt(A,'wind_gusts_10m',ia),wd=pcAt(A,'wind_direction_10m',ia);
+  if(ws!=null)add(L2('Wind','Vent'),f0(ws)+' kn'+(wd!=null?' '+CPT[Math.round(wd/22.5)%16]:'')+' <small style="font-weight:600;color:var(--mute)">'+f0(ws*1.852)+' km/h</small>');
+  if(wg!=null)add(L2('Gusts','Rafales'),f0(wg)+' kn');
+  var wh=pcAt(M,'wave_height',im),wp=pcAt(M,'wave_period',im),wv=pcAt(M,'wave_direction',im),sh=pcAt(M,'swell_wave_height',im),sp=pcAt(M,'swell_wave_period',im);
+  if(wh!=null){var he=wp!=null?effH(wh,Math.max(3,wp)):wh,k=SBN[seaLv(he)];add(L2('Sea','Mer'),f1(wh)+' m'+(wp!=null?' / '+f0(wp)+' s':'')+(wv!=null?' '+CPT[Math.round(wv/22.5)%16]:''));add(L2('State','État'),'<span style="color:'+k[3]+'">●</span> '+L2(k[1],k[2]));}
+  if(sh!=null&&wh!=null&&Math.abs(sh-wh)>.3)add(L2('Swell','Houle'),f1(sh)+' m'+(sp!=null?' / '+f0(sp)+' s':''));
+  var rn=pcAt(A,'precipitation',ia),cl=pcAt(A,'cloud_cover',ia);
+  if(rn!=null)add(L2('Rain','Pluie'),rn>=.1?f1(rn)+' mm/h':L2('none','aucune'));
+  if(cl!=null)add(L2('Cloud','Nuages'),f0(cl)+'%');
+  var ta=pcAt(A,'temperature_2m',ia),tw=pcAt(M,'sea_surface_temperature',im),pr=pcAt(A,'pressure_msl',ia);
+  if(ta!=null)add(L2('Air','Air'),f0(ta)+'°C');
+  if(tw!=null)add(L2('Water','Eau'),f0(tw)+'°C');
+  if(pr!=null)add(L2('Pressure','Pression'),f0(pr)+' hPa');
+  var cv2=pcAt(M,'ocean_current_velocity',im),cd=pcAt(M,'ocean_current_direction',im);
+  if(cv2!=null&&cv2>.3)add(L2('Current','Courant'),f1(cv2/1.852)+' kn'+(cd!=null?' '+CPT[Math.round(cd/22.5)%16]:''));
+  if(!it.length){e.innerHTML=h+'<div class="nd">'+L2('No data here right now.','Pas de données ici.')+'</div>';return;}
+  /* 48 h strip: wind, waves, rain, marker at the time on screen */
+  var svg='',N=48,Wd=300,Ht=46;
+  function ser(Z,key,i,mx,col,sw,bar){if(!Z||!Z[key])return '';var a=Z[key],i0=Math.max(0,i-24),i1=Math.min(a.length-1,i0+N),pts=[],j;i0=Math.max(0,i1-N);
+    for(j=i0;j<=i1;j++){var x=(j-i0)/N*Wd,val=a[j]==null?0:a[j],y=Ht-2-Math.min(1,val/mx)*(Ht-6);if(bar)pts.push('<rect x="'+x.toFixed(1)+'" y="'+y.toFixed(1)+'" width="5" height="'+(Ht-2-y).toFixed(1)+'" fill="'+col+'" opacity=".55"/>');else pts.push(x.toFixed(1)+','+y.toFixed(1));}
+    return bar?pts.join(''):'<polyline fill="none" stroke="'+col+'" stroke-width="'+sw+'" stroke-linejoin="round" points="'+pts.join(' ')+'"/>';}
+  var mxw=40,mxh=6,mxr=4,j2;if(A){A.wind_speed_10m.forEach(function(x){if(x>mxw)mxw=x;});}if(M&&M.wave_height){M.wave_height.forEach(function(x){if(x>mxh)mxh=x;});}
+  svg+=ser(A,'precipitation',ia,mxr,'#4aa3ff',0,true)+ser(M,'wave_height',im,mxh,'#f29a3a',2)+ser(A,'wind_speed_10m',ia,mxw,'currentColor',1.6);
+  var ref=A||M,ri=A?ia:im,i0b=Math.max(0,Math.min(ri-24,ref.time.length-1-N)),mx=Math.max(0,Math.min(1,(ri-i0b)/N))*Wd;
+  svg+='<line x1="'+mx.toFixed(1)+'" x2="'+mx.toFixed(1)+'" y1="0" y2="'+Ht+'" stroke="#ff6a1a" stroke-width="1.5"/>';
+  e.innerHTML=h+'<div class="g">'+it.join('')+'</div><svg viewBox="0 0 '+Wd+' '+Ht+'" preserveAspectRatio="none" aria-hidden="true">'+svg+'</svg><div class="lg"><span><i style="background:currentColor"></i>'+L2('wind','vent')+'</span><span><i style="background:#f29a3a"></i>'+L2('waves','vagues')+'</span><span><i style="background:#4aa3ff"></i>'+L2('rain','pluie')+'</span><span>±24 h</span></div>';}
+function drawPin(){if(!PC)return;var x=X(PC.lon),y=Y(PC.lat);ctx.save();ctx.beginPath();ctx.arc(x,y,7,0,6.2832);ctx.fillStyle='rgba(255,106,26,.25)';ctx.fill();ctx.lineWidth=2;ctx.strokeStyle='#fff';ctx.stroke();ctx.beginPath();ctx.arc(x,y,2.5,0,6.2832);ctx.fillStyle='#ff6a1a';ctx.fill();ctx.restore();
+  if(PC.d){var A=PC.d.a,M=PC.d.m,k=(A?pcIdx(A):0)+'|'+(M?pcIdx(M):0);if(k!==PC.idx)pcRender();}}
+document.addEventListener('click',function(e){var t=e.target;if(t.id==='pcx'){closePC();return;}if(t.id==='condB'){var b=sel&&boats.filter(function(q){return q.id===sel.id;})[0];if(b)openPC(b.lat,b.lon,b.name);}});
 function pick(px,py){for(var pi=0;pi<PODS.length;pi++){var P=PODS[pi];if(px>=P.x&&px<=P.x+P.w&&py>=P.y&&py<=P.y+P.h){var pb=boats.filter(function(q){return q.id===P.id;})[0];if(pb){select(pb,false);return;}}}
-  var best=null,bd=30;boats.forEach(function(b){if(!vis(b))return;var d=Math.hypot(X(b.lon)-px,Y(b.lat)-py);if(d<bd){bd=d;best=b;}});if(best)select(best,false);else if(sel)select(null);}
+  var best=null,bd=30;boats.forEach(function(b){if(!vis(b))return;var d=Math.hypot(X(b.lon)-px,Y(b.lat)-py);if(d<bd){bd=d;best=b;}});if(best){closePC();select(best,false);}else{if(sel)select(null);openPC(myInv(v.my-(py-H/2)/v.k),v.lon+(px-W/2)/v.k);}}
 function select(b,center){if(!b)CMP='';else if(b.id===CMP)CMP='';cmpMode=false;var a0={lon:v.lon,my:v.my,k:v.k};select0(b,center);if(!rp){if(b&&center!==false){var k2=v.k;v.lon=a0.lon;v.my=a0.my;v.k=a0.k;draw();centerOn(b,k2);}return;}if(b){rp.selMode=true;rp.kSel=v.k;rp.cam={lon:v.lon,my:v.my,k:v.k};if(!rp.playing){compute();followCam(true);draw();}}else rp.selMode=false;}
 function select0(b,center){sel=b?{id:b.id}:null;if(b&&!WIND)loadWind();listOpen=false;selCompact=false;if(b&&center!==false){v.k=Math.max(v.k,11);v.lon=b.lon;v.my=my(b.lat)-110/v.k;}renderDock();draw();}
 function fit(){
@@ -1128,7 +1178,7 @@ function renderDock(){
     var c=colB(b),vl=boats.filter(vis),pc=Math.max(0,Math.min(100,Math.round((1-b.dtf/(b.dtfO>0?3542:hav(SM.lat,SM.lon,FIN.lat,FIN.lon)))*100))),pc=b.fin?100:pc,eta=(function(){var Tn=rp?rp.t:TL.t1,w=etaWind(b,Tn);if(w)return w;var o=etaOf(b,Tn);return o?'~'+o:null;})();
     h='<div class="pad"><div class="dtl-h" style="--c:'+c+'">'+blSvg(b,32)+'<h3>'+esc(b.name)+'</h3><button class="x" id="cmp" aria-label="Compare">\u21c4</button><button class="x star" id="fav" aria-label="Favourite">'+(FAV===b.id?'\u2605':'\u2606')+'</button><button class="x" id="xs" aria-label="Close">×</button></div>'+
     '<p class="sub">'+(b.fin?'<b style="color:var(--hot)">Finished in '+durStr(durOf(b))+'</b> \u00b7 '+L2('start ','d\u00e9part ')+fmtEta(startOf(b))+' \u00b7 ':'')+(b.out?'<b style="color:var(--hot)">'+(b.st==='RET'?'Retired':'Stopped')+'</b> \u00b7 ':'')+(b.boat?esc(b.boat)+' · ':'')+'P'+b.rank+' overall · P'+b.crank+' '+esc(clsName(b.cls))+(b.d24!=null?' · '+f0(b.d24)+' nm / '+f0(km(b.d24))+' km in 24 h':'')+'</p>'+
-    '<div class="pr'+(b.fin?' fin':'')+'" style="--c:'+c+'"><i><b style="width:'+pc+'%"></b></i>'+pc+'% done'+(b.fin?'<em>Finished '+fmtEta(b.fin)+'</em>':eta?'<em>ETA '+eta+'</em>':'')+'</div>'+cmpRow(b)+'<div class="hero" style="--c:'+c+'"><div class="speed"><b>'+f1(b.sog)+'</b><span>KN</span><span class="kh">'+f1(km(b.sog))+' km/h</span></div>'+dial(b,c)+'</div>'+seaRow(b)+windRow(b)+
+    '<div class="pr'+(b.fin?' fin':'')+'" style="--c:'+c+'"><i><b style="width:'+pc+'%"></b></i>'+pc+'% done'+(b.fin?'<em>Finished '+fmtEta(b.fin)+'</em>':eta?'<em>ETA '+eta+'</em>':'')+'</div>'+cmpRow(b)+'<div class="hero" style="--c:'+c+'"><div class="speed"><b>'+f1(b.sog)+'</b><span>KN</span><span class="kh">'+f1(km(b.sog))+' km/h</span></div>'+dial(b,c)+'</div>'+condRows(b)+windRow(b)+
     '<div class="stats">'+stat('Course',dg(b.cog),'°')+stat('To finish',dg(b.brgF),'°')+stat('Distance',f0(b.dtf),'nm',f0(km(b.dtf))+' km')+stat('VMG',f1(b.vmg),'kn',f1(km(b.vmg))+' km/h')+'</div></div>';
   }else if(listOpen){
     var vl2=boats.filter(vis);
@@ -1163,6 +1213,8 @@ function windRow(b){if(!WIND||b.cog==null||b.fin)return '';var w=windAt(b.lat,b.
   var u=windUnit();if(!rp&&b.x&&b.x.ws>0&&u){w={spd:b.x.ws*u,dir:b.x.wd};}
   var sg=((w.dir-b.cog+540)%360)-180,twa=Math.abs(sg);
   return '<div class="wn">'+L2('Wind ','Vent ')+f0(w.spd)+' kn '+L2('from ','de ')+CPT[Math.round(w.dir/22.5)%16]+' \u00b7 '+L2('angle ','angle ')+f0(twa)+'\u00b0 \u00b7 '+(sg>0?L2('starboard tack','amures tribord'):L2('port tack','amures b\u00e2bord'))+(!rp&&b.x?'<button class="mt" id="more" aria-expanded="'+MORE+'">'+(MORE?L2('Less','Moins')+' \u25b4':L2('More','Plus')+' \u25be')+'</button>':'')+'</div>'+(MORE?moreRows(b):'');}
+function condRows(b){var btn='<button class="mt" id="condB" style="margin-left:auto">'+L2('Conditions','Conditions')+' \u25b8</button>',sr=b.fin?'':seaRow(b);
+  if(sr)return sr.replace(/<\/div>$/,btn+'</div>');return '<div class="wn" style="justify-content:flex-end">'+btn+'</div>';}
 function seaRow(b){if(!WAVE||b.fin)return '';var s=seaAt(b.lat,b.lon,rp?rp.t:TL.t1);if(!s)return '';var rel='';
   if(b.cog!=null&&!isNaN(s.d)){var a=Math.abs(((s.d-b.cog+540)%360)-180);rel=' \u00b7 '+(a<45?L2('head seas','mer de face'):a>135?L2('following seas','mer de l\u2019arri\u00e8re'):L2('beam seas','mer de travers'));}
   var k=SBN[s.lv];return '<div class="sea"><span class="sg"><b style="width:'+Math.round(Math.min(1,s.he/9)*100)+'%;background:'+k[3]+'"></b></span><span>'+L2(k[1]+' sea',k[2])+' \u00b7 '+s.h.toFixed(1)+' m '+L2('every ','toutes les ')+Math.round(s.p)+' s'+rel+'</span></div>';}
