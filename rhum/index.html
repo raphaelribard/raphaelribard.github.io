@@ -1290,8 +1290,16 @@ document.getElementById('bFeed').onclick=function(){var u=document.getElementByI
 document.getElementById('bReset').onclick=function(){feedUrl=FEED_DEFAULT;lsSet('rdr_feed',null);boatsUrl=BOATS_DEFAULT;BOATS={};lsSet('rdr_boats',null);document.getElementById('feedUrl').value=FEED_DEFAULT;document.getElementById('boatsUrl').value=BOATS_DEFAULT;firstLoad=true;msg.textContent='Loading…';loadFeed(true);};
 
 /* Positions arrive about an hour apart, so a straight join shows sharp corners that never happened. Catmull-Rom curve through the reports instead. */
-function crv(a,b,c,d,f){var f2=f*f,f3=f2*f;return .5*(2*b+(-a+c)*f+(2*a-5*b+4*c-d)*f2+(-a+3*b-3*c+d)*f3);}
-function crPt(p0,p1,p2,p3,f){return {lat:crv(p0.lat,p1.lat,p2.lat,p3.lat,f),lon:crv(p0.lon,p1.lon,p2.lon,p3.lon,f)};}
+/* Passes exactly through every report. Tangents follow the average heading at each report and shrink on sharp turns, so the curve stays close to the straight segments instead of overshooting. */
+function crPt(p0,p1,p2,p3,f){var cl=Math.cos(p1.lat*D2R)||1;
+  function V(a,b){return [(b.lon-a.lon)*cl,b.lat-a.lat];}
+  function N(v){var l=Math.hypot(v[0],v[1]);return l>1e-9?[v[0]/l,v[1]/l]:null;}
+  var sg=V(p1,p2),L=Math.hypot(sg[0],sg[1]);if(L<1e-9)return {lat:p1.lat,lon:p1.lon};
+  var ub=N(sg),ua=N(V(p0,p1))||ub,uc=N(V(p2,p3))||ub,
+      K=.5,m1=[(ua[0]+ub[0])/2*L*K,(ua[1]+ub[1])/2*L*K],m2=[(ub[0]+uc[0])/2*L*K,(ub[1]+uc[1])/2*L*K],
+      f2=f*f,f3=f2*f,h00=2*f3-3*f2+1,h10=f3-2*f2+f,h01=-2*f3+3*f2,h11=f3-f2,
+      x=h00*0+h10*m1[0]+h01*sg[0]+h11*m2[0],y=h10*m1[1]+h01*sg[1]+h11*m2[1]+h00*0;
+  return {lat:p1.lat+y,lon:p1.lon+x/cl};}
 function smoothTrail(tr){var n=tr.length;if(n<3)return tr;var o=[tr[0]],i,k,j;
   for(i=0;i<n-1;i++){var p0=tr[i-1]||tr[i],p1=tr[i],p2=tr[i+1],p3=tr[i+2]||tr[i+1];
     var b0=brg(p0.lat,p0.lon,p1.lat,p1.lon),b1=brg(p1.lat,p1.lon,p2.lat,p2.lon),b2=brg(p2.lat,p2.lon,p3.lat,p3.lon);
