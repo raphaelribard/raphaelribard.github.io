@@ -351,7 +351,8 @@ function vis(b){return filter==='ALL'||b.cls===filter;}
 var SPD=[.5,1,2,4,8],spI=1,rp=null,FULLV=null,rafId=0,TL={t0:0,t1:0};
 function cutHist(H,T){var n=H.length,i=0;if(H[0].t>=T)return [H[0]];while(i<n&&H[i].t<=T)i++;var a=H.slice(0,i);if(i>=n)return a;
   var p=a[a.length-1],q=H[i],f=(T-p.t)/(q.t-p.t),dt=(q.t-p.t)/3600000,sg=q.sog!=null?q.sog:(dt>0?hav(p.lat,p.lon,q.lat,q.lon)/dt:null);
-  a.push({t:T,lat:p.lat+(q.lat-p.lat)*f,lon:p.lon+(q.lon-p.lon)*f,sog:sg,cog:brg(p.lat,p.lon,q.lat,q.lon)});return a;}
+  var p0=H[i-2]||p,p3=H[i+1]||q,c1=crPt(p0,p,q,p3,f),c0=crPt(p0,p,q,p3,Math.max(0,f-.02)),c2=crPt(p0,p,q,p3,Math.min(1,f+.02));
+  a.push({t:T,lat:c1.lat,lon:c1.lon,sog:sg,cog:(c0.lat===c2.lat&&c0.lon===c2.lon)?brg(p.lat,p.lon,q.lat,q.lon):brg(c0.lat,c0.lon,c2.lat,c2.lon)});return a;}
 function sm3(x){x=Math.max(0,Math.min(1,x));return x*x*(3-2*x);}
 function tgt(vb,F,fr,pad,kmax){var L=vb[0],hv=Math.max(120,H-170-(rp?170:110)),g=vb.slice(0,Math.max(3,Math.ceil(vb.length*fr))),a=[1e9,-1e9,1e9,-1e9];
   g.forEach(function(b){var m=my(b.lat);a[0]=Math.min(a[0],m);a[1]=Math.max(a[1],m);a[2]=Math.min(a[2],b.lon);a[3]=Math.max(a[3],b.lon);});
@@ -1288,7 +1289,18 @@ document.getElementById('feedUrl').value=feedUrl;document.getElementById('boatsU
 document.getElementById('bFeed').onclick=function(){var u=document.getElementById('feedUrl').value.trim();if(!u)return;feedUrl=u;lsSet('rdr_feed',u===FEED_DEFAULT?null:u);var bu=document.getElementById('boatsUrl').value.trim();if(bu!==boatsUrl){boatsUrl=bu;BOATS={};lsSet('rdr_boats',bu===BOATS_DEFAULT?null:bu);}firstLoad=true;msg.textContent='Loading…';loadFeed(true);};
 document.getElementById('bReset').onclick=function(){feedUrl=FEED_DEFAULT;lsSet('rdr_feed',null);boatsUrl=BOATS_DEFAULT;BOATS={};lsSet('rdr_boats',null);document.getElementById('feedUrl').value=FEED_DEFAULT;document.getElementById('boatsUrl').value=BOATS_DEFAULT;firstLoad=true;msg.textContent='Loading…';loadFeed(true);};
 
-function thin(h){var st=Math.max(1,Math.ceil(h.length/140)),o=[];for(var i=0;i<h.length;i+=st)o.push({lat:h[i].lat,lon:h[i].lon});var L=h[h.length-1];if(o[o.length-1].lat!==L.lat||o[o.length-1].lon!==L.lon)o.push({lat:L.lat,lon:L.lon});return o;}
+/* Positions arrive about an hour apart, so a straight join shows sharp corners that never happened. Catmull-Rom curve through the reports instead. */
+function crv(a,b,c,d,f){var f2=f*f,f3=f2*f;return .5*(2*b+(-a+c)*f+(2*a-5*b+4*c-d)*f2+(-a+3*b-3*c+d)*f3);}
+function crPt(p0,p1,p2,p3,f){return {lat:crv(p0.lat,p1.lat,p2.lat,p3.lat,f),lon:crv(p0.lon,p1.lon,p2.lon,p3.lon,f)};}
+function smoothTrail(tr){var n=tr.length;if(n<3)return tr;var o=[tr[0]],i,k,j;
+  for(i=0;i<n-1;i++){var p0=tr[i-1]||tr[i],p1=tr[i],p2=tr[i+1],p3=tr[i+2]||tr[i+1];
+    var b0=brg(p0.lat,p0.lon,p1.lat,p1.lon),b1=brg(p1.lat,p1.lon,p2.lat,p2.lon),b2=brg(p2.lat,p2.lon,p3.lat,p3.lon);
+    var tn=Math.max(p0===p1?0:angd(b0,b1),p2===p3?0:angd(b1,b2));
+    k=tn>5?Math.min(10,Math.ceil(tn/6)):1;
+    for(j=1;j<k;j++)o.push(crPt(p0,p1,p2,p3,j/k));
+    o.push({lat:p2.lat,lon:p2.lon});}
+  return o;}
+function thin(h){var st=Math.max(1,Math.ceil(h.length/140)),o=[];for(var i=0;i<h.length;i+=st)o.push({lat:h[i].lat,lon:h[i].lon});var L=h[h.length-1];if(o[o.length-1].lat!==L.lat||o[o.length-1].lon!==L.lon)o.push({lat:L.lat,lon:L.lon});return smoothTrail(o);}
 function tick(full){compute();readCss();tickN++;if(full||sel||tickN%5===0)renderDock();draw();}
 window.addEventListener('resize',function(){resize();});
 /* keep the bitmap matching the on-screen size, otherwise circles turn into ovals (iOS toolbar, rotation, zoom) */
