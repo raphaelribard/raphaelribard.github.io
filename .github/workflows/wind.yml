@@ -19,9 +19,69 @@ jobs:
       - name: Fetch waves
         continue-on-error: true
         run: |
-          curl -fsS --retry 3 --retry-delay 20 'https://marine-api.open-meteo.com/v1/marine?latitude=8,8,8,8,8,8,8,8,8,8,8,8,8,14,14,14,14,14,14,14,14,14,14,14,14,14,20,20,20,20,20,20,20,20,20,20,20,20,20,26,26,26,26,26,26,26,26,26,26,26,26,26,32,32,32,32,32,32,32,32,32,32,32,32,32,38,38,38,38,38,38,38,38,38,38,38,38,38,44,44,44,44,44,44,44,44,44,44,44,44,44,50,50,50,50,50,50,50,50,50,50,50,50,50,56,56,56,56,56,56,56,56,56,56,56,56,56&longitude=-68,-62,-56,-50,-44,-38,-32,-26,-20,-14,-8,-2,4,-68,-62,-56,-50,-44,-38,-32,-26,-20,-14,-8,-2,4,-68,-62,-56,-50,-44,-38,-32,-26,-20,-14,-8,-2,4,-68,-62,-56,-50,-44,-38,-32,-26,-20,-14,-8,-2,4,-68,-62,-56,-50,-44,-38,-32,-26,-20,-14,-8,-2,4,-68,-62,-56,-50,-44,-38,-32,-26,-20,-14,-8,-2,4,-68,-62,-56,-50,-44,-38,-32,-26,-20,-14,-8,-2,4,-68,-62,-56,-50,-44,-38,-32,-26,-20,-14,-8,-2,4,-68,-62,-56,-50,-44,-38,-32,-26,-20,-14,-8,-2,4&hourly=wave_height&timeformat=unixtime&past_days=36&forecast_days=4' -o rhum/wave.tmp
-          python3 -c "import json;j=json.load(open('rhum/wave.tmp'));assert len(j)==117"
-          mv rhum/wave.tmp rhum/wave.json
+          mkdir -p rhum
+          python3 - <<'PY'
+          import json, os, sys, time, urllib.request, urllib.parse
+          LA = list(range(8, 57, 2))
+          LO = list(range(-68, 5, 2))
+          PTS = [(a, b) for a in LA for b in LO]
+          DT = 10800
+          OUT = 'rhum/wave.json'
+
+          def fetch(chunk, past, fut):
+              q = {'latitude': ','.join(str(p[0]) for p in chunk), 'longitude': ','.join(str(p[1]) for p in chunk),
+                   'hourly': 'wave_height', 'timeformat': 'unixtime', 'past_days': past, 'forecast_days': fut}
+              url = 'https://marine-api.open-meteo.com/v1/marine?' + urllib.parse.urlencode(q, safe=',')
+              for k in range(4):
+                  try:
+                      with urllib.request.urlopen(url, timeout=60) as r:
+                          j = json.load(r)
+                      return j if isinstance(j, list) else [j]
+                  except Exception as e:
+                      print('retry', k, e, file=sys.stderr)
+                      time.sleep(15 * (k + 1))
+              raise SystemExit('wave fetch failed')
+
+          def load_old():
+              try:
+                  o = json.load(open(OUT))
+                  if o.get('dt') == DT and o.get('la') == LA and o.get('lo') == LO:
+                      return o
+              except Exception:
+                  pass
+              return None
+
+          def main(fetch=fetch, now=None):
+              now = now or time.time()
+              old = load_old()
+              past, fut = (3, 4) if old else (40, 4)
+              series = [dict() for _ in PTS]
+              if old:
+                  for i, row in enumerate(old['h']):
+                      for k, v in enumerate(row):
+                          series[i][old['t0'] + k * DT] = v
+              for s in range(0, len(PTS), 100):
+                  chunk = PTS[s:s + 100]
+                  res = fetch(chunk, past, fut)
+                  assert len(res) == len(chunk), 'unexpected answer'
+                  for i, L in enumerate(res):
+                      tt = L['hourly']['time']; hh = L['hourly']['wave_height']
+                      for t, h in zip(tt, hh):
+                          if t % DT == 0:
+                              series[s + i][t] = -1 if h is None else int(round(h * 10))
+                  time.sleep(1)
+              t0 = min(min(d) for d in series if d); t1 = max(max(d) for d in series if d)
+              n = (t1 - t0) // DT + 1
+              h = [[d.get(t0 + k * DT, -1) for k in range(n)] for d in series]
+              out = {'t0': t0, 'dt': DT, 'la': LA, 'lo': LO, 'h': h}
+              tmp = OUT + '.tmp'
+              json.dump(out, open(tmp, 'w'), separators=(',', ':'))
+              os.replace(tmp, OUT)
+              print('waves', len(PTS), 'points', n, 'steps')
+
+          if __name__ == '__main__':
+              main()
+          PY
       - name: Commit
         run: |
           git config user.name wind-bot
