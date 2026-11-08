@@ -86,7 +86,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-acti
 #hint button{background:var(--hot);color:#fff;border-radius:999px;padding:8px 16px;font:700 13px var(--f-body)}
 #howBox ol{margin:8px 0 4px;padding-left:20px;font-size:14px;line-height:1.5;color:var(--mute)}#howBox[hidden]{display:none}
 .tools{transition:opacity .15s}#app.tlh .tools{opacity:0}#app.tlh .tools,#app.tlh .tools *{pointer-events:none!important}
-#pc{position:absolute;left:12px;right:12px;margin:0 auto;max-width:420px;z-index:4;padding:11px 14px 10px;border-radius:16px;font:600 12px var(--f-body);color:var(--ink);box-shadow:0 6px 24px rgba(0,0,0,.25)}#pc[hidden]{display:none}#pc h4{margin:0 0 6px;font:700 13px var(--f-body);display:flex;justify-content:space-between;align-items:center;gap:8px}#pc h4 button{font:700 18px var(--f-body);color:var(--mute);padding:0 4px;line-height:1}#pc .g{display:grid;grid-template-columns:1fr 1fr;gap:3px 14px}#pc .g div{display:flex;justify-content:space-between;gap:6px}#pc .g span{color:var(--mute)}#pc .g b{text-align:right}#pc .nd{color:var(--mute);padding:6px 0}#pc svg{display:block;width:100%;height:50px;margin-top:8px}#pc .lg{display:flex;gap:12px;color:var(--mute);font-size:10px;margin-top:2px}#pc .lg i{display:inline-block;width:8px;height:3px;border-radius:2px;margin-right:4px;vertical-align:middle}
+#pc .cs{font:600 12px var(--f-body);font-style:normal;display:flex;align-items:center;gap:10px;flex-wrap:nowrap;white-space:nowrap;overflow:hidden;cursor:pointer}#pc .cs b{font:700 12px var(--f-body);font-style:normal}#pc .cs span{font-style:normal;overflow:hidden;text-overflow:ellipsis}#pc .cs em{margin-left:auto;font-style:normal;color:var(--mute)}#pc .cs button{font:700 18px var(--f-body);color:var(--mute);padding:0 2px}#pc:not(.ex){padding:7px 12px;border-radius:999px;max-width:460px}#pc h4{cursor:pointer}#pc{position:absolute;left:12px;right:12px;margin:0 auto;max-width:420px;z-index:4;padding:11px 14px 10px;border-radius:16px;font:600 12px var(--f-body);color:var(--ink);box-shadow:0 6px 24px rgba(0,0,0,.25)}#pc[hidden]{display:none}#pc h4{margin:0 0 6px;font:700 13px var(--f-body);display:flex;justify-content:space-between;align-items:center;gap:8px}#pc h4 button{font:700 18px var(--f-body);color:var(--mute);padding:0 4px;line-height:1}#pc .g{display:grid;grid-template-columns:1fr 1fr;gap:3px 14px}#pc .g div{display:flex;justify-content:space-between;gap:6px}#pc .g span{color:var(--mute)}#pc .g b{text-align:right}#pc .nd{color:var(--mute);padding:6px 0}#pc svg{display:block;width:100%;height:50px;margin-top:8px}#pc .lg{display:flex;gap:12px;color:var(--mute);font-size:10px;margin-top:2px}#pc .lg i{display:inline-block;width:8px;height:3px;border-radius:2px;margin-right:4px;vertical-align:middle}
 #toast{position:absolute;left:50%;top:44%;transform:translateX(-50%);z-index:5;background:var(--ink);color:var(--bg);font:600 13px var(--f-body);padding:10px 16px;border-radius:999px;pointer-events:none;opacity:0;transition:opacity .25s}
 #toast.on{opacity:1}
 .mv #body{display:none}
@@ -1100,20 +1100,21 @@ function dblZoom(px,py){var n=9,f=Math.pow(2.2,1/n),i=0;cancelAnimationFrame(cam
 function tapAt(px,py){var now=Date.now();
   if(now-LT.t<320&&Math.hypot(px-LT.x,py-LT.y)<40){clearTimeout(LT.h);LT.t=0;dblZoom(px,py);return;}
   LT.t=now;LT.x=px;LT.y=py;
-  if(hitAt(px,py)||!sel){pick(px,py);return;}
+  if(hitAt(px,py)||boats.some(function(b){return vis(b)&&Math.hypot(X(b.lon)-px,Y(b.lat)-py)<30;})){pick(px,py);return;}
   LT.h=setTimeout(function(){pick(px,py);},300);}
 
 /* Conditions card: tap the sea (or "Conditions" in a boat panel) to read wind, sea, rain... at that spot, at the time on screen. One small request per tap, made from the viewer's own browser. */
 var PC=null;
 function pcIdx(h){var T=wtime()/1000;return Math.max(0,Math.min(h.time.length-1,Math.floor((T-h.time[0])/3600)));}
 function pcAt(h,k,i){return h&&h[k]&&h[k][i]!=null?h[k][i]:null;}
-function openPC(lat,lon,name){var key=PC={lat:lat,lon:lon,name:name||'',d:null,err:false,idx:-9,loaded:false},la=lat.toFixed(2),lo=lon.toFixed(2);pcRender();
-  function g(u){return fetch(u).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;});}
-  Promise.all([g('https://api.open-meteo.com/v1/forecast?latitude='+la+'&longitude='+lo+'&hourly=wind_speed_10m,wind_gusts_10m,wind_direction_10m,precipitation,cloud_cover,pressure_msl,temperature_2m&wind_speed_unit=kn&timeformat=unixtime&past_days=21&forecast_days=3'),
-    g('https://marine-api.open-meteo.com/v1/marine?latitude='+la+'&longitude='+lo+'&hourly=wave_height,wave_period,wave_direction,swell_wave_height,swell_wave_period,ocean_current_velocity,ocean_current_direction,sea_surface_temperature&timeformat=unixtime&past_days=21&forecast_days=3')]).then(function(a){
-    if(PC!==key)return;PC.loaded=true;var A=a[0]&&a[0].hourly,M=a[1]&&a[1].hourly;if(!A&&!M)PC.err=true;else PC.d={a:A,m:M};PC.idx=-9;pcRender();draw();});}
+function pcGet(u){return fetch(u).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;});}
+function pcFetch(key){var la=key.lat.toFixed(2),lo=key.lon.toFixed(2);key.busy=true;key.fl=[key.lat,key.lon];key.lf=Date.now();
+  Promise.all([pcGet('https://api.open-meteo.com/v1/forecast?latitude='+la+'&longitude='+lo+'&hourly=wind_speed_10m,wind_gusts_10m,wind_direction_10m,precipitation,cloud_cover,pressure_msl,temperature_2m&wind_speed_unit=kn&timeformat=unixtime&past_days=21&forecast_days=3'),
+    pcGet('https://marine-api.open-meteo.com/v1/marine?latitude='+la+'&longitude='+lo+'&hourly=wave_height,wave_period,wave_direction,swell_wave_height,swell_wave_period,ocean_current_velocity,ocean_current_direction,sea_surface_temperature&timeformat=unixtime&past_days=21&forecast_days=3')]).then(function(a){
+    key.busy=false;if(PC!==key)return;key.loaded=true;var A=a[0]&&a[0].hourly,M=a[1]&&a[1].hourly;if(!A&&!M){if(!key.d)key.err=true;}else{key.err=false;key.d={a:A,m:M};}key.idx=-9;pcRender();draw();});}
+function openPC(lat,lon,name,boatId){var key=PC={lat:lat,lon:lon,name:name||'',boatId:boatId||null,d:null,err:false,idx:-9,loaded:false,open:false,busy:false};pcRender();pcFetch(key);}
 function closePC(){PC=null;document.getElementById('pc').hidden=true;draw();}
-function pcRender(){var e=document.getElementById('pc');if(!PC){e.hidden=true;return;}e.hidden=false;e.style.bottom=(dockH()+44)+'px';
+function pcRender(){var e=document.getElementById('pc');if(!PC){e.hidden=true;return;}e.hidden=false;e.style.bottom=(dockH()+44)+'px';e.className='glass'+(PC.open?' ex':'');
   var ttl=PC.name?esc(PC.name):L2('Conditions','Conditions')+' · '+Math.abs(PC.lat).toFixed(1)+'°'+(PC.lat>=0?'N':'S')+' '+Math.abs(PC.lon).toFixed(1)+'°'+(PC.lon>=0?'E':'W'),
     h='<h4><span>'+ttl+'</span><button id="pcx" aria-label="Close">×</button></h4>';
   if(!PC.loaded){e.innerHTML=h+'<div class="nd">'+L2('Loading…','Chargement…')+'</div>';return;}
@@ -1135,6 +1136,8 @@ function pcRender(){var e=document.getElementById('pc');if(!PC){e.hidden=true;re
   if(pr!=null)add(L2('Pressure','Pression'),f0(pr)+' hPa');
   var cv2=pcAt(M,'ocean_current_velocity',im),cd=pcAt(M,'ocean_current_direction',im);
   if(cv2!=null&&cv2>.3)add(L2('Current','Courant'),f1(cv2/1.852)+' kn'+(cd!=null?' '+CPT[Math.round(cd/22.5)%16]:''));
+  var cs='<span>'+(ws!=null?f0(ws)+' kn'+(wd!=null?' '+CPT[Math.round(wd/22.5)%16]:''):'')+'</span>'+(wh!=null?'<span>'+f1(wh)+' m \u00b7 '+L2(SBN[seaLv(wp!=null?effH(wh,Math.max(3,wp)):wh)][1],SBN[seaLv(wp!=null?effH(wh,Math.max(3,wp)):wh)][2])+'</span>':'')+(rn!=null?'<span>'+(rn>=.1?f1(rn)+' mm/h':L2('dry','sec'))+'</span>':'');
+  if(!PC.open){e.innerHTML='<div class="cs" id="pcT"><b>'+(PC.name?esc(PC.name):L2('Here','Ici'))+'</b>'+cs+'<em>\u25b4</em><button id="pcx" aria-label="Close">\u00d7</button></div>';return;}
   if(!it.length){e.innerHTML=h+'<div class="nd">'+L2('No data here right now.','Pas de données ici.')+'</div>';return;}
   /* 48 h strip: wind, waves, rain, marker at the time on screen */
   var svg='',N=48,Wd=300,Ht=46;
@@ -1145,13 +1148,15 @@ function pcRender(){var e=document.getElementById('pc');if(!PC){e.hidden=true;re
   svg+=ser(A,'precipitation',ia,mxr,'#4aa3ff',0,true)+ser(M,'wave_height',im,mxh,'#f29a3a',2)+ser(A,'wind_speed_10m',ia,mxw,'currentColor',1.6);
   var ref=A||M,ri=A?ia:im,i0b=Math.max(0,Math.min(ri-24,ref.time.length-1-N)),mx=Math.max(0,Math.min(1,(ri-i0b)/N))*Wd;
   svg+='<line x1="'+mx.toFixed(1)+'" x2="'+mx.toFixed(1)+'" y1="0" y2="'+Ht+'" stroke="#ff6a1a" stroke-width="1.5"/>';
-  e.innerHTML=h+'<div class="g">'+it.join('')+'</div><svg viewBox="0 0 '+Wd+' '+Ht+'" preserveAspectRatio="none" aria-hidden="true">'+svg+'</svg><div class="lg"><span><i style="background:currentColor"></i>'+L2('wind','vent')+'</span><span><i style="background:#f29a3a"></i>'+L2('waves','vagues')+'</span><span><i style="background:#4aa3ff"></i>'+L2('rain','pluie')+'</span><span>±24 h</span></div>';}
-function drawPin(){if(!PC)return;var x=X(PC.lon),y=Y(PC.lat);ctx.save();ctx.beginPath();ctx.arc(x,y,7,0,6.2832);ctx.fillStyle='rgba(255,106,26,.25)';ctx.fill();ctx.lineWidth=2;ctx.strokeStyle='#fff';ctx.stroke();ctx.beginPath();ctx.arc(x,y,2.5,0,6.2832);ctx.fillStyle='#ff6a1a';ctx.fill();ctx.restore();
+  e.innerHTML=h.replace('<h4>','<h4 id="pcT">')+'<div class="g">'+it.join('')+'</div><svg viewBox="0 0 '+Wd+' '+Ht+'" preserveAspectRatio="none" aria-hidden="true">'+svg+'</svg><div class="lg"><span><i style="background:currentColor"></i>'+L2('wind','vent')+'</span><span><i style="background:#f29a3a"></i>'+L2('waves','vagues')+'</span><span><i style="background:#4aa3ff"></i>'+L2('rain','pluie')+'</span><span>±24 h</span></div>';}
+function drawPin(){if(!PC)return;
+  if(PC.boatId){var bb=boats.filter(function(q){return q.id===PC.boatId;})[0];if(bb){PC.lat=bb.lat;PC.lon=bb.lon;if(!PC.busy&&PC.fl&&Date.now()-PC.lf>4000&&Math.hypot(PC.lat-PC.fl[0],(PC.lon-PC.fl[1])*Math.cos(PC.lat*Math.PI/180))>1.2)pcFetch(PC);}}
+  var x=X(PC.lon),y=Y(PC.lat);ctx.save();ctx.beginPath();ctx.arc(x,y,7,0,6.2832);ctx.fillStyle='rgba(255,106,26,.25)';ctx.fill();ctx.lineWidth=2;ctx.strokeStyle='#fff';ctx.stroke();ctx.beginPath();ctx.arc(x,y,2.5,0,6.2832);ctx.fillStyle='#ff6a1a';ctx.fill();ctx.restore();
   if(PC.d){var A=PC.d.a,M=PC.d.m,k=(A?pcIdx(A):0)+'|'+(M?pcIdx(M):0);if(k!==PC.idx)pcRender();}}
-document.addEventListener('click',function(e){var t=e.target;if(t.id==='pcx'){closePC();return;}if(t.id==='condB'){var b=sel&&boats.filter(function(q){return q.id===sel.id;})[0];if(b)openPC(b.lat,b.lon,b.name);}});
+document.addEventListener('click',function(e){var t=e.target;if(t.id==='pcx'){closePC();return;}var pt=t.closest&&t.closest('#pcT');if(pt&&PC){PC.open=!PC.open;PC.idx=-9;pcRender();return;}if(t.id==='condB'){var b=sel&&boats.filter(function(q){return q.id===sel.id;})[0];if(b)openPC(b.lat,b.lon,b.name,b.id);}});
 function pick(px,py){for(var pi=0;pi<PODS.length;pi++){var P=PODS[pi];if(px>=P.x&&px<=P.x+P.w&&py>=P.y&&py<=P.y+P.h){var pb=boats.filter(function(q){return q.id===P.id;})[0];if(pb){select(pb,false);return;}}}
   var best=null,bd=30;boats.forEach(function(b){if(!vis(b))return;var d=Math.hypot(X(b.lon)-px,Y(b.lat)-py);if(d<bd){bd=d;best=b;}});if(best){closePC();select(best,false);}else{if(sel)select(null);openPC(myInv(v.my-(py-H/2)/v.k),v.lon+(px-W/2)/v.k);}}
-function select(b,center){if(!b)CMP='';else if(b.id===CMP)CMP='';cmpMode=false;var a0={lon:v.lon,my:v.my,k:v.k};select0(b,center);if(!rp){if(b&&center!==false){var k2=v.k;v.lon=a0.lon;v.my=a0.my;v.k=a0.k;draw();centerOn(b,k2);}return;}if(b){rp.selMode=true;rp.kSel=v.k;rp.cam={lon:v.lon,my:v.my,k:v.k};if(!rp.playing){compute();followCam(true);draw();}}else rp.selMode=false;}
+function select(b,center){if(PC&&(!b||PC.boatId!==b.id))closePC();if(!b)CMP='';else if(b.id===CMP)CMP='';cmpMode=false;var a0={lon:v.lon,my:v.my,k:v.k};select0(b,center);if(!rp){if(b&&center!==false){var k2=v.k;v.lon=a0.lon;v.my=a0.my;v.k=a0.k;draw();centerOn(b,k2);}return;}if(b){rp.selMode=true;rp.kSel=v.k;rp.cam={lon:v.lon,my:v.my,k:v.k};if(!rp.playing){compute();followCam(true);draw();}}else rp.selMode=false;}
 function select0(b,center){sel=b?{id:b.id}:null;if(b&&!WIND)loadWind();listOpen=false;selCompact=false;if(b&&center!==false){v.k=Math.max(v.k,11);v.lon=b.lon;v.my=my(b.lat)-110/v.k;}renderDock();draw();}
 function fit(){
   var l=boats.filter(vis);if(!l.length)return;
