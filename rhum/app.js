@@ -133,13 +133,23 @@ function endReplay(){goLive();}
 function rpStep(now){if(!rp||!rp.playing)return;var dt=Math.min(50,now-rp.last);rp.last=now;rp.t+=dt*36000*SPD[spI];
   if(rp.t>=rp.t1){goLive();return;}
   compute();followCam();draw();if(rp.n%3===0)updateTL();if(++rp.n%8===0)renderDock();rafId=requestAnimationFrame(rpStep);}
-function scrubTo(val){if(!(TL.t1>TL.t0))return;if(val>=2000){goLive();return;}
-  var T=TL.t0+val/2000*(TL.t1-TL.t0);cancelAnimationFrame(rafId);
+function scrubTo(val){if(!(TL.t1>TL.t0))return;if(val>=2000){goLive();return;}seekTo(TL.t0+val/2000*(TL.t1-TL.t0));}
+function seekTo(T){cancelAnimationFrame(rafId);
   if(!rp)rp=mkRp(T,false,!!sel);else{rp.playing=false;rp.t=T;if(sel&&!rp.selMode){rp.selMode=true;rp.kSel=v.k;rp.cam={lon:v.lon,my:v.my,k:v.k};}}
   document.getElementById('clkL').textContent='Replay';compute();followCam(true);draw();updateTL();renderDock();}
+/* One step in the replay: to the previous or next logged position of the selected boat, or one hour for the whole fleet. */
+function stepTarget(H,T,dir,t0,t1){var tol=6e4,i;
+  if(H&&H.length>1){
+    if(dir>0){for(i=0;i<H.length;i++)if(H[i].t>T+tol)return Math.min(H[i].t,t1);return t1;}
+    for(i=H.length-1;i>=0;i--)if(H[i].t<T-tol)return Math.max(H[i].t,t0);return t0;}
+  return Math.max(t0,Math.min(t1,T+dir*36e5));}
+function stepReplay(dir){if(!(TL.t1>TL.t0))return;var T=rp?rp.t:TL.t1,b=sel&&boats.filter(function(q){return q.id===sel.id;})[0],H=b&&imp[b.id]&&imp[b.id].hist;
+  var g=stepTarget(H,T,dir,TL.t0,TL.t1);if(g>=TL.t1-1000){goLive();return;}seekTo(g);}
 document.getElementById('tR').addEventListener('input',function(e){scrubTo(+e.target.value);});
 document.getElementById('tSp').onclick=function(){spI=(spI+1)%SPD.length;this.textContent='\u00d7'+SPD[spI];};
 document.getElementById('tLive').onclick=function(){goLive();};
+document.getElementById('tPrev').onclick=function(){stepReplay(-1);};document.getElementById('tNext').onclick=function(){stepReplay(1);};
+document.addEventListener('keydown',function(e){if(e.key!=='ArrowLeft'&&e.key!=='ArrowRight')return;var tg=e.target&&e.target.tagName;if(tg==='INPUT'||tg==='TEXTAREA'||tg==='SELECT'||e.altKey||e.ctrlKey||e.metaKey)return;if(document.getElementById('tl').hidden)return;stepReplay(e.key==='ArrowLeft'?-1:1);e.preventDefault();});
 document.getElementById('tPlay').onclick=function(){
   if(rp&&rp.playing){rp.playing=false;cancelAnimationFrame(rafId);updateTL();return;}
   if(rp&&!rp.playing&&rp.t<rp.t1-36e5){rp.playing=true;rp.last=performance.now();document.getElementById('clkL').textContent='Replay';cancelAnimationFrame(rafId);rafId=requestAnimationFrame(rpStep);updateTL();return;}
@@ -725,7 +735,7 @@ function drawNight(){if(!NIGHT)return;var T=rp?rp.t:(TL.t1>0&&mode==='imp'?TL.t1
     for(var i=0;i<cw;i++){var lon=v.lon+((i+.5)*14-W/2)/v.k,el=Math.asin(Math.max(-1,Math.min(1,sl*sd+cl*cd*Math.cos((lon-sp.lon)*D2R))))/D2R,
       a=el>=2?0:el<=-12?.34:.34*(2-el)/14,o=(j*cw+i)*4;dd[o]=4;dd[o+1]=14;dd[o+2]=48;dd[o+3]=Math.round(a*255);}}
   nx.putImageData(im,0,0);ctx.save();ctx.imageSmoothingEnabled=true;ctx.drawImage(NC,0,0,cw*14,ch*14);ctx.restore();}
-function draw0(){draw00();drawPin();}
+function draw0(){draw00();drawTough();drawPin();}
 function draw00(){if((WIND&&windOn)||SEA||SWL)setLeg();
   if(!css)readCss();
   ctx.setTransform(dpr,0,0,dpr,0,0);
@@ -894,7 +904,7 @@ function drawPin(){if(!PC)return;
   if(PC.boatId){var bb=boats.filter(function(q){return q.id===PC.boatId;})[0];if(bb){PC.lat=bb.lat;PC.lon=bb.lon;if(!PC.busy&&PC.fl&&Date.now()-PC.lf>4000&&Math.hypot(PC.lat-PC.fl[0],(PC.lon-PC.fl[1])*Math.cos(PC.lat*Math.PI/180))>1.2)pcFetch(PC);}}
   var x=X(PC.lon),y=Y(PC.lat);ctx.save();ctx.beginPath();ctx.arc(x,y,7,0,6.2832);ctx.fillStyle='rgba(255,106,26,.25)';ctx.fill();ctx.lineWidth=2;ctx.strokeStyle='#fff';ctx.stroke();ctx.beginPath();ctx.arc(x,y,2.5,0,6.2832);ctx.fillStyle='#ff6a1a';ctx.fill();ctx.restore();
   if(PC.d){var A=PC.d.a,M=PC.d.m,k=(A?pcIdx(A):0)+'|'+(M?pcIdx(M):0);if(k!==PC.idx)pcRender();}}
-document.addEventListener('click',function(e){var t=e.target;if(t.id==='pcx'){closePC();return;}var pt=t.closest&&t.closest('#pcT');if(pt&&PC){PC.open=!PC.open;PC.idx=-9;pcRender();return;}if(t.id==='condB'){var b=sel&&boats.filter(function(q){return q.id===sel.id;})[0];if(b)openPC(b.lat,b.lon,b.name,b.id);}});
+document.addEventListener('click',function(e){var t=e.target;if(t.id==='pcx'){closePC();return;}var pt=t.closest&&t.closest('#pcT');if(pt&&PC){PC.open=!PC.open;PC.idx=-9;pcRender();return;}var tgb=t.closest&&t.closest('.tg');if(tgb){var tt=+tgb.dataset.t;if(tt>0)seekTo(tt);return;}if(t.id==='condB'){var b=sel&&boats.filter(function(q){return q.id===sel.id;})[0];if(b)openPC(b.lat,b.lon,b.name,b.id);}});
 function pick(px,py){for(var pi=0;pi<PODS.length;pi++){var P=PODS[pi];if(px>=P.x&&px<=P.x+P.w&&py>=P.y&&py<=P.y+P.h){var pb=boats.filter(function(q){return q.id===P.id;})[0];if(pb){select(pb,false);return;}}}
   var best=null,bd=30;boats.forEach(function(b){if(!vis(b))return;var d=Math.hypot(X(b.lon)-px,Y(b.lat)-py);if(d<bd){bd=d;best=b;}});if(best){closePC();select(best,false);}else{if(sel)select(null);openPC(myInv(v.my-(py-H/2)/v.k),v.lon+(px-W/2)/v.k);}}
 function select(b,center){if(PC&&(!b||PC.boatId!==b.id))closePC();if(!b)CMP='';else if(b.id===CMP)CMP='';cmpMode=false;var a0={lon:v.lon,my:v.my,k:v.k};select0(b,center);if(!rp){if(b&&center!==false){var k2=v.k;v.lon=a0.lon;v.my=a0.my;v.k=a0.k;draw();centerOn(b,k2);}return;}if(b){rp.selMode=true;rp.kSel=v.k;rp.cam={lon:v.lon,my:v.my,k:v.k};if(!rp.playing){compute();followCam(true);draw();}}else rp.selMode=false;}
@@ -924,7 +934,7 @@ function renderDock(){
     var c=colB(b),vl=boats.filter(vis),pc=Math.max(0,Math.min(100,Math.round((1-b.dtf/(b.dtfO>0?3542:hav(SM.lat,SM.lon,FIN.lat,FIN.lon)))*100))),pc=b.fin?100:pc,eta=(function(){var Tn=rp?rp.t:TL.t1,w=etaWind(b,Tn);if(w)return w;var o=etaOf(b,Tn);return o?'~'+o:null;})();
     h='<div class="pad"><div class="dtl-h" style="--c:'+c+'">'+blSvg(b,32)+'<h3>'+esc(b.name)+'</h3><button class="x" id="cmp" aria-label="Compare">\u21c4</button><button class="x star" id="fav" aria-label="Favourite">'+(FAV===b.id?'\u2605':'\u2606')+'</button><button class="x" id="xs" aria-label="Close">×</button></div>'+
     '<p class="sub">'+(b.fin?'<b style="color:var(--hot)">Finished in '+durStr(durOf(b))+'</b> \u00b7 '+L2('start ','d\u00e9part ')+fmtEta(startOf(b))+' \u00b7 ':'')+(b.out?'<b style="color:var(--hot)">'+(b.st==='RET'?'Retired':'Stopped')+'</b> \u00b7 ':'')+(b.boat?esc(b.boat)+' · ':'')+(b.sim?L2('Simulation','Simulation')+' \u00b7 '+esc(clsName(b.cls)):'P'+b.rank+' overall · P'+b.crank+' '+esc(clsName(b.cls)))+(b.d24!=null?' · '+f0(b.d24)+' nm / '+f0(km(b.d24))+' km in 24 h':'')+'</p>'+
-    '<div class="pr'+(b.fin?' fin':'')+'" style="--c:'+c+'"><i><b style="width:'+pc+'%"></b></i>'+pc+'% done'+(b.fin?'<em>Finished '+fmtEta(b.fin)+'</em>':eta?'<em>ETA '+eta+'</em>':'')+'</div>'+cmpRow(b)+'<div class="hero" style="--c:'+c+'"><div class="speed"><b>'+f1(b.sog)+'</b><span>KN</span><span class="kh">'+f1(km(b.sog))+' km/h</span></div>'+dial(b,c)+'</div>'+condRows(b)+windRow(b)+
+    '<div class="pr'+(b.fin?' fin':'')+'" style="--c:'+c+'"><i><b style="width:'+pc+'%"></b></i>'+pc+'% done'+(b.fin?'<em>Finished '+fmtEta(b.fin)+'</em>':eta?'<em>ETA '+eta+'</em>':'')+'</div>'+cmpRow(b)+'<div class="hero" style="--c:'+c+'"><div class="speed"><b>'+f1(b.sog)+'</b><span>KN</span><span class="kh">'+f1(km(b.sog))+' km/h</span></div>'+dial(b,c)+'</div>'+condRows(b)+windRow(b)+toughRow(b)+
     '<div class="stats">'+stat('Course',dg(b.cog),'°')+stat('To finish',dg(b.brgF),'°')+stat('Distance',f0(b.dtf),'nm',f0(km(b.dtf))+' km')+stat('VMG',f1(b.vmg),'kn',f1(km(b.vmg))+' km/h')+'</div></div>';
   }else if(listOpen){
     var vl2=boats.filter(vis);
@@ -955,6 +965,26 @@ function moreRows(b){var x=!rp&&b.x;if(!x)return '';var u=windUnit(),it=[];
   if(x.a48>0)add(L2('Avg 48 h','Moy. 48 h'),f1(x.a48)+' kn');
   if(x.dtl>0)add(L2('To leader','Du leader'),f0(x.dtl)+' nm / '+f0(km(x.dtl))+' km');
   return it.length?'<div class="mr">'+it.join('')+'</div>':'';}
+/* The toughest moments of a boat's race, from the weather model along its logged track: the strongest wind and the highest waves it met. The track is sampled hourly between the logged positions; only the racing part counts. Model data, not measurements. */
+var TGH={};
+function toughOf(b){var H0=imp[b.id]&&imp[b.id].hist;if(!H0||H0.length<2||!WIND)return null;
+  var key=b.id+'|'+H0.length+'|'+WIND.fetched+'|'+(WAVE?WAVE.t0:0)+'|'+(b.fin||0),c=TGH[key];if(c!==undefined)return c;
+  var H=racingPart(H0,b.fin?(ARRT[b.id]||b.fin):0),w=null,hh=null,i;
+  for(i=1;i<H.length;i++){var p=H[i-1],q=H[i],dt=(q.t-p.t)/36e5;if(dt>12)continue;var n=Math.max(1,Math.round(dt)),k;
+    for(k=0;k<=n;k++){var f=k/n,la=p.lat+(q.lat-p.lat)*f,lo=p.lon+(q.lon-p.lon)*f,T=p.t+(q.t-p.t)*f,wd=windAt(la,lo,T);
+      if(wd&&(!w||wd.spd>w.v))w={v:wd.spd,t:T,lat:la,lon:lo};
+      var hs=WAVE?waveAt(la,lo,T):null;if(hs!=null&&(!hh||hs>hh.v))hh={v:hs,t:T,lat:la,lon:lo};}}
+  var r=(w||hh)?{wind:w,wave:hh}:null;if(Object.keys(TGH).length>60)TGH={};TGH[key]=r;return r;}
+function toughRow(b){var t=toughOf(b);if(!t)return '';var T=rp?rp.t:TL.t1,out=[];
+  if(t.wind&&t.wind.t<=T)out.push('<button class="mt tg" data-t="'+Math.round(t.wind.t)+'">'+L2('Wind ','Vent ')+f0(t.wind.v)+' kn \u00b7 '+dayLabel(t.wind.t)+' \u25b8</button>');
+  if(t.wave&&t.wave.t<=T)out.push('<button class="mt tg" data-t="'+Math.round(t.wave.t)+'">'+L2('Waves ','Vagues ')+f1(t.wave.v)+' m \u00b7 '+dayLabel(t.wave.t)+' \u25b8</button>');
+  return out.length?'<div class="sea" style="flex-wrap:wrap;gap:8px"><span><b>'+L2('Toughest','Plus dur')+'</b> <small>'+L2('(model)','(mod\u00e8le)')+'</small></span>'+out.join('')+'</div>':'';}
+function drawTough(){if(!sel)return;var b=boats.filter(function(q){return q.id===sel.id;})[0];if(!b||!vis(b))return;var t=toughOf(b);if(!t)return;var T=rp?rp.t:TL.t1,k=0;
+  [['wind',t.wind,css['--hot'],function(m){return f0(m.v)+' kn';}],['wave',t.wave,'#8BE6FF',function(m){return f1(m.v)+' m';}]].forEach(function(e){var m=e[1];if(!m||m.t>T)return;
+    var x=X(m.lon),y=Y(m.lat);if(x<-30||y<-30||x>W+30||y>H+30)return;
+    ctx.save();ctx.beginPath();ctx.arc(x,y,9,0,6.2832);ctx.lineWidth=2;ctx.strokeStyle=e[2];ctx.globalAlpha=.55;ctx.stroke();ctx.globalAlpha=1;
+    ctx.beginPath();ctx.arc(x,y,4.5,0,6.2832);ctx.fillStyle=e[2];ctx.fill();ctx.lineWidth=1.5;ctx.strokeStyle='#fff';ctx.stroke();ctx.restore();
+    label(e[3](m)+' \u00b7 '+dayLabel(m.t).replace(/ \u00b7 .*$/,''),x+12,y+(e[0]==='wave'?16:4),11,e[2]==='#8BE6FF'?'#8BE6FF':css['--lab'],'left');k++;});}
 function windRow(b){if(!WIND||b.cog==null||b.fin)return '';var w=windAt(b.lat,b.lon,rp?rp.t:TL.t1);if(!w)return '';
   var u=windUnit();if(!rp&&b.x&&b.x.ws>0&&u){w={spd:b.x.ws*u,dir:b.x.wd};}
   var sg=((w.dir-b.cog+540)%360)-180,twa=Math.abs(sg);
@@ -1161,14 +1191,31 @@ function histRows(){var o=histLoad(),rows=[];if(!o)return rows;
 var MIRROR='https://raw.githubusercontent.com/raphaelribard/raphaelribard.github.io/data/',MIR={t:0,p:null};
 function mirrorOk(){/* own copy of the feeds, refreshed hourly by a GitHub job (the official feed itself is hourly); used while it is under 75 min old, otherwise the page asks the live worker */
   if(MIR.p&&Date.now()-MIR.t<45e3)return MIR.p;MIR.t=Date.now();
-  MIR.p=fetch(MIRROR+'meta.txt?_='+Math.floor(Date.now()/6e4),{cache:'no-store'}).then(function(r){return r.ok?r.text():'0';}).then(function(t){return Date.now()/1000-parseInt(t,10)<4500;}).catch(function(){return false;});
+  MIR.p=fetch(MIRROR+'meta.txt?_='+Math.floor(Date.now()/6e4),{cache:'no-store'}).then(function(r){return r.ok?r.text():'0';}).then(function(t){MIR.meta=String(t).trim();return Date.now()/1000-parseInt(t,10)<4500;}).catch(function(){return false;});
   return MIR.p;}
 function mirrorGet(f){return mirrorOk().then(function(ok){if(!ok)throw 0;return fetch(MIRROR+f+'?_='+Math.floor(Date.now()/6e4),{cache:'no-store'});}).then(function(r){if(!r.ok)throw 0;return r.text();});}
+/* The dense history: dense.json on the data branch holds every hourly snapshot of the official feed since the feed job started keeping them (the inherited history has positions 3 to 11 h apart). Its rows are added to the inherited history, skipping any report already there (same boat, same time within 2 minutes). The file is only read again when the mirror has been refreshed, i.e. about once an hour, not on every poll. */
+var DENSE={meta:'',rows:[]},DST={R:'RAC',A:'ARV',T:'RET'};
+function denseToRows(d){var rows=[],T=d&&d.tracks;if(!T||typeof T!=='object')return rows;
+  Object.keys(T).forEach(function(id){var m=BOATS[id];if(!Array.isArray(T[id]))return;
+    T[id].forEach(function(r){if(!Array.isArray(r))return;var la=num(r[1]),lo=num(r[2]);if(la==null||lo==null||r[0]==null)return;
+      rows.push({id:id,name:m?m.name:'Boat '+id,boatname:m?m.boat:'','class':m?m.cls:classNear(id),color:m?m.color:'',lat:la,lon:lo,ts:toIso(r[0]),sog:num(r[4]),cog:num(r[5]),status:DST[r[6]]||''});});});
+  return rows;}
+function mergeRows(base,extra){var seen={},W=12e4;
+  function has(r){var t=Date.parse(r.ts),b=Math.floor(t/W),i,j,a;for(i=-1;i<=1;i++){a=seen[r.id+'|'+(b+i)];if(a)for(j=0;j<a.length;j++)if(Math.abs(a[j]-t)<=W)return true;}return false;}
+  function add(r){var t=Date.parse(r.ts),k=r.id+'|'+Math.floor(t/W);(seen[k]||(seen[k]=[])).push(t);}
+  base.forEach(add);var out=base.slice();
+  extra.forEach(function(r){if(!has(r)){add(r);out.push(r);}});return out;}
+function denseRows(){return mirrorOk().then(function(ok){
+    if(!ok||(MIR.meta&&MIR.meta===DENSE.meta))return DENSE.rows;
+    return fetch(MIRROR+'dense.json?_='+Math.floor(Date.now()/6e4),{cache:'no-store'}).then(function(r){if(!r.ok)throw 0;return r.json();}).then(function(d){DENSE={meta:MIR.meta,rows:denseToRows(d)};return DENSE.rows;});
+  }).catch(function(){return DENSE.rows;});}
 function baseRows(){
-  /* full race history from the GitHub collector, re-fetched every poll */
-  return mirrorGet('history.json').catch(function(){return fetch(HIST_WARM+'?_='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.text():'';});}).then(function(t){
+  /* full race history from the GitHub collector (re-fetched every poll) plus the dense hourly snapshots */
+  var hist=mirrorGet('history.json').catch(function(){return fetch(HIST_WARM+'?_='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.text():'';});}).then(function(t){
     if(!t)return [];try{return tracksRows(JSON.parse(t))||[];}catch(e){return [];}
   }).catch(function(){return [];});
+  return Promise.all([hist,denseRows()]).then(function(a){return a[1].length?mergeRows(a[0],a[1]):a[0];});
 }
 function ingestFeed(txt,base){
   var j;try{j=JSON.parse(txt);}catch(e){throw new Error('The feed is not valid JSON. Start of response: '+txt.slice(0,160).replace(/\s+/g,' '));}

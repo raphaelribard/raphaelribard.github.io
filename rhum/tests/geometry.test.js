@@ -44,3 +44,35 @@ test('the official course line (used for the ETA waypoints) is consistent', () =
   let len = 0; for (let i = 0; i < OFFL.length - 1; i++) { const d = nm(OFFL[i], OFFL[i + 1]); assert.ok(d > 0.2 && d < 4, 'uneven spacing at ' + i); len += d; }
   assert.ok(len > 55 && len < 75, 'the line round Basse-Terre is about 63 nm, got ' + len);
 });
+
+test('dense history: rows are read from the hourly file and only the reports not already known are added', () => {
+  const consts = `var BOATS={5:{name:'Tom Laperche',boat:'Maxi',cls:'ULT',color:'#fff'}};var DST={R:'RAC',A:'ARV',T:'RET'};function classNear(){return 'OTH';}`;
+  const { num, toIso, denseToRows, mergeRows } = load(['num', 'toIso', 'denseToRows', 'mergeRows'], consts);
+  const dense = { v: 1, cols: ['t', 'lat', 'lon', 'dtf', 'speed', 'heading', 'status'], tracks: {
+    '5': [[1000, 16.2, -61.5, 250, 21.5, 240, 'R'], [4600, 16.3, -61.6, 240, 20, 241, 'A']], '77': [[1000, 40, -10, 900, 5, 200, 'T']], '9': 'broken', '8': [[null, 1, 2], [2000, 'x', 3]] } };
+  const rows = denseToRows(dense);
+  assert.equal(rows.length, 3);
+  const r = rows.find(x => x.id === '5' && x.lat === 16.2);
+  assert.equal(r.name, 'Tom Laperche'); assert.equal(r.class, 'ULT'); assert.equal(r.sog, 21.5); assert.equal(r.cog, 240); assert.equal(r.status, 'RAC');
+  assert.equal(rows.find(x => x.id === '77').name, 'Boat 77'); assert.equal(rows.find(x => x.id === '77').status, 'RET');
+  assert.equal(denseToRows(null).length, 0); assert.equal(denseToRows({}).length, 0);
+  // merging: a report already in the inherited history (same boat, same time to the minute) is not added twice
+  const base = [{ id: '5', ts: toIso(1030), lat: 16.2, lon: -61.5 }];
+  const merged = mergeRows(base, rows);
+  assert.equal(merged.length, 3, 'the 1000 s report is within 2 minutes of the known 1030 s one'); assert.equal(merged[0], base[0]);
+  assert.equal(mergeRows(base, rows).length, mergeRows(merged, rows).length, 'merging twice adds nothing');
+});
+
+test('replay steps: a selected boat steps through its own logged positions, the fleet by one hour', () => {
+  const { stepTarget } = load(['stepTarget']);
+  const H = [1, 5, 9, 20].map(h => ({ t: h * 36e5 })), t0 = 0, t1 = 30 * 36e5, h = 36e5;
+  assert.equal(stepTarget(H, 5 * h, 1, t0, t1), 9 * h);             // next logged position
+  assert.equal(stepTarget(H, 5 * h, -1, t0, t1), 1 * h);            // previous logged position
+  assert.equal(stepTarget(H, 6 * h, 1, t0, t1), 9 * h);             // between two positions
+  assert.equal(stepTarget(H, 6 * h, -1, t0, t1), 5 * h);
+  assert.equal(stepTarget(H, 20 * h, 1, t0, t1), t1);                // after the last position: the end (live)
+  assert.equal(stepTarget(H, 1 * h, -1, t0, t1), t0);                // before the first: the start
+  assert.equal(stepTarget(null, 10 * h, 1, t0, t1), 11 * h);         // no boat selected: one hour
+  assert.equal(stepTarget(null, 10 * h, -1, t0, t1), 9 * h);
+  assert.equal(stepTarget(null, 30 * h, 1, t0, t1), t1); assert.equal(stepTarget(null, 0, -1, t0, t1), t0);
+});
