@@ -365,6 +365,7 @@ function shareLink(){
   if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(u).then(function(){toast('Link copied');},function(){toast(u);});}else toast(u);
 }
 var mmEl=document.getElementById('mm');
+document.getElementById('bSearch').onclick=function(){if(sel)selCompact=true;cmpMode=false;listOpen=true;SQ='';renderDock();var q=document.getElementById('sq');if(q)q.focus();};
 document.getElementById('bShare').onclick=function(){mmEl.hidden=false;};
 document.getElementById('mmClose').onclick=function(){mmEl.hidden=true;};
 mmEl.addEventListener('click',function(e){if(e.target===mmEl)mmEl.hidden=true;});
@@ -392,7 +393,7 @@ function recapCard(){
   g.fillStyle='rgba(255,255,255,.9)';g.font='600 30px '+B;g.fillText('raphaelribard.github.io/rhum',70,H2-80);g.font='400 22px '+B;g.fillStyle='rgba(255,255,255,.7)';g.fillText('Unofficial fan tracker \u2013 not affiliated with the Route du Rhum',70,H2-44);
   c.toBlob(function(b){if(b)shareFile(b,'rhum-recap.png','Route du Rhum 2026 \u2013 race recap');},'image/png');
 }
-var TIPS={bTrail:['Trails','Traces'],bWind:['Wind, sea state, swell','Vent, \u00e9tat de la mer, houle'],bHl:['Ranking & highlights','Classement et faits marquants'],bFit:['Fit all','Tout voir'],bShare:['Share & more','Partager'],bData:['Import data','Importer']};
+var TIPS={bTrail:['Trails','Traces'],bWind:['Wind, sea state, swell','Vent, \u00e9tat de la mer, houle'],bHl:['Ranking & highlights','Classement et faits marquants'],bFit:['Fit all','Tout voir'],bSearch:['Search a sailor','Chercher un skipper'],bShare:['Share & more','Partager'],bData:['Import data','Importer']};
 function setTips(){Object.keys(TIPS).forEach(function(id){var e=document.getElementById(id);if(e)e.setAttribute('data-tip',TIPS[id][LANG==='fr'?1:0]);});}
 function updateRpBtn(){var b=document.getElementById('rpBtn');if(!b)return;var on=!rp&&TL.t1>TL.t0&&!listOpen&&!cmpMode;b.classList.toggle('on',on);b.style.bottom=(dockH()+12)+'px';}
 document.getElementById('rpBtn').onclick=function(){hintHide();document.getElementById('tPlay').click();};
