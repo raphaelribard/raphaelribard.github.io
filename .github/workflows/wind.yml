@@ -5,28 +5,38 @@ on:
   workflow_dispatch:
 permissions:
   contents: write
+concurrency:
+  group: data
+  cancel-in-progress: false
 jobs:
   wind:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Prepare data branch checkout
+        env:
+          TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          URL="https://x-access-token:${TOKEN}@github.com/${REPO}.git"
+          git clone --depth 1 --branch data "$URL" out 2>/dev/null || { mkdir out; git -C out init -q -b data; git -C out remote add origin "$URL"; }
+          # first run only: seed from the copy that still lives on main so sea data stays incremental
+          [ -f out/sea.json ] || { [ -f rhum/sea.json ] && cp rhum/sea.json out/sea.json || true; }
       - name: Fetch wind
         run: |
-          mkdir -p rhum
-          curl -fsS --retry 3 --retry-delay 20 'https://api.open-meteo.com/v1/forecast?latitude=8,8,8,8,8,8,8,8,8,8,8,8,8,14,14,14,14,14,14,14,14,14,14,14,14,14,20,20,20,20,20,20,20,20,20,20,20,20,20,26,26,26,26,26,26,26,26,26,26,26,26,26,32,32,32,32,32,32,32,32,32,32,32,32,32,38,38,38,38,38,38,38,38,38,38,38,38,38,44,44,44,44,44,44,44,44,44,44,44,44,44,50,50,50,50,50,50,50,50,50,50,50,50,50,56,56,56,56,56,56,56,56,56,56,56,56,56&longitude=-68,-62,-56,-50,-44,-38,-32,-26,-20,-14,-8,-2,4,-68,-62,-56,-50,-44,-38,-32,-26,-20,-14,-8,-2,4,-68,-62,-56,-50,-44,-38,-32,-26,-20,-14,-8,-2,4,-68,-62,-56,-50,-44,-38,-32,-26,-20,-14,-8,-2,4,-68,-62,-56,-50,-44,-38,-32,-26,-20,-14,-8,-2,4,-68,-62,-56,-50,-44,-38,-32,-26,-20,-14,-8,-2,4,-68,-62,-56,-50,-44,-38,-32,-26,-20,-14,-8,-2,4,-68,-62,-56,-50,-44,-38,-32,-26,-20,-14,-8,-2,4,-68,-62,-56,-50,-44,-38,-32,-26,-20,-14,-8,-2,4&hourly=wind_speed_10m,wind_direction_10m&wind_speed_unit=kn&timeformat=unixtime&past_days=36&forecast_days=4' -o rhum/wind.tmp
-          python3 -c "import json;j=json.load(open('rhum/wind.tmp'));assert len(j)==117"
-          mv rhum/wind.tmp rhum/wind.json
+          curl -fsS --retry 3 --retry-delay 20 'https://api.open-meteo.com/v1/forecast?latitude=8,8,8,8,8,8,8,8,8,8,8,8,8,14,14,14,14,14,14,14,14,14,14,14,14,14,20,20,20,20,20,20,20,20,20,20,20,20,20,26,26,26,26,26,26,26,26,26,26,26,26,26,32,32,32,32,32,32,32,32,32,32,32,32,32,38,38,38,38,38,38,38,38,38,38,38,38,38,44,44,44,44,44,44,44,44,44,44,44,44,44,50,50,50,50,50,50,50,50,50,50,50,50,50,56,56,56,56,56,56,56,56,56,56,56,56,56&longitude=-68,-62,-56,-50,-44,-38,-32,-26,-20,-14,-8,-2,4,-68,-62,-56,-50,-44,-38,-32,-26,-20,-14,-8,-2,4,-68,-62,-56,-50,-44,-38,-32,-26,-20,-14,-8,-2,4,-68,-62,-56,-50,-44,-38,-32,-26,-20,-14,-8,-2,4,-68,-62,-56,-50,-44,-38,-32,-26,-20,-14,-8,-2,4,-68,-62,-56,-50,-44,-38,-32,-26,-20,-14,-8,-2,4,-68,-62,-56,-50,-44,-38,-32,-26,-20,-14,-8,-2,4,-68,-62,-56,-50,-44,-38,-32,-26,-20,-14,-8,-2,4,-68,-62,-56,-50,-44,-38,-32,-26,-20,-14,-8,-2,4&hourly=wind_speed_10m,wind_direction_10m&wind_speed_unit=kn&timeformat=unixtime&past_days=36&forecast_days=4' -o out/wind.tmp
+          python3 -c "import json;j=json.load(open('out/wind.tmp'));assert len(j)==117"
+          mv out/wind.tmp out/wind.json
       - name: Fetch sea state
         continue-on-error: true
         run: |
-          mkdir -p rhum
           python3 - <<'PY'
           import json, os, sys, time, urllib.request, urllib.parse
           LA = list(range(8, 57, 2))
           LO = list(range(-68, 5, 2))
           PTS = [(a, b) for a in LA for b in LO]
           DT = 21600
-          OUT = 'rhum/sea.json'
+          OUT = 'out/sea.json'
           SLEEP = 12  # stay under the free limit of 600 calls a minute
           VARS = ['wave_height', 'wave_period', 'wave_direction']
 
@@ -98,10 +108,11 @@ jobs:
           if __name__ == '__main__':
               main()
           PY
-      - name: Commit
+      - name: Publish to the data branch
         run: |
+          cd out
           git config user.name wind-bot
           git config user.email bot@users.noreply.github.com
-          git add -A rhum
-          git commit -m "wind and waves" || exit 0
-          git push
+          git add -A
+          if git rev-parse -q --verify HEAD >/dev/null; then git commit -q --amend -m data; else git commit -q -m data; fi
+          git push -q --force origin data
