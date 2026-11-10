@@ -6,7 +6,7 @@ on:
 permissions:
   contents: write
 concurrency:
-  group: data
+  group: feed
   cancel-in-progress: false
 jobs:
   feed:
