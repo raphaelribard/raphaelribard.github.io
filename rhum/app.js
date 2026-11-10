@@ -928,7 +928,14 @@ function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp
 function clsName(k){var c=CLASSES.filter(function(x){return x.k===k})[0];return c?c.n:'Other';}
 var bodyEl=document.getElementById('body'),dock=document.getElementById('dock');
 function gapOf(b,lead,i){if(b.fin)return 'Finished '+durStr(durOf(b));if(b.out)return b.st==='RET'?'Retired':'Stopped';return i===0?'Leader':'+'+f0(b.dtf-lead.dtf)+' nm \u00b7 '+f0(km(b.dtf-lead.dtf))+' km';}
+var SQ='';
+function nrm(x){return String(x||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();}
+function listRows(){var q=nrm(SQ).split(/\s+/).filter(Boolean),vl=boats.filter(vis),src=q.length?boats.filter(function(x){var t=nrm(x.name+' '+(x.boat||''));return q.every(function(w){return t.indexOf(w)>=0;});}):vl,h='';
+  src.forEach(function(x){var i=vl.indexOf(x),inl=i>=0;h+='<button class="row" data-id="'+esc(x.id)+'" style="--c:'+colB(x)+'"><span class="p">'+(x.sim?'\u00b7':pad(inl?i+1:x.rank||0))+'</span>'+blSvg(x,22)+'<span class="n">'+esc(x.name)+'<small>'+(inl?gapOf(x,vl[0],i):esc(clsName(x.cls))+' \u00b7 P'+x.crank)+'</small></span><span class="g">'+f0(x.dtf)+' nm<br>'+f0(km(x.dtf))+' km</span><span class="s">'+f1(x.sog)+'<u>kn</u><em>'+f1(km(x.sog))+' km/h</em></span></button>';});
+  if(!src.length)h='<div class="nd" style="padding:14px 4px;color:var(--mute)">'+L2('No sailor found','Aucun skipper trouv\u00e9')+'</div>';
+  return {h:h,n:src.length};}
 function renderDock(){
+  var ae=document.activeElement;if(listOpen&&ae&&ae.id==='sq')return;
   var sc=bodyEl.querySelector('.strip'),list=bodyEl.querySelector('.list'),sl=sc?sc.scrollLeft:0,st=list?list.scrollTop:0;
   var b=sel&&boats.filter(function(x){return x.id===sel.id;})[0],h='';
   if(b&&!selCompact&&!cmpMode){
@@ -938,9 +945,8 @@ function renderDock(){
     '<div class="pr'+(b.fin?' fin':'')+'" style="--c:'+c+'"><i><b style="width:'+pc+'%"></b></i>'+pc+'% done'+(b.fin?'<em>Finished '+fmtEta(b.fin)+'</em>':eta?'<em>ETA '+eta+'</em>':'')+'</div>'+cmpRow(b)+'<div class="hero" style="--c:'+c+'"><div class="speed"><b>'+f1(b.sog)+'</b><span>KN</span><span class="kh">'+f1(km(b.sog))+' km/h</span></div>'+dial(b,c)+'</div>'+condRows(b)+windRow(b)+toughRow(b)+
     '<div class="stats">'+stat('Course',dg(b.cog),'°')+stat('To finish',dg(b.brgF),'°')+stat('Distance',f0(b.dtf),'nm',f0(km(b.dtf))+' km')+stat('VMG',f1(b.vmg),'kn',f1(km(b.vmg))+' km/h')+'</div></div>';
   }else if(listOpen){
-    var vl2=boats.filter(vis);
-    h='<div class="pad dhd"><h2>'+(cmpMode?'Compare with\u2026':'All racers \u00b7 '+vl2.length)+'</h2><button class="link" id="bAll">Close</button></div><div class="pad list" style="max-height:52vh">';
-    vl2.forEach(function(x,i){h+='<button class="row" data-id="'+esc(x.id)+'" style="--c:'+colB(x)+'"><span class="p">'+(x.sim?'\u00b7':pad(i+1))+'</span>'+blSvg(x,22)+'<span class="n">'+esc(x.name)+'<small>'+gapOf(x,vl2[0],i)+'</small></span><span class="g">'+f0(x.dtf)+' nm<br>'+f0(km(x.dtf))+' km</span><span class="s">'+f1(x.sog)+'<u>kn</u><em>'+f1(km(x.sog))+' km/h</em></span></button>';});
+    var lr=listRows();
+    h='<div class="pad dhd"><h2 id="lh">'+(cmpMode?'Compare with\u2026':'All racers \u00b7 '+lr.n)+'</h2><button class="link" id="bAll">Close</button></div><div class="pad"><input id="sq" class="sq" type="search" enterkeyhint="search" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="'+L2('Search a sailor or boat\u2026','Chercher un skipper ou un bateau\u2026')+'" value="'+esc(SQ)+'" aria-label="'+L2('Search a sailor','Chercher un skipper')+'"></div><div class="pad list" style="max-height:52vh">'+lr.h;
     h+='</div>';
   }else{
     var vl3=boats.filter(vis),vlS=vl3.slice(0,12);
@@ -1017,11 +1023,14 @@ function dial(b,c){
   '<g transform="rotate('+(b.brgF||0)+' 50 50)"><circle cx="50" cy="13" r="3.6" fill="none" stroke="var(--hot)" stroke-width="1.8"/></g>'+
   '<g transform="rotate('+(b.cog||0)+' 50 50)"><g transform="translate(50 50) scale(.4)">'+boatSvg(b.cls,c)+'</g></g></svg>';
 }
+bodyEl.addEventListener('focusout',function(e){if(e.target.id==='sq')setTimeout(renderDock,0);});
+bodyEl.addEventListener('input',function(e){if(e.target.id!=='sq')return;SQ=e.target.value;var l=bodyEl.querySelector('.list'),lr=listRows();if(l){l.innerHTML=lr.h;l.scrollTop=0;}var hh=document.getElementById('lh');if(hh&&!cmpMode)hh.textContent='All racers \u00b7 '+lr.n;});
 bodyEl.addEventListener('click',function(e){
+  var ae=document.activeElement;if(ae&&ae.id==='sq'&&e.target!==ae)ae.blur();
   var t=e.target.closest('button');if(!t)return;
   if(t.id==='xs'||t.id==='xsf'){select(null);return;}
   if(t.id==='fav'||t.id==='favf'){toggleFav();return;}
-  if(t.id==='bAll'){listOpen=!listOpen;cmpMode=false;renderDock();return;}
+  if(t.id==='bAll'){listOpen=!listOpen;cmpMode=false;SQ='';renderDock();return;}
   if(t.id==='cmp'){if(CMP){CMP='';renderDock();draw();}else{cmpMode=true;listOpen=true;renderDock();}return;}
   if(t.id==='cmpx'){CMP='';renderDock();draw();return;}
   if(t.id==='more'){MORE=!MORE;lsSet('rdr_more',MORE?'1':'0');renderDock();return;}
