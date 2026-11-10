@@ -459,6 +459,7 @@ var WIND=null,windOn=(lsGet('rdr_wind')!=='0'),WST6=6,WLA=[8,14,20,26,32,38,44,5
 var WCOL=['rgba(255,255,255,.5)','rgba(225,248,255,.72)','rgba(255,236,150,.82)','rgba(255,170,80,.9)','rgba(255,90,70,.95)'];
 var WBUSY=false,WFAIL=0;
 var WERR='';/* paste your Cloudflare Worker wind URL between the quotes */var WPROXY='';
+function wxFetch(f){var q='?'+Math.floor(Date.now()/6e5);return fetch(MIRROR+f+q).then(function(r){if(!r.ok)throw 0;return r;}).catch(function(){return fetch(f+q);});}
 function loadWind(force){
   if(WBUSY||(WIND&&Date.now()-WIND.fetched<216e5&&!force)||(!force&&Date.now()-WFAIL<3e5))return;
   var c=null;try{c=JSON.parse(lsGet('rdr_wind_v4')||'null');}catch(e){}
@@ -468,7 +469,7 @@ function loadWind(force){
   var la=[],lo=[];WLA.forEach(function(a){WLO.forEach(function(b){la.push(a);lo.push(b);});});
   var days=Math.max(3,Math.min(90,Math.ceil((Date.now()-(isFinite(TL.t0)&&TL.t0>0?TL.t0:Date.now()-6*864e5))/864e5)+2)),fdays=Math.max(2,Math.min(7,14-days));WBUSY=true;
   var qs='?latitude='+la.join(',')+'&longitude='+lo.join(',')+'&hourly=wind_speed_10m,wind_direction_10m&wind_speed_unit=kn&timeformat=unixtime&past_days='+days+'&forecast_days='+fdays,direct='https://api.open-meteo.com/v1/forecast'+qs;
-  var first=fetch('wind.json?'+Math.floor(Date.now()/6e5)).then(function(r){if(!r.ok)throw 0;return r.json();}).then(function(j){if(!Array.isArray(j)||j.length!==117||j[0].hourly.time[0]>(isFinite(TL.t0)&&TL.t0>0?TL.t0/1000+7200:Infinity))throw 0;return {ok:true,json:function(){return j;}};}).catch(function(){return WPROXY?fetch(WPROXY+qs).then(function(r){if(!r.ok)throw 0;return r;}).catch(function(){return fetch(direct);}):fetch(direct);});
+  var first=wxFetch('wind.json').then(function(r){if(!r.ok)throw 0;return r.json();}).then(function(j){if(!Array.isArray(j)||j.length!==117||j[0].hourly.time[0]>(isFinite(TL.t0)&&TL.t0>0?TL.t0/1000+7200:Infinity))throw 0;return {ok:true,json:function(){return j;}};}).catch(function(){return WPROXY?fetch(WPROXY+qs).then(function(r){if(!r.ok)throw 0;return r;}).catch(function(){return fetch(direct);}):fetch(direct);});
   return first.then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}).then(function(j){
     if(!Array.isArray(j))j=[j];var t=j[0].hourly.time,n=t.length,U=[],V=[];
     j.forEach(function(L){var u=new Array(n),w=new Array(n),sp=L.hourly.wind_speed_10m,di=L.hourly.wind_direction_10m;
@@ -495,7 +496,7 @@ var CPT=['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW
 /* Waves: hourly model wave height on the same grid as the wind, fetched by the GitHub job (sea.json). */
 var WAVE=null,WAVEF=0,WAVEP=null;
 function loadWave(force){if(WAVE||(!force&&Date.now()-WAVEF<3e5))return WAVEP;WAVEF=Date.now();
-  WAVEP=fetch('sea.json?'+Math.floor(Date.now()/6e5)).then(function(r){if(!r.ok)throw 0;return r.json();}).then(function(j){
+  WAVEP=wxFetch('sea.json').then(function(r){if(!r.ok)throw 0;return r.json();}).then(function(j){
     if(!j||!j.la||!j.lo||!j.p||!j.d||j.h.length!==j.la.length*j.lo.length)throw 0;
     var DR=Math.PI/180;
     WAVE={t0:j.t0,dt:j.dt,la:j.la,lo:j.lo,st:j.la[1]-j.la[0],n:j.h[0].length,
@@ -1525,7 +1526,7 @@ function updateFresh(){var e=document.getElementById('fresh');if(!e)return;
   var a=Date.now()-TL.t1,m=Math.max(0,Math.round(a/6e4)),t=m<2?'Updated just now':m<90?'Live \u00b7 '+m+' min ago':'Updated '+Math.round(m/60)+' h ago';
   var late=a>135*6e4,stale=late||feedErr;if(late&&!feedErr)t=L2('Delayed \u00b7 last position '+Math.round(m/60)+' h ago','Retard \u00b7 derni\u00e8re position il y a '+Math.round(m/60)+' h');if(feedErr)t='Feed unreachable \u00b7 '+t.replace('Updated','last data');
   if(e.__t!==t||e.className!==(stale?'stale':'')){e.__t=t;e.textContent=t;e.className=stale?'stale':'';if(window.T)T(e);}}
-setInterval(updateFresh,30000);
+setInterval(function(){if(!document.hidden)updateFresh();},30000);
 function loadFeed(force){
   if(manual&&!force)return;
   loadWind();loadWave();
@@ -1579,13 +1580,12 @@ if(window.visualViewport)window.visualViewport.addEventListener('resize',sizeChe
 window.addEventListener('orientationchange',function(){setTimeout(sizeCheck,200);});
 window.addEventListener('pageshow',sizeCheck);
 document.addEventListener('visibilitychange',function(){if(!document.hidden)sizeCheck();});
-setInterval(sizeCheck,1500);
+setInterval(function(){if(!document.hidden)sizeCheck();},1500);
 if(window.matchMedia)window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',function(){setTimeout(function(){readCss();draw();renderDock();},60);});
 new MutationObserver(function(){setTimeout(function(){readCss();draw();},60);}).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
-buildFilters();compute();readCss();resize();fit();renderDock();loadFeed(true);setInterval(function(){loadFeed(false);},300000);
+buildFilters();compute();readCss();resize();fit();renderDock();loadFeed(true);setInterval(function(){if(!document.hidden)loadFeed(false);},300000);document.addEventListener('visibilitychange',function(){if(!document.hidden&&Date.now()-lastOk>12e4)loadFeed(false);});
 trWatch();setLang(LANG);hintShow();
-/* tidy up the service worker an earlier version installed */
-if('serviceWorker' in navigator)navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){r.unregister();});}).catch(function(){});
+if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost'))window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){});});
 setInterval(function(){if(mode==='demo'&&document.visibilityState==='visible'&&!Object.keys(ptrs).length)tick(false);},1000);
 })();
 </script>
