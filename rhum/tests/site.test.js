@@ -30,3 +30,7 @@ test('wind grid: the workflow requests exactly the points the page expects', () 
   assert.deepEqual(wlo, la.flatMap(() => lo));
 });
 test('the page does not hard-code the wind grid size', () => assert.ok(!/j\.length!==117/.test(read('app.js'))));
+test('every element the best-route feature looks up exists in the page', () => {
+  const html = read('index.html');
+  for (const id of ['mRT', 'mRTT', 'mRTR', 'rt', 'rtH', 'rtS', 'rtB', 'rtN', 'rtClose']) assert.ok(html.includes('id="' + id + '"'), id);
+});
