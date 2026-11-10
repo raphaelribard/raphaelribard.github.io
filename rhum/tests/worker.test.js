@@ -9,11 +9,11 @@ function constVal(name) { // value of `name=<literal>` in app.js
   let d = 0, j = start; for (; j < src.length; j++) { if (src[j] === open) d++; else if (src[j] === close && --d === 0) break; }
   return vm.runInNewContext('(' + src.slice(start, j + 1) + ')');
 }
-function buildWorker() {
+function buildWorker(fakeFetch) {
   const code = src.match(/var RWVARS='([^']*)'/)[1] + '\n'
     + names.map(fn).join('\n') + '\n(' + fn('rwMain') + ')();';
   const out = [], self = { postMessage: m => out.push(m) };
-  new Function('self', code)(self); // a plain function scope: much faster than a vm context, where every global lookup is slow
+  new Function('self', 'fetch', 'caches', code)(self, fakeFetch || (() => Promise.reject(new Error('no network in tests'))), undefined); // a plain function scope: much faster than a vm context, where every global lookup is slow
   return { self, out };
 }
 
@@ -70,4 +70,57 @@ test('the official course line and the exclusion zones are consistent', () => {
   assert.ok(OFFL.every(p => ZONES.every(z => !inside(p, z))), 'the official line must not enter a zone');
   const sh = (p, z) => Math.min(...z.map(q => nm(p, q))); // the line stays out of the zones by a margin
   assert.ok(Math.min(...OFFL.map(p => Math.min(...ZONES.map(z => sh(p, z))))) > 0.3);
+});
+
+// ---- the whole plan in the worker: speed table, boat levels and routes learned from tracks with the worker's own wind
+function setup(fakeFetch, mirror) {
+  const { self, out } = buildWorker(fakeFetch);
+  const land = constVal('LAND'), ls = new Int32Array(land.length), pts = []; let tot = 0;
+  land.forEach((r, i) => { ls[i] = tot; tot += r.length; r.forEach(p => pts.push(p[0], p[1])); });
+  self.onmessage({ data: { cfg: { TWSG: constVal('TWSG'), TWAG: constVal('TWAG'), WLA: constVal('WLA'), WLO: constVal('WLO'), WST6: constVal('WST6'),
+    START_PT: constVal('START_PT'), FIN: constVal('FIN'), CORR: constVal('CORR'), GW: constVal('GW'), OFFL: constVal('OFFL'), mirror, ls, lp: new Float64Array(pts) } } });
+  const T0 = Date.UTC(2026, 10, 1, 12, 2), nPts = constVal('WLA').length * constVal('WLO').length;
+  self.onmessage({ data: { wind: { t0: T0 / 1000 - 3600, n: 900, U: Array.from({ length: nPts }, () => new Float32Array(900).fill(-18)), V: Array.from({ length: nPts }, () => new Float32Array(900)) } } });
+  // three boats on the same track, the third sailing faster than the others (more distance in the same time)
+  const A = constVal('START_PT'), B = constVal('OFFL')[0];
+  const boat = (id, speedup) => { const H = new Float64Array(70 * 3); for (let i = 0; i < 70; i++) { const f = Math.min(1, i / 69 * speedup); H[3 * i] = T0 + i * 3 * 3600e3; H[3 * i + 1] = A.lat + (B[0] - A.lat) * f; H[3 * i + 2] = A.lon + (B[1] - A.lon) * f; } return { id, name: 'Boat ' + id, color: '#fff', H }; };
+  const boats = [boat('a', 1.0), boat('b', 1.0), boat('c', 1.25)];
+  const wait = async (pred) => { for (let i = 0; i < 600 && !pred(); i++) await new Promise(r => setTimeout(r, 100)); };
+  return { self, out, T0, boats, wait };
+}
+const finePayload = (T0, t0shift) => JSON.stringify({ t0: T0 / 1000 - 3600 * 5 + (t0shift || 0), dt: 3600, n: 900, la: Array.from({ length: 17 }, (_, i) => 8 + 3 * i), lo: Array.from({ length: 25 }, (_, i) => -68 + 3 * i),
+  u: Array.from({ length: 425 }, () => new Array(900).fill(-180)), v: Array.from({ length: 425 }, () => new Array(900).fill(0)) });
+
+test('plan: the worker learns the table and the levels, finds the fastest boat and routes it, then each boat on request', async () => {
+  const { self, out, T0, boats, wait } = setup(null, '');
+  self.onmessage({ data: { plan: 1, job: 1, cls: 'ULT', route: true, own: ['a'], T0, wb: 0.06, boats } });
+  await wait(() => out.some(o => o.kind === 'done' || o.kind === 'nodata'));
+  const ref = out.find(o => o.kind === 'ref'); assert.ok(ref, JSON.stringify(out.map(o => o.kind + (o.err || ''))));
+  assert.equal(ref.ref.id, 'c', 'the boat that covered the most ground in the same time is the fastest'); assert.equal(ref.grid, 'coarse'); assert.equal(ref.more, true);
+  assert.ok(ref.res && (ref.res.fin - ref.res.t0) / 36e5 > 100);
+  const own = out.find(o => o.kind === 'own'); assert.ok(own && own.id === 'a' && own.ideal > 0 && own.fac < ref.ref.fac, 'a slower boat gets a lower level and a slower ideal route');
+  assert.ok(own.ideal > ref.res.fin - ref.res.t0, 'at a lower level the ideal route takes longer');
+  assert.equal(out[out.length - 1].kind, 'done');
+});
+
+test('plan: with too little data the worker says so', async () => {
+  const { self, out, T0, boats, wait } = setup(null, '');
+  self.onmessage({ data: { plan: 1, job: 2, cls: 'ULT', route: true, own: [], T0, wb: 0.06, boats: [{ ...boats[0], H: boats[0].H.slice(0, 15) }] } });
+  await wait(() => out.length > 0); assert.equal(out[0].kind, 'nodata');
+});
+
+test('plan: the finer wind is downloaded and read by the worker, and a stale or broken file falls back to the coarse grid', async () => {
+  let calls = 0; const T0 = Date.UTC(2026, 10, 1, 12, 2);
+  const ok = setup(() => { calls++; return Promise.resolve({ ok: true, text: () => Promise.resolve(finePayload(T0)) }); }, 'http://x/');
+  ok.self.onmessage({ data: { plan: 1, job: 3, cls: 'ULT', route: true, own: [], T0, wb: 0.06, boats: ok.boats } });
+  await ok.wait(() => ok.out.some(o => o.kind === 'ref' || o.kind === 'nodata'));
+  const r1 = ok.out.find(o => o.kind === 'ref'); assert.ok(r1 && r1.grid === 'fine', 'the finer grid should be used'); assert.equal(calls, 1);
+  ok.self.onmessage({ data: { plan: 1, job: 4, cls: 'ULT', route: true, own: [], T0, wb: 0.06, boats: ok.boats } });   // second plan: no second download
+  await ok.wait(() => ok.out.filter(o => o.kind === 'ref').length === 2); assert.equal(calls, 1);
+  const late = setup(() => Promise.resolve({ ok: true, text: () => Promise.resolve(finePayload(T0, 3600 * 40)) }), 'http://x/');   // starts 35 h after the race start
+  late.self.onmessage({ data: { plan: 1, job: 5, cls: 'ULT', route: true, own: [], T0, wb: 0.06, boats: late.boats } });
+  await late.wait(() => late.out.some(o => o.kind === 'ref' || o.kind === 'nodata')); assert.equal(late.out.find(o => o.kind === 'ref').grid, 'coarse');
+  const down = setup(() => Promise.reject(new Error('offline')), 'http://x/');
+  down.self.onmessage({ data: { plan: 1, job: 6, cls: 'ULT', route: true, own: [], T0, wb: 0.06, boats: down.boats } });
+  await down.wait(() => down.out.some(o => o.kind === 'ref' || o.kind === 'nodata')); assert.equal(down.out.find(o => o.kind === 'ref').grid, 'coarse');
 });
