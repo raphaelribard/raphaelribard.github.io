@@ -3,7 +3,7 @@
 var START=Date.parse('2026-11-01T13:02:00+01:00');
 var FIN={lat:16.241,lon:-61.534},SM={lat:48.65,lon:-2.0};
 /* Finish approach: the official course line down the west coast of Basse-Terre, round its southern tip and back up to the finish line off Pointe-à-Pitre, and the two exclusion zones beside it. Traced from the organiser's map image, registered on the coastline (good to about 1 nm). The course is a corridor about 1 nm wide between the western zone and the coast: it is followed, not searched. */
-var OFFL=[[16.5761,-61.7264],[16.5458,-61.745],[16.5151,-61.7616],[16.4856,-61.7748],[16.453,-61.7866],[16.419,-61.7961],[16.3859,-61.8038],[16.3517,-61.8099],[16.3172,-61.8137],[16.2848,-61.8159],[16.2522,-61.8161],[16.2194,-61.8142],[16.1874,-61.8098],[16.1576,-61.8043],[16.1276,-61.7962],[16.0936,-61.7852],[16.0633,-61.7737],[16.0341,-61.7598],[16.0054,-61.743],[15.9825,-61.7224],[15.9543,-61.7093],[15.9399,-61.6798],[15.9375,-61.65],[15.9437,-61.6174],[15.9573,-61.5909],[15.9846,-61.5613],[16.0107,-61.5425],[16.0409,-61.528],[16.0717,-61.5188],[16.1035,-61.5131],[16.1351,-61.5102],[16.1768,-61.5087],[16.2074,-61.509]],ZONES=[[[16.289,-61.8315],[16.2134,-61.8296],[16.172,-61.8896],[16.1864,-61.9159],[16.2494,-61.9009],[16.289,-61.8615]],[[16.379,-61.7509],[16.503,-61.4734],[16.3448,-61.5034],[16.334,-61.6815]]];
+var OFFL=[[16.5761,-61.7264],[16.5458,-61.745],[16.5151,-61.7616],[16.4856,-61.7748],[16.453,-61.7866],[16.419,-61.7961],[16.3859,-61.8038],[16.3517,-61.8099],[16.3172,-61.8137],[16.2848,-61.8159],[16.2522,-61.8161],[16.2194,-61.8142],[16.1874,-61.8098],[16.1576,-61.8043],[16.1276,-61.7962],[16.0936,-61.7852],[16.0633,-61.7737],[16.0341,-61.7598],[16.0054,-61.743],[15.9825,-61.7224],[15.9543,-61.7093],[15.9399,-61.6798],[15.9375,-61.65],[15.9437,-61.6174],[15.9573,-61.5909],[15.9846,-61.5613],[16.0107,-61.5425],[16.0409,-61.528],[16.0717,-61.5188],[16.1035,-61.5131],[16.1351,-61.5102],[16.1768,-61.5087],[16.2074,-61.509]];
 var GW=[[17.02,-61.39]].concat(OFFL.filter(function(p,i){return i%4===0||i===OFFL.length-1;}));
 var ROUTE=[[48.65,-2.0],[49.2,-3.1],[49.05,-5.7],[46.6,-6.8],[43.8,-10.2],[38.5,-13.6],[30,-21],[23,-38],[18,-55]].concat(GW,[[16.241,-61.534]]);
 var CLASSES=[{k:'ULT',n:'Ultim',s:'Ultim',v:'--ult'},{k:'OCF',n:'Ocean Fifty',s:'Fifty',v:'--ocf'},{k:'IMO',n:'IMOCA',s:'IMOCA',v:'--imo'},{k:'C40',n:'Class40',s:'Class40',v:'--c40'},{k:'VMU',n:'Vintage Multi',s:'Vintage Multi',v:'--vmu'},{k:'VMO',n:'Vintage Mono',s:'Vintage Mono',v:'--vmo'}];
@@ -145,7 +145,6 @@ document.getElementById('tPlay').onclick=function(){
   if(rp&&!rp.playing&&rp.t<rp.t1-36e5){rp.playing=true;rp.last=performance.now();document.getElementById('clkL').textContent='Replay';cancelAnimationFrame(rafId);rafId=requestAnimationFrame(rpStep);updateTL();return;}
   startReplay(!!sel);};
 function compute(){
-  if(RT&&!imp.RTSIM&&mode!=='demo')rtPut();
   var now=Date.now(),t=(now-START)/3600000,list=[];
   if(mode==='demo'){
     demo.forEach(function(b){
@@ -442,10 +441,6 @@ function etaOf(b,T){var H=imp[b.id]&&imp[b.id].hist;if(!H||H.length<2||b.out||b.
 var POL={},ETC={},TWSG=[0,4,8,12,16,20,24,28,32,40],TWAG=[0,15,30,45,60,75,90,105,120,135,150,165,180];
 function angd(a,b){var d=Math.abs(a-b)%360;return d>180?360-d:d;}
 function fmtEta(ms){return new Date(ms).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}).replace(',','');}
-/* Waves slow a boat. Fitted on this race's logged legs (wind 12 kn and above, same wind band, speed against wave height above 1.5 m): speed lost per metre. Multihulls lose more than monohulls. Below 8 kn no effect is applied (the data show none), rising to full at 12 kn; the loss is capped at 25 %. */
-var WAVEB={ULT:.06,OCF:.09,IMO:.02,C40:.03,VMU:.03,VMO:.035};
-function wavePen(h,tws,wb){if(h==null||!(wb>0))return 1;var x=Math.max(0,Math.min(4,h-1.5)),r=Math.max(0,Math.min(1,(tws-8)/4));return Math.max(.75,1-wb*x*r);}
-/* polarFor(cls): the average speeds as sailed. polarFor(cls,true): the same table in flat water (each speed divided by its wave penalty), for the router, which applies the waves where the route actually goes. */
 /* The racing part of a track. A finisher's track stops at the time it crossed the line (finT, ms): afterwards it idles or motors to the dock, which says nothing about how fast it can sail. A boat that has not finished is cut at the point closest to the finish (a retired boat motoring home). Counting those legs drags the speed table and the boat's level down. */
 function racingPart(H,finT){
   if(finT){var k=H.length;while(k>0&&H[k-1].t>finT)k--;return H.slice(0,k);}
@@ -454,11 +449,10 @@ function racingPart(H,finT){
   for(i=0;i<H.length;i++)if(hav(H[i].lat,H[i].lon,FIN.lat,FIN.lon)<=best+3){j=i;break;}
   return H.slice(0,j+1);}
 /* the speed table is learned from logged legs: wind speed, angle to the wind and speed over the ground for each leg (up to 6 h) of each boat */
-function polSamples(lists,wb,flat){var S=[];lists.forEach(function(H){
+function polSamples(lists){var S=[];lists.forEach(function(H){
   for(var i=1;i<H.length;i++){var p=H[i-1],q=H[i],dt=(q.t-p.t)/36e5;if(dt<.5||dt>6)continue;
     var sp=hav(p.lat,p.lon,q.lat,q.lon)/dt;if(sp<1||sp>50)continue;
     var w=windAt((p.lat+q.lat)/2,(p.lon+q.lon)/2,(p.t+q.t)/2);if(!w)continue;
-    if(flat)sp/=wavePen(waveAt((p.lat+q.lat)/2,(p.lon+q.lon)/2,(p.t+q.t)/2),w.spd,wb);
     S.push([w.spd,angd(brg(p.lat,p.lon,q.lat,q.lon),w.dir),sp]);}});return S;}
 function polBuild(S){var g=null;
   if(S.length>=40){
@@ -474,10 +468,10 @@ function polBuild(S){var g=null;
     if(!ok.some(Boolean))g=null;else g.forEach(function(row,i){if(row[0]!=null)return;var j=-1,d=99;ok.forEach(function(v,m){if(v&&Math.abs(m-i)<d){d=Math.abs(m-i);j=m;}});g[i]=g[j].slice();});
   }
   return g;}
-function polarFor(cls,flat){var pk=flat?cls+'~':cls;
-  var sig=cls+'|'+boats.length+'|'+TL.t1+'|'+(WIND?WIND.fetched:0)+(flat?'|'+(WAVE?WAVE.t0:0):''),e=POL[pk];if(e&&e.sig===sig)return e.g;
+function polarFor(cls){var pk=cls;
+  var sig=cls+'|'+boats.length+'|'+TL.t1+'|'+(WIND?WIND.fetched:0),e=POL[pk];if(e&&e.sig===sig)return e.g;
   var lists=[];boats.forEach(function(b){if(b.cls!==cls||b.sim)return;var H=imp[b.id]&&imp[b.id].hist;if(H)lists.push(racingPart(H,b.fin?(ARRT[b.id]||b.fin):0));});
-  var g=polBuild(polSamples(lists,WAVEB[cls],flat));
+  var g=polBuild(polSamples(lists));
   POL[pk]={sig:sig,g:g};return g;}
 function polSpd(g,tws,twa){
   var x=Math.max(0,Math.min(39.99,tws)),y=Math.max(0,Math.min(179.99,twa)),i=0,j=Math.floor(y/15);while(TWSG[i+1]<=x)i++;
@@ -711,15 +705,13 @@ function trWatch(){var mo=new MutationObserver(function(recs){if(LANG!=='fr'&&!t
   TRO.forEach(function(id){var e=document.getElementById(id);if(e)mo.observe(e,{childList:true,subtree:true,characterData:true});});}
 function setLang(l){LANG=l;setTips();lsSet('rdr_lang',l);document.documentElement.lang=l;trWatch.on=true;
   document.getElementById('mLangT').textContent=l==='fr'?'Langue : Français':'Language: English';
-  T(document.getElementById('app'));renderDock();updateTL();updateFresh();rtLbl();if(!document.getElementById('hl').hidden)hlOpen();if(!document.getElementById('rt').hidden)rtOpen();}
+  T(document.getElementById('app'));renderDock();updateTL();updateFresh();if(!document.getElementById('hl').hidden)hlOpen();}
 function setLite(on){LITE=on;lsSet('rdr_lite',on?'1':'0');var e=document.getElementById('mLiteT');e.firstChild.textContent=on?'Lite mode: on':'Lite mode: off';if(window.T)T(e);PT.length=0;draw();}
 var SEA=lsGet('rdr_sea')==='1',SWL=lsGet('rdr_swell')==='1';if(windOn){SEA=false;SWL=false;}else if(SEA)SWL=false;
 function setNight(on){NIGHT=on;lsSet('rdr_night',on?'1':'0');var e=document.getElementById('mNightT');e.firstChild.textContent=on?'Day & night: on':'Day & night: off';if(window.T)T(e);draw();}
 document.getElementById('mNight').onclick=function(){setNight(!NIGHT);};
 if(!NIGHT)document.getElementById('mNightT').firstChild.textContent='Day & night: off';
 document.getElementById('mLite').onclick=function(){setLite(!LITE);};
-document.getElementById('mRT').onclick=function(){rtToggle();var m=document.getElementById('mm');if(m)m.hidden=true;};
-document.getElementById('mRTR').onclick=function(){var m=document.getElementById('mm');if(m)m.hidden=true;rtOpen();};
 if(LITE)document.getElementById('mLiteT').firstChild.textContent='Lite mode: on';
 document.getElementById('mLang').onclick=function(){setLang(LANG==='fr'?'en':'fr');};
 function draw(){draw0();if(REC)recCap();}
@@ -733,10 +725,7 @@ function drawNight(){if(!NIGHT)return;var T=rp?rp.t:(TL.t1>0&&mode==='imp'?TL.t1
     for(var i=0;i<cw;i++){var lon=v.lon+((i+.5)*14-W/2)/v.k,el=Math.asin(Math.max(-1,Math.min(1,sl*sd+cl*cd*Math.cos((lon-sp.lon)*D2R))))/D2R,
       a=el>=2?0:el<=-12?.34:.34*(2-el)/14,o=(j*cw+i)*4;dd[o]=4;dd[o+1]=14;dd[o+2]=48;dd[o+3]=Math.round(a*255);}}
   nx.putImageData(im,0,0);ctx.save();ctx.imageSmoothingEnabled=true;ctx.drawImage(NC,0,0,cw*14,ch*14);ctx.restore();}
-function drawCourse(){if(!RT||v.k<25)return;ctx.save();ctx.lineJoin='round';
-  ZONES.forEach(function(z){poly(z);ctx.closePath();ctx.fillStyle='rgba(255,90,90,.2)';ctx.fill();ctx.setLineDash([6,5]);ctx.lineWidth=1.5;ctx.strokeStyle='rgba(255,120,120,.9)';ctx.stroke();});
-  poly(OFFL);ctx.setLineDash([2,4]);ctx.lineWidth=1.6;ctx.strokeStyle='rgba(255,255,255,.9)';ctx.stroke();ctx.restore();}
-function draw0(){draw00();drawCourse();drawWif();drawPin();}
+function draw0(){draw00();drawPin();}
 function draw00(){if((WIND&&windOn)||SEA||SWL)setLeg();
   if(!css)readCss();
   ctx.setTransform(dpr,0,0,dpr,0,0);
@@ -901,212 +890,11 @@ function pcRender(){var e=document.getElementById('pc');if(!PC){e.hidden=true;re
   var ref=A||M,ri=A?ia:im,i0b=Math.max(0,Math.min(ri-24,ref.time.length-1-N)),mx=Math.max(0,Math.min(1,(ri-i0b)/N))*Wd;
   svg+='<line x1="'+mx.toFixed(1)+'" x2="'+mx.toFixed(1)+'" y1="0" y2="'+Ht+'" stroke="#ff6a1a" stroke-width="1.5"/>';
   e.innerHTML=h.replace('<h4>','<h4 id="pcT">')+'<div class="g">'+it.join('')+'</div><svg viewBox="0 0 '+Wd+' '+Ht+'" preserveAspectRatio="none" aria-hidden="true">'+svg+'</svg><div class="lg"><span><i style="background:currentColor"></i>'+L2('wind','vent')+'</span><span><i style="background:#f29a3a"></i>'+L2('waves','vagues')+'</span><span><i style="background:#4aa3ff"></i>'+L2('rain','pluie')+'</span><span>±24 h</span></div>';}
-/* Best route (model): an isochrone router sails the boat from the start to the finish through the real wind history, with the speeds its class actually achieved (the polar learned from the fleet). It answers "what if" for a boat that retired, and "how close to ideal" for the others. */
-var WIF={},WPC=null;
-function wifChain(){if(WPC)return WPC;var P=[],i;CORR.slice(0,5).forEach(function(c){P.push({lat:c[0],lon:c[1],tol:6});});P.push({lat:GW[0][0],lon:GW[0][1],tol:2.5});P.push({lat:OFFL[0][0],lon:OFFL[0][1],tol:2.5});
-  var tail=0;for(i=0;i<OFFL.length-1;i++)tail+=hav(OFFL[i][0],OFFL[i][1],OFFL[i+1][0],OFFL[i+1][1]);
-  P.suf=[];var acc=tail;for(i=P.length-1;i>=0;i--){if(i<P.length-1)acc+=hav(P[i].lat,P[i].lon,P[i+1].lat,P[i+1].lon);P.suf[i]=acc;}WPC=P;return P;}
-/* the last leg is the official line, sailed at the speed the local wind and waves allow along it */
-function wifTail(t,g,fac,wb){var out=[],i;for(i=0;i<OFFL.length-1;i++){var a=OFFL[i],b=OFFL[i+1],d=hav(a[0],a[1],b[0],b[1]),bt=brg(a[0],a[1],b[0],b[1]),la=(a[0]+b[0])/2,lo=(a[1]+b[1])/2,w=windAt(la,lo,t),v=.5;
-    if(w)v=Math.max(.5,polSpd(g,w.spd,angd(bt,w.dir))*fac*wavePen(waveAt(la,lo,t),w.spd,wb));t+=d/v*36e5;out.push({t:t,lat:b[0],lon:b[1]});}
-  return out;}
-var LM=null;
-/* land mask for the router: each 0.05 degree cell is looked up in the land polygons once, then remembered */
-function landM(la,lo){if(la>48.55&&la<48.85&&lo>-2.15&&lo<-1.55)return false;var iy=Math.floor((la-10)*20),ix=Math.floor((lo+70)*20);if(iy<0||iy>=840||ix<0||ix>=1480)return inLand(la,lo);
-  if(!LM)LM=new Uint8Array(840*1480);var k=iy*1480+ix,v=LM[k];if(!v){v=inLand(10+(iy+.5)/20,-70+(ix+.5)/20)?2:1;LM[k]=v;}return v===2;}
-function seaClearM(a,b){var d=hav(a.lat,a.lon,b.lat,b.lon),n=Math.max(2,Math.ceil(d/2));for(var i=1;i<=n;i++){var f=i/n;if(landM(a.lat+(b.lat-a.lat)*f,a.lon+(b.lon-a.lon)*f))return false;}return true;}
-function wifNearLand(la,lo){return (la>27&&la<52&&lo>-19&&lo<-1)||(la<19.5&&lo>-65);}
-function wifSegD(a,b,p){var c=Math.cos(p.lat*D2R),ax=a.lon*c*60,ay=a.lat*60,bx=b.lon*c*60,by=b.lat*60,px=p.lon*c*60,py=p.lat*60,dx=bx-ax,dy=by-ay,L=dx*dx+dy*dy,f=L?Math.max(0,Math.min(1,((px-ax)*dx+(py-ay)*dy)/L)):0;return Math.hypot(px-(ax+dx*f),py-(ay+dy*f));}
-/* The router is a generator that yields every few candidates, so a caller can run it in short slices (wifRunAsync) instead of freezing the page for seconds. wifRun still runs it to the end in one go. */
-function* wifRunG(b,fac,g0,T0x,wb0){fac=fac||1;var g=g0||polarFor(b.cls,true),wb=wb0!=null?wb0:WAVEB[b.cls];if(!g||!WIND)return null;var P=wifChain(),T0=T0x||startOf(b),last=P.length-1,cur=[{lat:START_PT.lat,lon:START_PT.lon,t:T0,wi:0,par:null}],best=null,step;
-  for(step=0;step<520&&cur.length;step++){var cand={},ci;
-    for(ci=0;ci<cur.length;ci++){var c=cur[ci];if((ci&15)===15)yield;var tw=windAt(c.lat,c.lon,c.t);if(!tw)continue;var wv=fac*wavePen(waveAt(c.lat,c.lon,c.t),tw.spd,wb),tg=P[c.wi],d=hav(c.lat,c.lon,tg.lat,tg.lon),bt=brg(c.lat,c.lon,tg.lat,tg.lon),dS=(c.wi===last&&d<60)||d<25?.5:1,h;
-      var vt=polSpd(g,tw.spd,angd(bt,tw.dir))*wv;
-      if(vt>.5&&d/vt<=dS){var nt=c.t+d/vt*36e5;if(!(wifNearLand(c.lat,c.lon)&&!seaClearM(c,tg))){
-        if(c.wi===last){if(!best||nt<best.t)best={lat:tg.lat,lon:tg.lon,t:nt,par:c};}
-        else{var n1={lat:tg.lat,lon:tg.lon,t:nt,wi:c.wi+1,par:c},k1=n1.wi*1000+Math.floor(brg(START_PT.lat,START_PT.lon,n1.lat,n1.lon)/2),r1=hav(n1.lat,n1.lon,P[n1.wi].lat,P[n1.wi].lon)+P.suf[n1.wi];n1.r=r1;if(!cand[k1]||r1<cand[k1].r)cand[k1]=n1;}}}
-      for(h=-120;h<=120;h+=8){var hd=(bt+h+360)%360,sp=polSpd(g,tw.spd,angd(hd,tw.dir))*wv;if(sp<.5)continue;var mv=sp*dS,la=c.lat+mv/60*Math.cos(hd*D2R),lo=c.lon+mv/60*Math.sin(hd*D2R)/Math.cos((c.lat+la)/2*D2R),ch={lat:la,lon:lo,t:c.t+dS*36e5,wi:c.wi,par:c};
-        if((wifNearLand(c.lat,c.lon)||wifNearLand(la,lo))&&!seaClearM(c,ch))continue;
-        if(c.wi<last&&wifSegD(c,ch,tg)<=tg.tol)ch.wi=c.wi+1;
-        var nx=P[ch.wi],r=hav(la,lo,nx.lat,nx.lon)+P.suf[ch.wi],k=ch.wi*1000+Math.floor(brg(START_PT.lat,START_PT.lon,la,lo)/2);ch.r=r;if(!cand[k]||r<cand[k].r)cand[k]=ch;}}
-    cur=Object.keys(cand).map(function(k){return cand[k];});
-    if(cur.length>420)cur.sort(function(a,b){return a.r-b.r;}),cur.length=420;
-    if(best&&cur.every(function(c){return c.t>=best.t;}))break;}
-  if(!best)return null;var pts=[],n=best;while(n){pts.push({t:n.t,lat:n.lat,lon:n.lon});n=n.par;}pts.reverse();var tl=wifTail(best.t,g,fac,wb);return {pts:pts.concat(tl),t0:T0,fin:tl.length?tl[tl.length-1].t:best.t};}
-function wifRun(b,fac){var it=wifRunG(b,fac),s;while(!(s=it.next()).done);return s.value;}
-function wifRunAsync(b,fac,cb,cancelled,T0){var it=wifRunG(b,fac,null,T0),mc=window.MessageChannel?new MessageChannel():null;
-  function next(){if(mc)mc.port2.postMessage(0);else setTimeout(pump,0);}/* a message, not setTimeout: no 4 ms clamp between slices */
-  function pump(){if(cancelled&&cancelled())return;var t=performance.now(),s;
-    try{do{s=it.next();}while(!s.done&&performance.now()-t<6);}catch(e){cb(null);return;}
-    if(s.done)cb(s.value);else next();}
-  if(mc)mc.port1.onmessage=pump;
-  pump();}
-/* The route search runs in a Web Worker, a separate thread, so it can never take time from drawing or touch. The worker is built from the page's own functions (one copy of the algorithm) and is sent the wind, the land and the course once. */
-var RW=null,RWBAD=false,RWN=0,RWP={},RWWIND='',RWWAVE='';
-function rwMain(){/* runs inside the worker */
-  var WC=null,WF=null,WFBAD=false,MIR='',CLA,CLO,CST;
-  function use(w){WIND=w.wind;WLA=w.la;WLO=w.lo;WST6=w.st;}
-  /* the finer wind (wind3.json on the data branch) is downloaded and read here, never on the page's thread; kept for an hour in the Cache API */
-  function fineText(){var url=MIR+'wind3.json';
-    function net(){return fetch(url+'?_='+Math.floor(Date.now()/3e5)).then(function(r){if(!r.ok)throw 0;return r.text();});}
-    if(typeof caches==='undefined')return net();
-    return caches.open('rhum-wind3').then(function(c){return c.match(url).then(function(hit){
-      if(hit&&Date.now()-(+hit.headers.get('x-saved')||0)<36e5)return hit.text();
-      return net().then(function(t){try{c.put(url,new Response(t,{headers:{'x-saved':String(Date.now())}}));}catch(e){}return t;});});}).catch(net);}
-  function loadFine(t0){if(WF)return Promise.resolve(true);if(WFBAD||!MIR)return Promise.resolve(false);
-    return fineText().then(function(t){var j=JSON.parse(t);
-      if(!j||!j.u||!j.v||!j.la||!j.lo||j.u.length!==j.la.length*j.lo.length||!(j.n>=24)||j.t0>t0/1000+7200)throw 0;
-      var cv=function(a){return Float32Array.from(a,function(x){return x/10;});};
-      WF={wind:{t0:j.t0,n:j.n,U:j.u.map(cv),V:j.v.map(cv)},la:j.la,lo:j.lo,st:j.la[1]-j.la[0]};return true;}).catch(function(){WFBAD=true;return false;});}
-  function route(cls,fac,g,T0,wb){var it=wifRunG({id:'R',cls:cls},fac,g,T0,wb),s;while(!(s=it.next()).done);return s.value;}
-  self.onmessage=function(e){var m=e.data,i,k;
-    if(m.cfg){var c=m.cfg;TWSG=c.TWSG;TWAG=c.TWAG;CLA=c.WLA;CLO=c.WLO;CST=c.WST6;WLA=CLA;WLO=CLO;WST6=CST;START_PT=c.START_PT;FIN=c.FIN;CORR=c.CORR;GW=c.GW;OFFL=c.OFFL;MIR=c.mirror||'';
-      LAND=[];for(i=0;i<c.ls.length;i++){var a=c.ls[i],z=i+1<c.ls.length?c.ls[i+1]:c.lp.length/2,r=[];for(k=a;k<z;k++)r.push([c.lp[2*k],c.lp[2*k+1]]);LAND.push(r);}
-      LBB=null;LM=null;WPC=null;return;}
-    if(m.wind){WC={wind:{t0:m.wind.t0,n:m.wind.n,U:m.wind.U,V:m.wind.V},la:CLA,lo:CLO,st:CST};use(WC);return;}
-    if('wave' in m){WAVE=m.wave;return;}
-    if(m.run){var out=null;use(WC);try{var it=wifRunG({id:m.id,cls:m.cls},m.fac,m.g,m.T0,m.wb),s;while(!(s=it.next()).done);out=s.value;}catch(err){out=null;self.postMessage({job:m.job,res:null,err:String(err)});return;}
-      self.postMessage({job:m.job,res:out});return;}
-    /* plan: learn the speed table and every boat's level from the tracks with this wind, then the route of the fastest boat (route) and/or the route of each listed boat at its own level (own) */
-    if(m.plan){loadFine(m.T0).then(function(fine){
-      try{use(fine?WF:WC);var grid=fine?'fine':'coarse';
-        var lists=m.boats.map(function(b){var H=[],a=b.H,j;for(j=0;j<a.length;j+=3)H.push({t:a[j],lat:a[j+1],lon:a[j+2]});return H;});
-        var g=polBuild(polSamples(lists,m.wb,true));
-        if(!g){self.postMessage({job:m.job,kind:'nodata',last:true});return;}
-        var ratios={},ref=null;
-        m.boats.forEach(function(b,ix){var H=lists[ix],f=rtRatio(H,g,m.wb);if(f)ratios[b.id]=f;
-          if(H.length>=20&&H[H.length-1].t-H[0].t>=3*864e5&&f&&(!ref||f>ref.fac))ref={id:b.id,name:b.name,color:b.color,fac:f};});
-        var own=m.own||[];
-        if(m.route){if(!ref){self.postMessage({job:m.job,kind:'nodata',last:true});return;}
-          var res=route(m.cls,ref.fac,g,m.T0,m.wb);
-          self.postMessage({job:m.job,kind:'ref',grid:grid,ref:ref,res:res,more:own.length>0,last:!own.length});}
-        own.forEach(function(id){var f=ratios[id];if(!f)return;var r=route(m.cls,f,g,m.T0,m.wb);
-          if(r)self.postMessage({job:m.job,kind:'own',id:id,ideal:r.fin-r.t0,fac:f,grid:grid,more:true});});
-        if(own.length||!m.route)self.postMessage({job:m.job,kind:'done',last:true});
-      }catch(err){self.postMessage({job:m.job,kind:'nodata',err:String(err),last:true});}});}};}
-var RWFN=[hav,brg,angd,polSpd,windAt,crs,waveAt,wavePen,polSamples,polBuild,rtRatio,inLand,landM,seaClearM,wifNearLand,wifSegD,wifChain,wifTail,wifRunG];
-var RWVARS='var R=3440.065,D2R=Math.PI/180,TWSG,TWAG,WIND=null,WAVE=null,WAVEB={},WLA,WLO,WST6,LAND,LBB=null,LM=null,START_PT,FIN,CORR,GW,OFFL,WPC=null;';/* the worker\u2019s globals; the tests build the worker from this too */
-function rwSrc(){return RWVARS+'\n'+RWFN.map(String).join('\n')+'\n('+rwMain+')();';}
-function rwCfg(){var n=LAND.length,tot=0,i,j,ls=new Int32Array(n);for(i=0;i<n;i++){ls[i]=tot;tot+=LAND[i].length;}
-  var lp=new Float64Array(tot*2),k=0;for(i=0;i<n;i++)for(j=0;j<LAND[i].length;j++){lp[k++]=LAND[i][j][0];lp[k++]=LAND[i][j][1];}
-  return {cfg:{TWSG:TWSG,TWAG:TWAG,WLA:WLA,WLO:WLO,WST6:WST6,START_PT:START_PT,FIN:FIN,CORR:CORR,GW:GW,OFFL:OFFL,mirror:MIRROR,ls:ls,lp:lp}};}
-function rwStop(){if(RW){try{RW.terminate();}catch(e){}}RW=null;RWP={};RWWIND='';RWWAVE='';}
-function rwEnsure(){if(RW)return RW;
-  try{RW=new Worker(URL.createObjectURL(new Blob([rwSrc()],{type:'application/javascript'})));
-    RW.onmessage=function(e){var d=e.data,cb=RWP[d.job];if(d.more!==true)delete RWP[d.job];if(cb)cb(d);};
-    RW.onerror=function(){RWBAD=true;var p=RWP;rwStop();Object.keys(p).forEach(function(j){p[j]({res:null,kind:'nodata',err:'worker'});});};
-    var c=rwCfg();RW.postMessage(c,[c.cfg.ls.buffer,c.cfg.lp.buffer]);RWWIND='';}catch(e){RW=null;RWBAD=true;}
-  return RW;}
-function rwWind(){var key=WIND.fetched+'|'+WIND.t0+'|'+WIND.n;if(RWWIND===key)return;RWWIND=key;
-  var U=WIND.U.map(function(a){return Float32Array.from(a);}),V=WIND.V.map(function(a){return Float32Array.from(a);}),tl=[];
-  U.forEach(function(a){tl.push(a.buffer);});V.forEach(function(a){tl.push(a.buffer);});
-  RW.postMessage({wind:{t0:WIND.t0,n:WIND.n,U:U,V:V}},tl);}
-function rwWave(){var key=WAVE?WAVE.t0+'|'+WAVE.n:'none';if(RWWAVE===key)return;RWWAVE=key;
-  if(!WAVE){RW.postMessage({wave:null});return;}
-  var H=WAVE.H.map(function(a){return Float32Array.from(a);});
-  RW.postMessage({wave:{t0:WAVE.t0,dt:WAVE.dt,la:WAVE.la,lo:WAVE.lo,st:WAVE.st,n:WAVE.n,H:H}},H.map(function(a){return a.buffer;}));}
-/* the whole best-route plan in the worker: it receives the tracks of the category's boats and answers with the route and each boat's level */
-function rwPlan(cls,route,ids,cb){var w=RWBAD?null:rwEnsure();if(!w){cb({kind:'nodata',err:'worker'});return;}
-  rwWind();rwWave();var T0=startOf({id:'RTSIM',cls:cls}),list=[];
-  boats.forEach(function(b){if(b.cls!==cls||b.sim)return;var H=imp[b.id]&&imp[b.id].hist;if(!H||H.length<2)return;H=racingPart(H,b.fin?(ARRT[b.id]||b.fin):0);
-    var a=new Float64Array(H.length*3),i;for(i=0;i<H.length;i++){a[3*i]=H[i].t;a[3*i+1]=H[i].lat;a[3*i+2]=H[i].lon;}list.push({id:b.id,name:b.name,color:b.color,H:a});});
-  var job=++RWN;RWP[job]=cb;
-  w.postMessage({plan:1,job:job,cls:cls,route:route,own:ids||[],T0:T0,wb:WAVEB[cls],boats:list},list.map(function(b){return b.H.buffer;}));}
-/* run one route search in the background; cb gets the route or null. Falls back to short slices on the page only where workers are not available. */
-function wifRunBg(b,fac,cb,cancelled,T0){var g=polarFor(b.cls,true);if(!g||!WIND){cb(null);return;}
-  var w=RWBAD?null:rwEnsure();if(!w){wifRunAsync(b,fac,cb,cancelled,T0);return;}
-  rwWind();rwWave();var job=++RWN;RWP[job]=function(d){if(cancelled&&cancelled())return;cb(d.res);};
-  w.postMessage({run:1,job:job,id:b.id,cls:b.cls,fac:fac,g:g,T0:T0||startOf(b),wb:WAVEB[b.cls]});}
-function wifStart(b){if(!WIND){toast(L2('Wind data not loaded yet','Vent pas encore charg\u00e9'),2200);return;}
-  toast(L2('Computing the best route\u2026','Calcul de la meilleure route\u2026'),30000);
-  setTimeout(function(){wifRunBg(b,1,function(r){
-    if(!r){toast(L2('Could not compute a route (not enough data for this class)','Calcul impossible (donn\u00e9es insuffisantes pour cette classe)'),4000);return;}
-    WIF[b.id]=r;toast(L2('Best route: ','Meilleure route : ')+durStr(r.fin-r.t0),3000);renderDock();draw();});},40);}
-
-/* Best route for a category: the isochrone router sails the start-to-finish course through the real wind at the pace of the category's fastest boat (its own measured speeds, with no extra speed-up), and the result is added to the map as a simulated boat. It is kept out of every ranking and never saved with the real history. It shows which route would have been better, and how far each competitor was from it (that gap also holds breakdowns, damage and manoeuvres, which the model does not know about). */
-var RT=null,rtJob=0;
-function rtCls(){return filter!=='ALL'?filter:(sel&&sel.cls&&!sel.sim?sel.cls:null);}
-function rtName(k){var c=CLASSES.filter(function(x){return x.k===k;})[0];return c?c.n:k;}
-/* how fast a boat really sailed compared with the category speeds: distance sailed / distance the speeds predict, over legs up to 12 h (the history is sparse), predicting hour by hour along each leg */
-function rtRatio(H,g,wb){var da=0,dp=0,legs=0,i;
-  for(i=1;i<H.length;i++){var p=H[i-1],q=H[i],dt=(q.t-p.t)/36e5;if(dt<.5||dt>12)continue;
-    var d=hav(p.lat,p.lon,q.lat,q.lon);if(d/dt>50)continue;var bt=brg(p.lat,p.lon,q.lat,q.lon),n=Math.max(1,Math.round(dt)),k,pr=0,ok=true;
-    for(k=0;k<n;k++){var f=(k+.5)/n,w=windAt(p.lat+(q.lat-p.lat)*f,p.lon+(q.lon-p.lon)*f,p.t+(q.t-p.t)*f);if(!w){ok=false;break;}pr+=polSpd(g,w.spd,angd(bt,w.dir))*wavePen(waveAt(p.lat+(q.lat-p.lat)*f,p.lon+(q.lon-p.lon)*f,p.t+(q.t-p.t)*f),w.spd,wb)*dt/n;}
-    if(!ok)continue;da+=d;dp+=pr;legs++;}
-  return dp>20&&legs>=8?Math.min(2,Math.max(.5,da/dp)):null;}
-/* the reference pace: the category's fastest boat, by how fast it really sailed compared with the category speeds (its own measured ratio, no extra speed-up) */
-/* a finisher's time on the clock since the class start. The official time can differ (credits and penalties), which has nothing to do with sailing: Laperche's official 157 h 28 m is 158 h 29 m on the clock. */
-function rtClock(b,T0){var t=ARRT[b.id]||b.fin;return t?t-T0:durOf(b);}
-function rtWinner(cls,T0){var m=null;boats.forEach(function(b){if(b.cls!==cls||b.sim||!b.fin)return;var d=rtClock(b,T0);if(m==null||d<m)m=d;});return m;}
-/* each finisher against the fastest route at its own speeds, so the gap shows routing and not pace. The searches queue up in the worker; the sheet fills in as they finish. */
-function rtOwn(){if(!RT||RT.ownStarted)return;RT.ownStarted=true;var cls=RT.cls,job=rtJob;
-  var ids=boats.filter(function(b){return b.cls===cls&&!b.sim&&b.fin&&!RT.own[b.id];}).map(function(b){return b.id;});if(!ids.length)return;
-  rwPlan(cls,false,ids,function(d){if(job!==rtJob||!RT)return;
-    if(d.kind==='own'){RT.own[d.id]={ideal:d.ideal,fac:d.fac};rtSave();if(!document.getElementById('rt').hidden)rtOpen();}});}
-function rtHist(r){var pts=r.pts,out=[],t=Math.ceil(pts[0].t/18e5)*18e5,k=0,H=[];
-  for(;t<pts[pts.length-1].t;t+=18e5){while(k<pts.length-2&&pts[k+1].t<t)k++;var a=pts[k],b2=pts[k+1],f=b2.t>a.t?(t-a.t)/(b2.t-a.t):0;out.push({t:t,lat:a.lat+(b2.lat-a.lat)*f,lon:a.lon+(b2.lon-a.lon)*f});}
-  var L=pts[pts.length-1];out.push({t:L.t,lat:L.lat,lon:L.lon});out.unshift({t:pts[0].t,lat:pts[0].lat,lon:pts[0].lon});
-  out.forEach(function(q,i){var P=out[i-1]||q,N=out[i+1]||q,dt=(N.t-P.t)/36e5;q.sog=dt>0?hav(P.lat,P.lon,N.lat,N.lon)/dt:0;q.cog=brg(P.lat,P.lon,N.lat,N.lon);});
-  return out;}
-function rtPut(){if(!RT)return;
-  imp.RTSIM={id:'RTSIM',sim:true,name:L2('Best route','Meilleure route')+' \u00b7 '+rtName(RT.cls),boat:L2('Ideal route: '+RT.refName+'\u2019s boat, local wind and waves','Route id\u00e9ale : bateau de '+RT.refName+', vent et vagues locaux'),cls:RT.cls,color:RT.refColor||'',hist:RT.hist,st:''};FIDX={};FIDT={};}
-function rtLbl(){var e=document.getElementById('mRTT'),t=document.getElementById('mRTR');if(t)t.hidden=!RT;if(!e)return;
-  if(e.firstChild)e.firstChild.textContent=RT?L2('Best route \u00b7 '+rtName(RT.cls)+': on','Meilleure route \u00b7 '+rtName(RT.cls)+' : activ\u00e9e'):L2('Best route for a category: off','Meilleure route d\u2019une cat\u00e9gorie : off');
-  var sm=e.querySelector('small');if(sm){var ref=RT?rtWinner(RT.cls,RT.t0):null;
-    sm.textContent=RT?L2(RT.refName+'\u2019s boat, local wind and waves'+(ref!=null?' \u00b7 '+(RT.fin-RT.t0-ref<0?'\u2212':'+')+durStr(Math.abs(RT.fin-RT.t0-ref))+' vs the winner':''),'Bateau de '+RT.refName+', vent et vagues locaux'+(ref!=null?' \u00b7 '+(RT.fin-RT.t0-ref<0?'\u2212':'+')+durStr(Math.abs(RT.fin-RT.t0-ref))+' vs le vainqueur':''))
-      :L2('Pick a category, then tap: which route would have been better?','Choisissez une cat\u00e9gorie puis touchez : quelle route aurait \u00e9t\u00e9 meilleure ?');}}
-function rtOff(quiet){rtJob++;rwStop();RT=null;delete imp.RTSIM;lsSet('rdr_rt','0');lsSet('rdr_rtc',null);rtLbl();if(sel&&sel.id==='RTSIM')sel=null;document.getElementById('rt').hidden=true;compute();renderDock();draw();if(!quiet)toast(L2('Best route hidden','Meilleure route masqu\u00e9e'),1800);}
-function rtOn(cls,quiet){
-  if(!WIND){if(!quiet)toast(L2('Wind data not ready yet','Vent pas encore prêt'),2500);return;}
-  if(!quiet)toast(L2('Computing the best route…','Calcul de la meilleure route…'),30000);
-  var job=++rtJob,gone=function(){return job!==rtJob;};
-  setTimeout(function(){if(gone())return;
-    rwPlan(cls,true,null,function(d){if(gone())return;
-      if(d.kind==='nodata'){if(!quiet)toast(L2('Not enough data for this category yet','Pas encore assez de données pour cette catégorie'),3000);return;}
-      var r=d.res;if(!r){if(!quiet)toast(L2('Could not compute the route','Calcul impossible'),3000);return;}
-      toast(L2('Best route ready','Meilleure route pr\u00eate'),1800);
-      RT={cls:cls,hist:rtHist(r),fin:r.fin,t0:r.t0,fac:d.ref.fac,refName:d.ref.name,refColor:d.ref.color,grid:d.grid,own:{}};rtPut();lsSet('rdr_rt',cls);rtSave();rtLbl();compute();renderDock();draw();
-      if(!quiet)requestAnimationFrame(function(){setTimeout(function(){if(gone())return;var b=boats.filter(function(x){return x.id==='RTSIM';})[0];if(b)select(b,false);rtOpen();},0);});/* the sheet opens a frame later */
-    });},40);}
-/* the finished route is kept for 2 h (the wind data refreshes every 3 h), so a reload shows it at once instead of recomputing */
-function rtSave(){if(!RT)return;lsSet('rdr_rtc',JSON.stringify({v:8,grid:RT.grid,cls:RT.cls,s:Date.now(),fin:RT.fin,t0:RT.t0,fac:RT.fac,refName:RT.refName,refColor:RT.refColor,own:RT.own,h:RT.hist.map(function(q){return [q.t,+q.lat.toFixed(4),+q.lon.toFixed(4),+q.sog.toFixed(1),Math.round(q.cog)];})}));}
-function rtRestore(cls){var c=null;try{c=JSON.parse(lsGet('rdr_rtc')||'null');}catch(e){}
-  if(!c||c.v!==8||c.cls!==cls||!c.h||!c.h.length||Date.now()-c.s>72e5)return false;
-  RT={cls:c.cls,hist:c.h.map(function(q){return {t:q[0],lat:q[1],lon:q[2],sog:q[3],cog:q[4]};}),fin:c.fin,t0:c.t0,fac:c.fac,refName:c.refName,refColor:c.refColor,grid:c.grid,own:c.own||{}};rtPut();rtLbl();compute();renderDock();draw();return true;}
-function rtToggle(){var k=rtCls();
-  if(RT&&(!k||k===RT.cls)){rtOff();return;}
-  if(!k){toast(L2('Pick a category first: tap one of the chips at the top','Choisissez d\u2019abord une cat\u00e9gorie : touchez une pastille en haut'),3500);return;}
-  if(RT){rtJob++;rwStop();RT=null;delete imp.RTSIM;}
-  rtOn(k,false);}
-/* the comparison sheet: the ideal time, and every competitor's distance from it */
-function rtOpen(){if(!RT)return;var ideal=RT.fin-RT.t0,rows=[],fin=[],rest=[];
-  boats.forEach(function(b){if(b.cls!==RT.cls||b.sim)return;if(b.fin)fin.push({b:b,d:rtClock(b,RT.t0)});else rest.push(b);});
-  fin.sort(function(x,y){return x.d-y.d;});rest.sort(function(x,y){return x.dtf-y.dtf;});
-  rows.push('<div class="hi"><span class="tx"><span class="eb">'+L2('Ideal route','Route id\u00e9ale')+'</span><span class="nm">'+esc(RT.refName)+L2('\u2019s boat','\u00a0: son bateau')+' \u00d7'+RT.fac.toFixed(2)+'</span></span><span class="vl">'+durStr(ideal)+'</span></div>');
-  fin.forEach(function(x,i){var o=RT.own[x.b.id],g=o?x.d-o.ideal:null;rows.push('<button class="hi" data-id="'+esc(x.b.id)+'"><span class="tx"><span class="eb">'+(i+1)+' \u00b7 '+L2('Finished','Arriv\u00e9')+' \u00b7 '+durStr(x.d)+(Math.abs(x.d-durOf(x.b))>6e4?' ('+L2('official ','officiel ')+durStr(durOf(x.b))+')':'')+(o?' \u00b7 '+L2('pace','allure')+' \u00d7'+o.fac.toFixed(2):'')+'</span><span class="nm">'+esc(x.b.name)+'</span></span><span class="vl">'+(g==null?'\u2026':(g<0?'\u2212':'+')+durStr(Math.abs(g)))+'</span></button>');});
-  rest.forEach(function(b){rows.push('<button class="hi" data-id="'+esc(b.id)+'"><span class="tx"><span class="eb">'+(b.out?L2('Out of the race','Hors course'):L2('Still racing','En course'))+'</span><span class="nm">'+esc(b.name)+'</span></span><span class="vl">'+(b.out?'\u2013':Math.round(b.dtf)+' nm')+'</span></button>');});
-  document.getElementById('rtH').textContent=L2('Best route \u00b7 '+rtName(RT.cls),'Meilleure route \u00b7 '+rtName(RT.cls));
-  document.getElementById('rtS').textContent=L2('The fastest route for the category\u2019s fastest boat. Speeds come from the wind and waves at each point of the route. Each gap: time taken minus the fastest route for that boat.','La route la plus rapide pour le bateau le plus rapide de la cat\u00e9gorie. Les vitesses d\u00e9pendent du vent et des vagues en chaque point. Chaque \u00e9cart : temps mis moins la route la plus rapide pour ce bateau.');
-  document.getElementById('rtB').innerHTML=rows.join('');
-  document.getElementById('rtN').textContent=L2('Boat capability = the category\u2019s speed table (learned from the logged positions, in flat water) times a performance level measured on each boat, minus a wave penalty (fitted on this race: about 6% per metre of waves above 1.5 m for Ultims, 9% Ocean Fifty, 2 to 3.5% for the others; none below 12 kn of wind). '+(RT.grid==='fine'?'The wind comes from a 3\u00b0 grid (points about 180 nm apart)':'The wind comes from a coarse 6\u00b0 grid (points about 360 nm apart)')+' and perfect hindsight is assumed. The last stretch follows the organiser\u2019s course line round Basse-Terre (traced from their map, about 1 nm; shown dashed with the two exclusion zones while the route is on); the island\u2019s wind shadow is not modelled.','Capacit\u00e9 du bateau = table de vitesses de la cat\u00e9gorie (apprise sur les positions, eau plate) \u00d7 niveau de performance mesur\u00e9 sur chaque bateau, moins une perte due aux vagues (ajust\u00e9e sur cette course : environ 6 % par m\u00e8tre au-dessus de 1,5 m pour les Ultim, 9 % Ocean Fifty, 2 \u00e0 3,5 % pour les autres ; aucune sous 12 n\u0153uds). '+(RT.grid==='fine'?'Le vent vient d\u2019une grille de 3\u00b0 (points \u00e0 environ 180 milles)':'Le vent vient d\u2019une grille grossi\u00e8re de 6\u00b0 (points \u00e0 environ 360 milles)')+', le vent est connu \u00e0 l\u2019avance. La derni\u00e8re partie suit le parcours officiel autour de la Basse-Terre (trac\u00e9 d\u2019apr\u00e8s leur carte, \u00e0 1 mille pr\u00e8s ; en pointill\u00e9s avec les deux zones interdites quand la route est affich\u00e9e) ; le masque du vent de l\u2019\u00eele n\u2019est pas mod\u00e9lis\u00e9.');
-  document.getElementById('rt').hidden=false;rtOwn();}
-document.getElementById('rt').addEventListener('click',function(e){if(e.target===this||e.target.id==='rtClose'){this.hidden=true;return;}var t=e.target.closest('.hi[data-id]');if(t){var b=boats.filter(function(x){return x.id===t.dataset.id;})[0];this.hidden=true;if(b)select(b,true);}});
-var rtTry=0,rtTm=setInterval(function(){if(++rtTry>40||imp.RTSIM||RT){clearInterval(rtTm);return;}var k=lsGet('rdr_rt');if(k&&k!=='0'&&WIND&&boats.some(function(b){return b.cls===k;})){clearInterval(rtTm);if(!rtRestore(k))rtOn(k,true);}},3000);
-function wifRef(b){var m=null;boats.forEach(function(q){if(q.cls===b.cls&&ARRE[q.id]&&(m==null||ARRE[q.id]<m))m=ARRE[q.id];});return m;}
-function wifRow(b){var r=WIF[b.id];if(!r)return '';var d=r.fin-r.t0,ref=wifRef(b),cmp='';
-  if(ref!=null){var df=d-ref,sg=df<0?'\u2212':'+';cmp=' \u00b7 '+L2('fastest '+clsName(b.cls)+': ','plus rapide '+clsName(b.cls)+' : ')+durStr(ref)+' ('+sg+durStr(Math.abs(df))+')';}
-  return '<div class="sea" style="flex-wrap:wrap"><span><b>'+L2('Best route (model)','Meilleure route (mod\u00e8le)')+'</b> \u00b7 '+durStr(d)+' \u00b7 '+L2('arrival ','arriv\u00e9e ')+fmtEta(r.fin)+cmp+'</span><button class="mt" id="wiX" style="margin-left:auto">'+L2('Hide','Masquer')+'</button></div>';}
-function drawWif(){if(!sel)return;var r=WIF[sel.id];if(!r)return;var b=boats.filter(function(q){return q.id===sel.id;})[0],col=b?colB(b):'#ff6a1a',pts=r.pts,i;
-  ctx.save();ctx.lineJoin='round';ctx.lineCap='round';ctx.setLineDash([7,6]);ctx.lineWidth=3.2;ctx.strokeStyle='rgba(255,255,255,.85)';ctx.beginPath();pts.forEach(function(q,j){var x=X(q.lon),y=Y(q.lat);j?ctx.lineTo(x,y):ctx.moveTo(x,y);});ctx.stroke();
-  ctx.lineWidth=1.6;ctx.strokeStyle=col;ctx.stroke();ctx.setLineDash([]);
-  var T=wtime(),a=pts[0];for(i=1;i<pts.length&&pts[i].t<=T;i++);var q0=pts[Math.max(0,i-1)],q1=pts[Math.min(pts.length-1,i)],f=q1.t>q0.t?Math.max(0,Math.min(1,(T-q0.t)/(q1.t-q0.t))):0,la=q0.lat+(q1.lat-q0.lat)*f,lo=q0.lon+(q1.lon-q0.lon)*f,gx=X(lo),gy=Y(la);
-  ctx.beginPath();ctx.arc(gx,gy,6,0,6.2832);ctx.fillStyle='#fff';ctx.fill();ctx.lineWidth=2.5;ctx.strokeStyle=col;ctx.stroke();
-  ctx.font='700 10px "Barlow Condensed","Arial Narrow",sans-serif';ctx.textAlign='left';ctx.lineWidth=3;ctx.lineJoin='round';ctx.strokeStyle='rgba(5,25,70,.6)';var tx=L2('MODEL','MOD\u00c8LE');ctx.strokeText(tx,gx+9,gy+3);ctx.fillStyle='#fff';ctx.fillText(tx,gx+9,gy+3);ctx.restore();}
 function drawPin(){if(!PC)return;
   if(PC.boatId){var bb=boats.filter(function(q){return q.id===PC.boatId;})[0];if(bb){PC.lat=bb.lat;PC.lon=bb.lon;if(!PC.busy&&PC.fl&&Date.now()-PC.lf>4000&&Math.hypot(PC.lat-PC.fl[0],(PC.lon-PC.fl[1])*Math.cos(PC.lat*Math.PI/180))>1.2)pcFetch(PC);}}
   var x=X(PC.lon),y=Y(PC.lat);ctx.save();ctx.beginPath();ctx.arc(x,y,7,0,6.2832);ctx.fillStyle='rgba(255,106,26,.25)';ctx.fill();ctx.lineWidth=2;ctx.strokeStyle='#fff';ctx.stroke();ctx.beginPath();ctx.arc(x,y,2.5,0,6.2832);ctx.fillStyle='#ff6a1a';ctx.fill();ctx.restore();
   if(PC.d){var A=PC.d.a,M=PC.d.m,k=(A?pcIdx(A):0)+'|'+(M?pcIdx(M):0);if(k!==PC.idx)pcRender();}}
-document.addEventListener('click',function(e){var t=e.target;if(t.id==='pcx'){closePC();return;}var pt=t.closest&&t.closest('#pcT');if(pt&&PC){PC.open=!PC.open;PC.idx=-9;pcRender();return;}if(t.id==='wiB'){var b0=sel&&boats.filter(function(q){return q.id===sel.id;})[0];if(b0)wifStart(b0);return;}if(t.id==='wiX'){if(sel)delete WIF[sel.id];renderDock();draw();return;}if(t.id==='condB'){var b=sel&&boats.filter(function(q){return q.id===sel.id;})[0];if(b)openPC(b.lat,b.lon,b.name,b.id);}});
+document.addEventListener('click',function(e){var t=e.target;if(t.id==='pcx'){closePC();return;}var pt=t.closest&&t.closest('#pcT');if(pt&&PC){PC.open=!PC.open;PC.idx=-9;pcRender();return;}if(t.id==='condB'){var b=sel&&boats.filter(function(q){return q.id===sel.id;})[0];if(b)openPC(b.lat,b.lon,b.name,b.id);}});
 function pick(px,py){for(var pi=0;pi<PODS.length;pi++){var P=PODS[pi];if(px>=P.x&&px<=P.x+P.w&&py>=P.y&&py<=P.y+P.h){var pb=boats.filter(function(q){return q.id===P.id;})[0];if(pb){select(pb,false);return;}}}
   var best=null,bd=30;boats.forEach(function(b){if(!vis(b))return;var d=Math.hypot(X(b.lon)-px,Y(b.lat)-py);if(d<bd){bd=d;best=b;}});if(best){closePC();select(best,false);}else{if(sel)select(null);openPC(myInv(v.my-(py-H/2)/v.k),v.lon+(px-W/2)/v.k);}}
 function select(b,center){if(PC&&(!b||PC.boatId!==b.id))closePC();if(!b)CMP='';else if(b.id===CMP)CMP='';cmpMode=false;var a0={lon:v.lon,my:v.my,k:v.k};select0(b,center);if(!rp){if(b&&center!==false){var k2=v.k;v.lon=a0.lon;v.my=a0.my;v.k=a0.k;draw();centerOn(b,k2);}return;}if(b){rp.selMode=true;rp.kSel=v.k;rp.cam={lon:v.lon,my:v.my,k:v.k};if(!rp.playing){compute();followCam(true);draw();}}else rp.selMode=false;}
@@ -1171,9 +959,8 @@ function windRow(b){if(!WIND||b.cog==null||b.fin)return '';var w=windAt(b.lat,b.
   var u=windUnit();if(!rp&&b.x&&b.x.ws>0&&u){w={spd:b.x.ws*u,dir:b.x.wd};}
   var sg=((w.dir-b.cog+540)%360)-180,twa=Math.abs(sg);
   return '<div class="wn">'+L2('Wind ','Vent ')+f0(w.spd)+' kn '+L2('from ','de ')+CPT[Math.round(w.dir/22.5)%16]+' \u00b7 '+L2('angle ','angle ')+f0(twa)+'\u00b0 \u00b7 '+(sg>0?L2('starboard tack','amures tribord'):L2('port tack','amures b\u00e2bord'))+(!rp&&b.x?'<button class="mt" id="more" aria-expanded="'+MORE+'">'+(MORE?L2('Less','Moins')+' \u25b4':L2('More','Plus')+' \u25be')+'</button>':'')+'</div>'+(MORE?moreRows(b):'');}
-function condRows(b){if(b.sim)return '<div class="sea" style="flex-wrap:wrap"><span><b>'+L2('Simulation','Simulation')+'</b> \u00b7 '+L2('where Gitana 18 could have sailed without its breakdown: best route through the real wind, at the speed of the best Ultim. A model, not a result.','o\u00f9 Gitana 18 aurait pu naviguer sans sa casse : meilleure route dans le vent r\u00e9el, \u00e0 la vitesse du meilleur Ultim. Un mod\u00e8le, pas un r\u00e9sultat.')+'</span></div>';var btn='<button class="mt" id="condB" style="margin-left:auto">'+L2('Conditions','Conditions')+' \u25b8</button>',sr=b.fin?'':seaRow(b);
-  var wb='<button class="mt" id="wiB">'+L2('Best route','Meilleure route')+' \u25b8</button>';
-  if(sr)return sr.replace(/<\/div>$/,btn+'</div>')+'<div class="wn" style="justify-content:flex-end">'+wb+'</div>'+wifRow(b);return '<div class="wn" style="justify-content:flex-end;gap:14px">'+wb+btn+'</div>'+wifRow(b);}
+function condRows(b){var btn='<button class="mt" id="condB" style="margin-left:auto">'+L2('Conditions','Conditions')+' \u25b8</button>',sr=b.fin?'':seaRow(b);
+  if(sr)return sr.replace(/<\/div>$/,btn+'</div>');return '<div class="wn" style="justify-content:flex-end;gap:14px">'+btn+'</div>';}
 function seaRow(b){if(!WAVE||b.fin)return '';var s=seaAt(b.lat,b.lon,rp?rp.t:TL.t1);if(!s)return '';var rel='';
   if(b.cog!=null&&!isNaN(s.d)){var a=Math.abs(((s.d-b.cog+540)%360)-180);rel=' \u00b7 '+(a<45?L2('head seas','mer de face'):a>135?L2('following seas','mer de l\u2019arri\u00e8re'):L2('beam seas','mer de travers'));}
   var k=SBN[s.lv];return '<div class="sea"><span class="sg"><b style="width:'+Math.round(Math.min(1,s.he/9)*100)+'%;background:'+k[3]+'"></b></span><span>'+L2(k[1]+' sea',k[2])+' \u00b7 '+s.h.toFixed(1)+' m '+L2('every ','toutes les ')+Math.round(s.p)+' s'+rel+'</span></div>';}
