@@ -108,9 +108,6 @@ jobs:
           if __name__ == '__main__':
               main()
           PY
-      - name: Fetch finer wind (3 degrees, for the best route)
-        continue-on-error: true
-        run: python3 .github/scripts/fetch_wind3.py
       - name: Publish to the data branch
         run: |
           cd out
