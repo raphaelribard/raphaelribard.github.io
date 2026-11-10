@@ -10,7 +10,7 @@ function constVal(name) { // value of `name=<literal>` in app.js
   return vm.runInNewContext('(' + src.slice(start, j + 1) + ')');
 }
 function buildWorker() {
-  const code = 'var R=3440.065,D2R=Math.PI/180,TWSG,TWAG,WIND=null,WLA,WLO,WST6,LAND,LBB=null,LM=null,START_PT,FIN,CORR,GW,WPC=null;\n'
+  const code = src.match(/var RWVARS='([^']*)'/)[1] + '\n'
     + names.map(fn).join('\n') + '\n(' + fn('rwMain') + ')();';
   const out = [], self = { postMessage: m => out.push(m) };
   new Function('self', code)(self); // a plain function scope: much faster than a vm context, where every global lookup is slow
@@ -33,7 +33,24 @@ test('the worker function list covers everything the router needs', () => {
   const r = out[0].res; assert.ok(r, 'the worker found no route (a function is probably missing from the list)');
   const hrs = (r.fin - r.t0) / 36e5; assert.ok(hrs > 100 && hrs < 800, 'implausible time ' + hrs);
   const last = r.pts[r.pts.length - 1], FIN = constVal('FIN'); assert.ok(Math.abs(last.lat - FIN.lat) < 0.5 && Math.abs(last.lon - FIN.lon) < 0.5);
+  // big waves slow a route down (a multihull loses speed in a heavy sea above 12 kn of wind)
+  const nLa = constVal('WLA').length * constVal('WLO').length, la = constVal('WLA'), lo = constVal('WLO'), nWaves = 40;
+  const wave = h => ({ t0: T0 / 1000 - 3600, dt: 21600, la, lo, st: 6, n: nWaves, H: Array.from({ length: nLa }, () => new Float32Array(nWaves).fill(h)) });
+  self.onmessage({ data: { wind: { t0: T0 / 1000 - 3600, n, U: mk(-18), V: mk(0) } } }); // 18 kn
+  self.onmessage({ data: { wave: wave(0.5) } }); self.onmessage({ data: { run: 1, job: 20, id: 'T', cls: 'ULT', fac: 1, g, T0, wb: 0.06 } });
+  self.onmessage({ data: { wave: wave(4.5) } }); self.onmessage({ data: { run: 1, job: 21, id: 'T', cls: 'ULT', fac: 1, g, T0, wb: 0.06 } });
+  const calm = out.find(o => o.job === 20).res, rough = out.find(o => o.job === 21).res;
+  assert.ok(calm && rough && (rough.fin - rough.t0) > (calm.fin - calm.t0) * 1.05, 'waves should slow the route by more than 5 %');
   // faster speeds give a faster route
   const g2 = g.map(row => row.map(v => v * 1.2)); self.onmessage({ data: { run: 1, job: 8, id: 'T', cls: 'ULT', fac: 1, g: g2, T0 } });
   assert.ok((out[1].res.fin - out[1].res.t0) < (r.fin - r.t0));
+});
+
+const { load } = require('./helpers');
+test('wave penalty: none in light wind or small seas, grows with height, capped', () => {
+  const { wavePen } = load(['wavePen']);
+  assert.equal(wavePen(null, 20, 0.06), 1); assert.equal(wavePen(4, 6, 0.06), 1); assert.equal(wavePen(1, 20, 0.06), 1);
+  assert.ok(wavePen(3, 20, 0.06) < 1 && wavePen(4, 20, 0.06) < wavePen(3, 20, 0.06));
+  assert.ok(wavePen(3, 10, 0.06) > wavePen(3, 20, 0.06), 'ramps in between 8 and 12 kn');
+  assert.equal(wavePen(9, 30, 0.09), Math.max(0.75, 1 - 0.09 * 4)); assert.ok(wavePen(9, 30, 0.5) >= 0.75);
 });
