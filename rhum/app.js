@@ -1159,9 +1159,9 @@ function histRows(){var o=histLoad(),rows=[];if(!o)return rows;
     rows.push({id:id,name:e.n,boatname:e.b,'class':e.c,color:e.col,lat:p[1],lon:p[2],sog:p[3],cog:p[4],ts:new Date(p[0]).toISOString()});});});
   return rows;}
 var MIRROR='https://raw.githubusercontent.com/raphaelribard/raphaelribard.github.io/data/',MIR={t:0,p:null};
-function mirrorOk(){/* own copy of the feeds, refreshed by a GitHub job; used only while fresh */
+function mirrorOk(){/* own copy of the feeds, refreshed hourly by a GitHub job (the official feed itself is hourly); used while it is under 75 min old, otherwise the page asks the live worker */
   if(MIR.p&&Date.now()-MIR.t<45e3)return MIR.p;MIR.t=Date.now();
-  MIR.p=fetch(MIRROR+'meta.txt?_='+Math.floor(Date.now()/6e4),{cache:'no-store'}).then(function(r){return r.ok?r.text():'0';}).then(function(t){return Date.now()/1000-parseInt(t,10)<1500;}).catch(function(){return false;});
+  MIR.p=fetch(MIRROR+'meta.txt?_='+Math.floor(Date.now()/6e4),{cache:'no-store'}).then(function(r){return r.ok?r.text():'0';}).then(function(t){return Date.now()/1000-parseInt(t,10)<4500;}).catch(function(){return false;});
   return MIR.p;}
 function mirrorGet(f){return mirrorOk().then(function(ok){if(!ok)throw 0;return fetch(MIRROR+f+'?_='+Math.floor(Date.now()/6e4),{cache:'no-store'});}).then(function(r){if(!r.ok)throw 0;return r.text();});}
 function baseRows(){

@@ -1,10 +1,10 @@
 name: test
 on:
   pull_request:
-    paths: ['rhum/**', '.github/workflows/**']
+    paths: ['rhum/**', '.github/workflows/**', '.github/scripts/**']
   push:
     branches: [main]
-    paths: ['rhum/**', '.github/workflows/**']
+    paths: ['rhum/**', '.github/workflows/**', '.github/scripts/**']
 jobs:
   rhum:
     runs-on: ubuntu-latest
@@ -14,3 +14,4 @@ jobs:
         with:
           node-version: 22
       - run: node --test rhum/tests/*.test.js
+      - run: python3 .github/scripts/test_append_history.py
