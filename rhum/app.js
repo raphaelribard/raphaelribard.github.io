@@ -967,20 +967,24 @@ function moreRows(b){var x=!rp&&b.x;if(!x)return '';var u=windUnit(),it=[];
   return it.length?'<div class="mr">'+it.join('')+'</div>':'';}
 /* The toughest moments of a boat's race, from the weather model along its logged track: the strongest wind and the highest waves it met. The track is sampled hourly between the logged positions; only the racing part counts. Model data, not measurements. */
 var TGH={};
+/* one number for how hard the sea is on the boat: 60% effective wave height (steep short seas count more), 40% wind; 1 = 4 m effective waves with 35 kn */
+function seaScore(he,wind){return .6*(he||0)/4+.4*(wind||0)/35;}
 function toughOf(b){var H0=imp[b.id]&&imp[b.id].hist;if(!H0||H0.length<2||!WIND)return null;
   var key=b.id+'|'+H0.length+'|'+WIND.fetched+'|'+(WAVE?WAVE.t0:0)+'|'+(b.fin||0),c=TGH[key];if(c!==undefined)return c;
-  var H=racingPart(H0,b.fin?(ARRT[b.id]||b.fin):0),w=null,hh=null,i;
+  var H=racingPart(H0,b.fin?(ARRT[b.id]||b.fin):0),w=null,hh=null,sc=null,i;
   for(i=1;i<H.length;i++){var p=H[i-1],q=H[i],dt=(q.t-p.t)/36e5;if(dt>12)continue;var n=Math.max(1,Math.round(dt)),k;
     for(k=0;k<=n;k++){var f=k/n,la=p.lat+(q.lat-p.lat)*f,lo=p.lon+(q.lon-p.lon)*f,T=p.t+(q.t-p.t)*f,wd=windAt(la,lo,T);
       if(wd&&(!w||wd.spd>w.v))w={v:wd.spd,t:T,lat:la,lon:lo};
-      var hs=WAVE?waveAt(la,lo,T):null;if(hs!=null&&(!hh||hs>hh.v))hh={v:hs,t:T,lat:la,lon:lo};}}
-  var r=(w||hh)?{wind:w,wave:hh}:null;if(Object.keys(TGH).length>60)TGH={};TGH[key]=r;return r;}
+      var hs=WAVE?waveAt(la,lo,T):null;if(hs!=null&&(!hh||hs>hh.v))hh={v:hs,t:T,lat:la,lon:lo};
+      var se=wd&&WAVE?seaAt(la,lo,T):null;if(se){var s0=seaScore(se.he,wd.spd);if(!sc||s0>sc.s)sc={s:s0,he:se.he,h:se.h,p:se.p,v:wd.spd,t:T,lat:la,lon:lo};}}}
+  var r=(w||hh)?{sea:sc,wind:w,wave:hh}:null;if(Object.keys(TGH).length>60)TGH={};TGH[key]=r;return r;}
 function toughRow(b){var t=toughOf(b);if(!t)return '';var T=rp?rp.t:TL.t1,out=[];
+  if(t.sea&&t.sea.t<=T)out.push('<button class="mt tg" data-t="'+Math.round(t.sea.t)+'"><b>'+L2('Worst sea ','Pire mer ')+'</b>'+f1(t.sea.h)+' m / '+f0(t.sea.p)+' s \u00b7 '+f0(t.sea.v)+' kn \u00b7 '+dayLabel(t.sea.t)+' \u25b8</button>');
   if(t.wind&&t.wind.t<=T)out.push('<button class="mt tg" data-t="'+Math.round(t.wind.t)+'">'+L2('Wind ','Vent ')+f0(t.wind.v)+' kn \u00b7 '+dayLabel(t.wind.t)+' \u25b8</button>');
   if(t.wave&&t.wave.t<=T)out.push('<button class="mt tg" data-t="'+Math.round(t.wave.t)+'">'+L2('Waves ','Vagues ')+f1(t.wave.v)+' m \u00b7 '+dayLabel(t.wave.t)+' \u25b8</button>');
   return out.length?'<div class="sea" style="flex-wrap:wrap;gap:8px"><span><b>'+L2('Toughest','Plus dur')+'</b> <small>'+L2('(model)','(mod\u00e8le)')+'</small></span>'+out.join('')+'</div>':'';}
 function drawTough(){if(!sel)return;var b=boats.filter(function(q){return q.id===sel.id;})[0];if(!b||!vis(b))return;var t=toughOf(b);if(!t)return;var T=rp?rp.t:TL.t1,k=0;
-  [['wind',t.wind,css['--hot'],function(m){return f0(m.v)+' kn';}],['wave',t.wave,'#8BE6FF',function(m){return f1(m.v)+' m';}]].forEach(function(e){var m=e[1];if(!m||m.t>T)return;
+  [['sea',t.sea,'#FFD25A',function(m){return f1(m.h)+' m \u00b7 '+f0(m.v)+' kn';}],['wind',t.wind,css['--hot'],function(m){return f0(m.v)+' kn';}],['wave',t.wave,'#8BE6FF',function(m){return f1(m.v)+' m';}]].forEach(function(e){var m=e[1];if(!m||m.t>T)return;if(e[0]!=='sea'&&t.sea&&Math.abs(m.t-t.sea.t)<216e5)return;
     var x=X(m.lon),y=Y(m.lat);if(x<-30||y<-30||x>W+30||y>H+30)return;
     ctx.save();ctx.beginPath();ctx.arc(x,y,9,0,6.2832);ctx.lineWidth=2;ctx.strokeStyle=e[2];ctx.globalAlpha=.55;ctx.stroke();ctx.globalAlpha=1;
     ctx.beginPath();ctx.arc(x,y,4.5,0,6.2832);ctx.fillStyle=e[2];ctx.fill();ctx.lineWidth=1.5;ctx.strokeStyle='#fff';ctx.stroke();ctx.restore();
