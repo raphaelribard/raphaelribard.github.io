@@ -1,0 +1,16 @@
+name: test
+on:
+  pull_request:
+    paths: ['rhum/**', '.github/workflows/**']
+  push:
+    branches: [main]
+    paths: ['rhum/**', '.github/workflows/**']
+jobs:
+  rhum:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node --test rhum/tests/*.test.js

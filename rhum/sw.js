@@ -3,7 +3,7 @@
    - Feeds and weather (any host): network first, last good copy when offline.
    - Fonts and icons: cache first, refreshed in the background.
    Cache keys ignore the ?cache-busting query so each file is stored once. */
-var VER = 'rhum-v1', SHELL = ['./', 'index.html', 'manifest.webmanifest', 'icon-180.png', 'icon-512.png'];
+var VER = 'rhum-v2', SHELL = ['./', 'index.html', 'app.css', 'app.js', 'manifest.webmanifest', 'icon-180.png', 'icon-512.png'];
 
 self.addEventListener('install', function (e) {
   e.waitUntil(caches.open(VER).then(function (c) { return c.addAll(SHELL); }).then(function () { return self.skipWaiting(); }));
