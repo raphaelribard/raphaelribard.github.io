@@ -23,3 +23,18 @@ test('polSpd: bilinear interpolation of the polar grid', () => {
 test('the router is a generator and keeps a plain wrapper', () => {
   assert.match(src, /^function\* wifRunG\(/m); assert.match(src, /^function wifRun\(/m); assert.match(src, /^function wifRunAsync\(/m);
 });
+
+test('racingPart: a track stops counting once the boat is closest to the finish', () => {
+  const consts = 'var R=3440.065,D2R=Math.PI/180,FIN={lat:16.241,lon:-61.534};';
+  const { racingPart } = load(['hav', 'racingPart'], consts);
+  const pts = (arr) => arr.map(([lat, lon], i) => ({ t: i * 36e5, lat, lon }));
+  const racing = pts([[48, -2], [40, -20], [30, -40], [20, -55], [17, -60]]);            // still sailing: everything counts
+  assert.equal(racingPart(racing).length, racing.length);
+  const finished = pts([[48, -2], [30, -40], [16.30, -61.55], [16.24, -61.53], [16.24, -61.53], [16.24, -61.53]]);   // idling at the dock afterwards
+  assert.ok(racingPart(finished).length <= 4 && racingPart(finished).length >= 3);
+  const retired = pts([[48, -2], [47, -10], [46.5, -15], [47.5, -12], [48.5, -5], [48.7, -2]]);                       // turned back to port
+  assert.deepEqual(racingPart(retired).map(p => p.lat), [48, 47, 46.5]);
+  // a finisher's track stops at its finish time, whatever happens near the dock afterwards
+  assert.equal(racingPart(finished, 3.5 * 36e5).length, 4);
+  assert.equal(racingPart(finished, 99 * 36e5).length, finished.length);
+});
