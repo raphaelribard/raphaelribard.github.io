@@ -1,4 +1,4 @@
-const test = require('node:test'), assert = require('node:assert/strict'), { load, src } = require('./helpers');
+const test = require('node:test'), assert = require('node:assert/strict'), { load, src, constVal } = require('./helpers');
 const consts = 'var R=3440.065,D2R=Math.PI/180;var TWSG=[0,4,8,12,16,20,24,28,32,40],TWAG=[0,15,30,45,60,75,90,105,120,135,150,165,180];';
 const { hav, brg, my, myInv, angd, polSpd } = load(['hav', 'brg', 'my', 'myInv', 'angd', 'polSpd'], consts);
 const near = (a, b, tol) => assert.ok(Math.abs(a - b) <= tol, a + ' vs ' + b);
@@ -20,9 +20,7 @@ test('polSpd: bilinear interpolation of the polar grid', () => {
   near(polSpd(g, 6, 22.5), 3 + 1.5, 1e-9); // halfway between nodes
   assert.ok(Number.isFinite(polSpd(g, 99, 400))); // clamped, not NaN
 });
-test('the router is a generator and keeps a plain wrapper', () => {
-  assert.match(src, /^function\* wifRunG\(/m); assert.match(src, /^function wifRun\(/m); assert.match(src, /^function wifRunAsync\(/m);
-});
+
 
 test('racingPart: a track stops counting once the boat is closest to the finish', () => {
   const consts = 'var R=3440.065,D2R=Math.PI/180,FIN={lat:16.241,lon:-61.534};';
@@ -37,4 +35,12 @@ test('racingPart: a track stops counting once the boat is closest to the finish'
   // a finisher's track stops at its finish time, whatever happens near the dock afterwards
   assert.equal(racingPart(finished, 3.5 * 36e5).length, 4);
   assert.equal(racingPart(finished, 99 * 36e5).length, finished.length);
+});
+
+test('the official course line (used for the ETA waypoints) is consistent', () => {
+  const OFFL = constVal('OFFL');
+  assert.ok(OFFL.length > 20);
+  const nm = (a, b) => Math.hypot((a[0] - b[0]) * 60, (a[1] - b[1]) * 60 * Math.cos(a[0] * Math.PI / 180));
+  let len = 0; for (let i = 0; i < OFFL.length - 1; i++) { const d = nm(OFFL[i], OFFL[i + 1]); assert.ok(d > 0.2 && d < 4, 'uneven spacing at ' + i); len += d; }
+  assert.ok(len > 55 && len < 75, 'the line round Basse-Terre is about 63 nm, got ' + len);
 });

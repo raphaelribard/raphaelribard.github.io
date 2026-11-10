@@ -16,4 +16,11 @@ function load(names, extra) {
   const code = (extra || '') + '\n' + names.map(fn).join('\n') + '\nthis.api={' + names.join(',') + '};';
   const ctx = {}; vm.runInNewContext(code, ctx); return ctx.api;
 }
-module.exports = { src, fn, load };
+// the value of `name=<literal>` in app.js (arrays and objects)
+function constVal(name) {
+  const i = src.search(new RegExp('[,; \\n]' + name + '=[\\[{0-9]')) + 1, start = i + name.length + 1, open = src[start], close = open === '[' ? ']' : '}';
+  if (open !== '[' && open !== '{') return vm.runInNewContext(src.slice(start).match(/^[-\d.]+/)[0]);
+  let d = 0, j = start; for (; j < src.length; j++) { if (src[j] === open) d++; else if (src[j] === close && --d === 0) break; }
+  return vm.runInNewContext('(' + src.slice(start, j + 1) + ')');
+}
+module.exports = { src, fn, load, constVal };
