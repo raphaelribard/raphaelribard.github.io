@@ -76,3 +76,12 @@ test('replay steps: a selected boat steps through its own logged positions, the 
   assert.equal(stepTarget(null, 10 * h, -1, t0, t1), 9 * h);
   assert.equal(stepTarget(null, 30 * h, 1, t0, t1), t1); assert.equal(stepTarget(null, 0, -1, t0, t1), t0);
 });
+
+test('seaScore combines steep waves and wind, 1 = 4 m effective waves with 35 kn', () => {
+  const { seaScore } = load(['seaScore']);
+  assert.ok(Math.abs(seaScore(4, 35) - 1) < 1e-9);
+  assert.ok(seaScore(5, 20) > seaScore(2, 20));      // bigger waves score higher
+  assert.ok(seaScore(3, 40) > seaScore(3, 20));      // stronger wind scores higher
+  assert.ok(seaScore(4, 10) > seaScore(1, 35));      // waves weigh more than wind
+  assert.equal(seaScore(), 0);
+});
