@@ -855,10 +855,10 @@ function tapAt(px,py){var now=Date.now();
   LT.h=setTimeout(function(){pick(px,py);},300);}
 
 /* Conditions card: tap the sea (or "Conditions" in a boat panel) to read wind, sea, rain... at that spot, at the time on screen. One small request per tap, made from the viewer's own browser. */
-var PC=null;
+var PC=null,PCT=0;
 function pcIdx(h){var T=wtime()/1000;return Math.max(0,Math.min(h.time.length-1,Math.floor((T-h.time[0])/3600)));}
 function pcAt(h,k,i){return h&&h[k]&&h[k][i]!=null?h[k][i]:null;}
-function pcGet(u){return fetch(u).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;});}
+function pcGet(u){var ac=typeof AbortController==='function'?new AbortController():null,tm=ac?setTimeout(function(){ac.abort();},12000):0;return fetch(u,ac?{signal:ac.signal}:undefined).then(function(r){clearTimeout(tm);return r.ok?r.json():null;}).catch(function(){clearTimeout(tm);return null;});}
 function pcFetch(key){var la=key.lat.toFixed(2),lo=key.lon.toFixed(2);key.busy=true;key.fl=[key.lat,key.lon];key.lf=Date.now();
   Promise.all([pcGet('https://api.open-meteo.com/v1/forecast?latitude='+la+'&longitude='+lo+'&hourly=wind_speed_10m,wind_gusts_10m,wind_direction_10m,precipitation,cloud_cover,pressure_msl,temperature_2m&wind_speed_unit=kn&timeformat=unixtime&past_days=21&forecast_days=3'),
     pcGet('https://marine-api.open-meteo.com/v1/marine?latitude='+la+'&longitude='+lo+'&hourly=wave_height,wave_period,wave_direction,swell_wave_height,swell_wave_period,ocean_current_velocity,ocean_current_direction,sea_surface_temperature&timeformat=unixtime&past_days=21&forecast_days=3')]).then(function(a){
@@ -901,7 +901,8 @@ function pcRender(){var e=document.getElementById('pc');if(!PC){e.hidden=true;re
   svg+='<line x1="'+mx.toFixed(1)+'" x2="'+mx.toFixed(1)+'" y1="0" y2="'+Ht+'" stroke="#ff6a1a" stroke-width="1.5"/>';
   e.innerHTML=h.replace('<h4>','<h4 id="pcT">')+'<div class="g">'+it.join('')+'</div><svg viewBox="0 0 '+Wd+' '+Ht+'" preserveAspectRatio="none" aria-hidden="true">'+svg+'</svg><div class="lg"><span><i style="background:currentColor"></i>'+L2('wind','vent')+'</span><span><i style="background:#f29a3a"></i>'+L2('waves','vagues')+'</span><span><i style="background:#4aa3ff"></i>'+L2('rain','pluie')+'</span><span>±24 h</span></div>';}
 function drawPin(){if(!PC)return;
-  if(PC.boatId){var bb=boats.filter(function(q){return q.id===PC.boatId;})[0];if(bb){PC.lat=bb.lat;PC.lon=bb.lon;if(!PC.busy&&PC.err&&Date.now()-PC.lf>15000)pcFetch(PC);else if(!PC.busy&&PC.fl&&Date.now()-PC.lf>4000&&Math.hypot(PC.lat-PC.fl[0],(PC.lon-PC.fl[1])*Math.cos(PC.lat*Math.PI/180))>1.2)pcFetch(PC);}}
+  if(PC.boatId){var bb=boats.filter(function(q){return q.id===PC.boatId;})[0];if(bb){PC.lat=bb.lat;PC.lon=bb.lon;var need=PC.err||(PC.fl&&Math.hypot(PC.lat-PC.fl[0],(PC.lon-PC.fl[1])*Math.cos(PC.lat*Math.PI/180))>1.2);
+    if(need){var wait=PC.busy?1500:Math.max(0,(PC.err?15000:1500)-(Date.now()-PC.lf));if(wait<=0)pcFetch(PC);else if(!PCT){PCT=setTimeout(function(){PCT=0;draw();},wait+50);}}}}
   var x=X(PC.lon),y=Y(PC.lat);ctx.save();ctx.beginPath();ctx.arc(x,y,7,0,6.2832);ctx.fillStyle='rgba(255,106,26,.25)';ctx.fill();ctx.lineWidth=2;ctx.strokeStyle='#fff';ctx.stroke();ctx.beginPath();ctx.arc(x,y,2.5,0,6.2832);ctx.fillStyle='#ff6a1a';ctx.fill();ctx.restore();
   if(PC.d){var A=PC.d.a,M=PC.d.m,k=(A?pcIdx(A):0)+'|'+(M?pcIdx(M):0);if(k!==PC.idx)pcRender();}}
 document.addEventListener('click',function(e){var t=e.target;if(t.id==='pcx'){closePC();return;}var pt=t.closest&&t.closest('#pcT');if(pt&&PC){PC.open=!PC.open;PC.idx=-9;pcRender();return;}var tgb=t.closest&&t.closest('.tg');if(tgb){var tt=+tgb.dataset.t;if(tt>0)seekTo(tt);return;}if(t.id==='condB'){var b=sel&&boats.filter(function(q){return q.id===sel.id;})[0];if(b)openPC(b.lat,b.lon,b.name,b.id);}});
