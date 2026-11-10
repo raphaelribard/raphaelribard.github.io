@@ -1,7 +1,10 @@
 name: feed
 on:
   schedule:
-    - cron: '*/5 * * * *'
+    # The official feed is published hourly, so asking more often only fetches the same data. GitHub is allowed to skip
+    # scheduled runs, so the hourly job has a second slot half an hour later; the job is safe to run twice.
+    - cron: '10 * * * *'
+    - cron: '40 * * * *'
   workflow_dispatch:
 permissions:
   contents: write
@@ -12,6 +15,7 @@ jobs:
   feed:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - name: Mirror feeds to the data branch
         env:
           TOKEN: ${{ github.token }}
@@ -23,6 +27,7 @@ jobs:
           curl -fsS --compressed --retry 3 --retry-delay 10 'https://route-du-rhum-live.andamarco.workers.dev/live.json' -o live.tmp
           python3 -c "import json;json.load(open('live.tmp'))"
           mv live.tmp live.json
+          python3 "$GITHUB_WORKSPACE/.github/scripts/append_history.py" live.json dense.json || true
           if curl -fsS --compressed --retry 2 'https://raw.githubusercontent.com/AugTop/rhum-tracker/main/data/history.json' -o hist.tmp && python3 -c "import json;json.load(open('hist.tmp'))"; then mv hist.tmp history.json; else rm -f hist.tmp; fi
           date +%s > meta.txt
           git config user.name feed-bot
