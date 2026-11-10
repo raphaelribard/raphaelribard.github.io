@@ -915,7 +915,7 @@ function* wifRunG(b,fac,g0,T0x,wb0){fac=fac||1;var g=g0||polarFor(b.cls,true),wb
     if(best&&cur.every(function(c){return c.t>=best.t;}))break;}
   if(!best)return null;var pts=[],n=best;while(n){pts.push({t:n.t,lat:n.lat,lon:n.lon});n=n.par;}pts.reverse();return {pts:pts,t0:T0,fin:best.t};}
 function wifRun(b,fac){var it=wifRunG(b,fac),s;while(!(s=it.next()).done);return s.value;}
-function wifRunAsync(b,fac,cb,cancelled){var it=wifRunG(b,fac),mc=window.MessageChannel?new MessageChannel():null;
+function wifRunAsync(b,fac,cb,cancelled,T0){var it=wifRunG(b,fac,null,T0),mc=window.MessageChannel?new MessageChannel():null;
   function next(){if(mc)mc.port2.postMessage(0);else setTimeout(pump,0);}/* a message, not setTimeout: no 4 ms clamp between slices */
   function pump(){if(cancelled&&cancelled())return;var t=performance.now(),s;
     try{do{s=it.next();}while(!s.done&&performance.now()-t<6);}catch(e){cb(null);return;}
@@ -955,10 +955,10 @@ function rwWave(){var key=WAVE?WAVE.t0+'|'+WAVE.n:'none';if(RWWAVE===key)return;
   var H=WAVE.H.map(function(a){return Float32Array.from(a);});
   RW.postMessage({wave:{t0:WAVE.t0,dt:WAVE.dt,la:WAVE.la,lo:WAVE.lo,st:WAVE.st,n:WAVE.n,H:H}},H.map(function(a){return a.buffer;}));}
 /* run one route search in the background; cb gets the route or null. Falls back to short slices on the page only where workers are not available. */
-function wifRunBg(b,fac,cb,cancelled){var g=polarFor(b.cls,true);if(!g||!WIND){cb(null);return;}
-  var w=RWBAD?null:rwEnsure();if(!w){wifRunAsync(b,fac,cb,cancelled);return;}
+function wifRunBg(b,fac,cb,cancelled,T0){var g=polarFor(b.cls,true);if(!g||!WIND){cb(null);return;}
+  var w=RWBAD?null:rwEnsure();if(!w){wifRunAsync(b,fac,cb,cancelled,T0);return;}
   rwWind();rwWave();var job=++RWN;RWP[job]=function(r){if(cancelled&&cancelled())return;cb(r);};
-  w.postMessage({run:1,job:job,id:b.id,cls:b.cls,fac:fac,g:g,T0:startOf(b),wb:WAVEB[b.cls]});}
+  w.postMessage({run:1,job:job,id:b.id,cls:b.cls,fac:fac,g:g,T0:T0||startOf(b),wb:WAVEB[b.cls]});}
 function wifStart(b){if(!WIND){toast(L2('Wind data not loaded yet','Vent pas encore charg\u00e9'),2200);return;}
   toast(L2('Computing the best route\u2026','Calcul de la meilleure route\u2026'),30000);
   setTimeout(function(){wifRunBg(b,1,function(r){
@@ -980,10 +980,13 @@ function rtRatio(H,g,wb){var da=0,dp=0,legs=0,i;
 function rtPace(cls){var g=polarFor(cls,true);if(!g)return null;var best=null;
   boats.forEach(function(b){if(b.cls!==cls||b.sim)return;var H=imp[b.id]&&imp[b.id].hist;if(!H||H.length<20||H[H.length-1].t-H[0].t<3*864e5)return;var f=rtRatio(H,g,WAVEB[cls]);if(f&&(!best||f>best.fac))best={b:b,fac:f};});
   return best;}
+/* a finisher's time on the clock since the class start. The official time can differ (credits and penalties), which has nothing to do with sailing: Laperche's official 157 h 28 m is 158 h 29 m on the clock. */
+function rtClock(b,T0){var t=ARRT[b.id]||b.fin;return t?t-T0:durOf(b);}
+function rtWinner(cls,T0){var m=null;boats.forEach(function(b){if(b.cls!==cls||b.sim||!b.fin)return;var d=rtClock(b,T0);if(m==null||d<m)m=d;});return m;}
 /* each finisher against the fastest route at its own speeds, so the gap shows routing and not pace. The searches queue up in the worker; the sheet fills in as they finish. */
 function rtOwn(){if(!RT||RT.ownStarted)return;RT.ownStarted=true;var cls=RT.cls,g=polarFor(cls,true),job=rtJob;if(!g)return;
   boats.forEach(function(b){if(b.cls!==cls||b.sim||!b.fin||RT.own[b.id])return;var H=imp[b.id]&&imp[b.id].hist,f=H&&rtRatio(H,g,WAVEB[cls]);if(!f)return;
-    wifRunBg(b,f,function(r){if(job!==rtJob||!RT||!r)return;RT.own[b.id]={ideal:r.fin-r.t0,fac:f};rtSave();if(!document.getElementById('rt').hidden)rtOpen();},function(){return job!==rtJob;});});}
+    wifRunBg(b,f,function(r){if(job!==rtJob||!RT||!r)return;RT.own[b.id]={ideal:r.fin-r.t0,fac:f};rtSave();if(!document.getElementById('rt').hidden)rtOpen();},function(){return job!==rtJob;},RT.t0);});}
 function rtHist(r){var pts=r.pts,out=[],t=Math.ceil(pts[0].t/18e5)*18e5,k=0,H=[];
   for(;t<pts[pts.length-1].t;t+=18e5){while(k<pts.length-2&&pts[k+1].t<t)k++;var a=pts[k],b2=pts[k+1],f=b2.t>a.t?(t-a.t)/(b2.t-a.t):0;out.push({t:t,lat:a.lat+(b2.lat-a.lat)*f,lon:a.lon+(b2.lon-a.lon)*f});}
   var L=pts[pts.length-1];out.push({t:L.t,lat:L.lat,lon:L.lon});out.unshift({t:pts[0].t,lat:pts[0].lat,lon:pts[0].lon});
@@ -993,7 +996,7 @@ function rtPut(){if(!RT)return;
   imp.RTSIM={id:'RTSIM',sim:true,name:L2('Best route','Meilleure route')+' \u00b7 '+rtName(RT.cls),boat:L2('Ideal route: '+RT.refName+'\u2019s boat, local wind and waves','Route id\u00e9ale : bateau de '+RT.refName+', vent et vagues locaux'),cls:RT.cls,color:RT.refColor||'',hist:RT.hist,st:''};FIDX={};FIDT={};}
 function rtLbl(){var e=document.getElementById('mRTT'),t=document.getElementById('mRTR');if(t)t.hidden=!RT;if(!e)return;
   if(e.firstChild)e.firstChild.textContent=RT?L2('Best route \u00b7 '+rtName(RT.cls)+': on','Meilleure route \u00b7 '+rtName(RT.cls)+' : activ\u00e9e'):L2('Best route for a category: off','Meilleure route d\u2019une cat\u00e9gorie : off');
-  var sm=e.querySelector('small');if(sm){var ref=RT?wifRef({cls:RT.cls}):null;
+  var sm=e.querySelector('small');if(sm){var ref=RT?rtWinner(RT.cls,RT.t0):null;
     sm.textContent=RT?L2(RT.refName+'\u2019s boat, local wind and waves'+(ref!=null?' \u00b7 '+(RT.fin-RT.t0-ref<0?'\u2212':'+')+durStr(Math.abs(RT.fin-RT.t0-ref))+' vs the winner':''),'Bateau de '+RT.refName+', vent et vagues locaux'+(ref!=null?' \u00b7 '+(RT.fin-RT.t0-ref<0?'\u2212':'+')+durStr(Math.abs(RT.fin-RT.t0-ref))+' vs le vainqueur':''))
       :L2('Pick a category, then tap: which route would have been better?','Choisissez une cat\u00e9gorie puis touchez : quelle route aurait \u00e9t\u00e9 meilleure ?');}}
 function rtOff(quiet){rtJob++;rwStop();RT=null;delete imp.RTSIM;lsSet('rdr_rt','0');lsSet('rdr_rtc',null);rtLbl();if(sel&&sel.id==='RTSIM')sel=null;document.getElementById('rt').hidden=true;compute();renderDock();draw();if(!quiet)toast(L2('Best route hidden','Meilleure route masqu\u00e9e'),1800);}
@@ -1019,10 +1022,10 @@ function rtToggle(){var k=rtCls();
   rtOn(k,false);}
 /* the comparison sheet: the ideal time, and every competitor's distance from it */
 function rtOpen(){if(!RT)return;var ideal=RT.fin-RT.t0,rows=[],fin=[],rest=[];
-  boats.forEach(function(b){if(b.cls!==RT.cls||b.sim)return;if(b.fin)fin.push({b:b,d:durOf(b)});else rest.push(b);});
+  boats.forEach(function(b){if(b.cls!==RT.cls||b.sim)return;if(b.fin)fin.push({b:b,d:rtClock(b,RT.t0)});else rest.push(b);});
   fin.sort(function(x,y){return x.d-y.d;});rest.sort(function(x,y){return x.dtf-y.dtf;});
   rows.push('<div class="hi"><span class="tx"><span class="eb">'+L2('Ideal route','Route id\u00e9ale')+'</span><span class="nm">'+esc(RT.refName)+L2('\u2019s boat','\u00a0: son bateau')+' \u00d7'+RT.fac.toFixed(2)+'</span></span><span class="vl">'+durStr(ideal)+'</span></div>');
-  fin.forEach(function(x,i){var o=RT.own[x.b.id],g=o?x.d-o.ideal:null;rows.push('<button class="hi" data-id="'+esc(x.b.id)+'"><span class="tx"><span class="eb">'+(i+1)+' \u00b7 '+L2('Finished','Arriv\u00e9')+' \u00b7 '+durStr(x.d)+(o?' \u00b7 '+L2('pace','allure')+' \u00d7'+o.fac.toFixed(2):'')+'</span><span class="nm">'+esc(x.b.name)+'</span></span><span class="vl">'+(g==null?'\u2026':(g<0?'\u2212':'+')+durStr(Math.abs(g)))+'</span></button>');});
+  fin.forEach(function(x,i){var o=RT.own[x.b.id],g=o?x.d-o.ideal:null;rows.push('<button class="hi" data-id="'+esc(x.b.id)+'"><span class="tx"><span class="eb">'+(i+1)+' \u00b7 '+L2('Finished','Arriv\u00e9')+' \u00b7 '+durStr(x.d)+(Math.abs(x.d-durOf(x.b))>6e4?' ('+L2('official ','officiel ')+durStr(durOf(x.b))+')':'')+(o?' \u00b7 '+L2('pace','allure')+' \u00d7'+o.fac.toFixed(2):'')+'</span><span class="nm">'+esc(x.b.name)+'</span></span><span class="vl">'+(g==null?'\u2026':(g<0?'\u2212':'+')+durStr(Math.abs(g)))+'</span></button>');});
   rest.forEach(function(b){rows.push('<button class="hi" data-id="'+esc(b.id)+'"><span class="tx"><span class="eb">'+(b.out?L2('Out of the race','Hors course'):L2('Still racing','En course'))+'</span><span class="nm">'+esc(b.name)+'</span></span><span class="vl">'+(b.out?'\u2013':Math.round(b.dtf)+' nm')+'</span></button>');});
   document.getElementById('rtH').textContent=L2('Best route \u00b7 '+rtName(RT.cls),'Meilleure route \u00b7 '+rtName(RT.cls));
   document.getElementById('rtS').textContent=L2('The fastest route for the category\u2019s fastest boat. Speeds come from the wind and waves at each point of the route. Each gap: time taken minus the fastest route for that boat.','La route la plus rapide pour le bateau le plus rapide de la cat\u00e9gorie. Les vitesses d\u00e9pendent du vent et des vagues en chaque point. Chaque \u00e9cart : temps mis moins la route la plus rapide pour ce bateau.');
