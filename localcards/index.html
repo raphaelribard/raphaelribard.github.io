@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Cards">
+<meta name="theme-color" content="#f2f2f7">
+<title>Cards</title>
+<style>
+:root{--bg:#f2f2f7;--card:#fff;--fg:#111;--mut:#6b6b76;--line:#e0e0e6;--acc:#0a84ff;--red:#ff453a;--org:#ff9f0a;--grn:#30b350;--blu:#0a84ff}
+@media(prefers-color-scheme:dark){:root{--bg:#000;--card:#1c1c1e;--fg:#f2f2f7;--mut:#9a9aa5;--line:#2c2c2e;--acc:#0a84ff}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--fg);font:17px/1.4 -apple-system,system-ui,sans-serif}
+body{padding:env(safe-area-inset-top) 0 calc(env(safe-area-inset-bottom) + 16px)}
+header{display:flex;align-items:center;gap:8px;padding:14px 16px;position:sticky;top:0;background:var(--bg);z-index:5}
+header h1{flex:1;font-size:24px;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+main{padding:0 16px;max-width:640px;margin:0 auto}
+button,input,textarea,select{font:inherit;color:inherit}
+button{border:0;background:var(--card);border-radius:12px;padding:10px 14px;color:var(--acc);cursor:pointer}
+button.p{background:var(--acc);color:#fff;font-weight:600}
+button.d{color:var(--red)}
+button:disabled{opacity:.4}
+.list{background:var(--card);border-radius:14px;overflow:hidden;margin:0 0 16px}
+.row{display:flex;align-items:center;gap:10px;padding:13px 14px;border-bottom:1px solid var(--line)}
+.row:last-child{border:0}
+.row .t{flex:1;min-width:0}
+.row .t b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.row .t small{color:var(--mut)}
+.badge{font-size:14px;font-weight:600;min-width:28px;text-align:center}
+.n{color:var(--blu)}.l{color:var(--red)}.r{color:var(--grn)}
+textarea,input[type=text],input[type=search]{width:100%;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:11px 12px;margin:0 0 10px;resize:vertical}
+textarea{min-height:90px}
+label{display:block;color:var(--mut);font-size:14px;margin:0 4px 4px}
+.sec{color:var(--mut);font-size:13px;text-transform:uppercase;margin:18px 14px 6px}
+.empty{text-align:center;color:var(--mut);padding:40px 10px}
+.study{display:flex;flex-direction:column;min-height:calc(100dvh - 140px)}
+.face{flex:1;background:var(--card);border-radius:18px;padding:24px;display:flex;align-items:center;justify-content:center;text-align:center;font-size:24px;white-space:pre-wrap;word-break:break-word;margin-bottom:14px;min-height:240px}
+.face.back{border-top:3px solid var(--acc)}
+.grades{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.grades button{padding:10px 2px;display:flex;flex-direction:column;align-items:center;color:#fff;font-weight:600}
+.grades small{font-weight:400;opacity:.9;font-size:12px}
+.g1{background:var(--red)}.g2{background:var(--org)}.g3{background:var(--grn)}.g4{background:var(--blu)}
+.counts{text-align:center;margin-bottom:10px;font-weight:600}
+.bar{height:5px;background:var(--line);border-radius:3px;margin:0 0 12px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--acc)}
+.toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 24px);transform:translateX(-50%);background:#333;color:#fff;padding:10px 16px;border-radius:20px;font-size:15px;z-index:20}
+</style>
+</head>
+<body>
+<header id="hd"></header>
+<main id="app"></main>
+<input type="file" id="file" accept=".json,.csv,.tsv,.txt,text/*,application/json" hidden>
+<script>
+"use strict";
+/* ---------- storage (local only: this device's browser storage) ---------- */
+const KEY="localcards.v1";
+let db={decks:[],cards:[],log:[]};
+try{const s=localStorage.getItem(KEY);if(s)db=JSON.parse(s)}catch(e){}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(db))}catch(e){toast("Could not save! Export a backup.")}}
+try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const MIN=60e3,DAY=864e5,NEW_LIMIT=20;
+
+/* ---------- scheduling (SM-2 style) ---------- */
+function isNew(c){return !c.seen}
+function nextInterval(c,g){ // returns {days, ms}
+  const i=c.interval||0,e=c.ease||2.5;
+  if(g==1)return{ms:MIN,days:0};
+  if(!c.seen||c.reps==0){return{days:g==2?1:g==3?1:4}}
+  if(g==2)return{days:Math.max(1,Math.round(i*1.2))};
+  if(g==3)return{days:Math.max(i+1,Math.round(i*e))};
+  return{days:Math.max(i+2,Math.round(i*e*1.3))};
+}
+function fmt(r){const ms=r.ms??r.days*DAY;if(ms<3600e3)return Math.max(1,Math.round(ms/MIN))+"m";if(ms<DAY)return Math.round(ms/3600e3)+"h";const d=ms/DAY;return d<30?Math.round(d)+"d":d<365?(d/30).toFixed(1)+"mo":(d/365).toFixed(1)+"y"}
+function grade(c,g){
+  const r=nextInterval(c,g);
+  if(g==1){c.lapses=(c.lapses||0)+1;c.reps=0;c.ease=Math.max(1.3,(c.ease||2.5)-.2);c.interval=0;c.due=Date.now()+MIN}
+  else{
+    if(g==2)c.ease=Math.max(1.3,(c.ease||2.5)-.15);
+    if(g==4)c.ease=(c.ease||2.5)+.15;
+    c.reps=(c.reps||0)+1;c.interval=r.days;c.due=Date.now()+r.days*DAY;
+  }
+  c.seen=true;db.log.push({t:Date.now(),g});if(db.log.length>5000)db.log.splice(0,1000);save();
+}
+const deckCards=id=>db.cards.filter(c=>c.deck===id);
+function stats(id){const now=Date.now();let n=0,l=0,r=0;for(const c of deckCards(id)){if(isNew(c))n++;else if(c.due<=now)(c.interval==0?l++:r++)}return{n:Math.min(n,NEW_LIMIT),l,r,total:deckCards(id).length}}
+
+/* ---------- ui helpers ---------- */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+function toast(m){const t=document.createElement("div");t.className="toast";t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),2200)}
+function header(title,left,right){$("#hd").innerHTML=`${left||""}<h1>${esc(title)}</h1>${right||""}`}
+let view={name:"home"};
+function go(v){view=v;render();scrollTo(0,0)}
+const actions={};
+window.act=(n,...a)=>actions[n](...a);
+
+/* ---------- views ---------- */
+function render(){({home,deck,study,edit,settings})[view.name]()}
+
+function home(){
+  header("Decks","",`<button onclick="act('settings')">⚙︎</button><button class="p" onclick="act('newDeck')">+</button>`);
+  const rows=db.decks.map(d=>{const s=stats(d.id);return `<div class="row" onclick="act('openDeck','${d.id}')"><div class="t"><b>${esc(d.name)}</b><small>${s.total} cards</small></div><span class="badge n">${s.n}</span><span class="badge l">${s.l}</span><span class="badge r">${s.r}</span></div>`}).join("");
+  $("#app").innerHTML=db.decks.length?`<div class="list">${rows}</div><div class="empty" style="padding:0"><small><span class="n">new</span> · <span class="l">learning</span> · <span class="r">due</span></small></div>`:`<div class="empty">No decks yet.<br>Tap + to create one.</div>`;
+}
+actions.settings=()=>go({name:"settings"});
+actions.newDeck=()=>{const n=prompt("Deck name");if(n&&n.trim()){db.decks.push({id:uid(),name:n.trim()});save();render()}};
+actions.openDeck=id=>go({name:"deck",id});
+
+function deck(){
+  const d=db.decks.find(x=>x.id==view.id);if(!d)return go({name:"home"});
+  const s=stats(d.id),q=(view.q||"").toLowerCase();
+  header(d.name,`<button onclick="act('home')">‹</button>`,`<button onclick="act('addCard')">+ Card</button>`);
+  const cards=deckCards(d.id).filter(c=>!q||(c.front+" "+c.back).toLowerCase().includes(q));
+  const shown=cards.slice(0,200).map(c=>`<div class="row" onclick="act('edit','${c.id}')"><div class="t"><b>${esc(c.front.split("\n")[0])}</b><small>${esc(c.back.split("\n")[0])}</small></div><small>${isNew(c)?"new":c.due<=Date.now()?"due":fmt({ms:c.due-Date.now()})}</small></div>`).join("");
+  const due=s.n+s.l+s.r;
+  $("#app").innerHTML=`<button class="p" style="width:100%;margin-bottom:14px;padding:14px" ${due?"":"disabled"} onclick="act('study')">Study now · ${due} ${due==1?"card":"cards"}</button>
+  <input type="search" placeholder="Search cards" value="${esc(view.q||"")}" oninput="act('search',this.value)" id="q">
+  ${cards.length?`<div class="list">${shown}</div>${cards.length>200?`<div class="empty">Showing 200 of ${cards.length}. Use search.</div>`:""}`:`<div class="empty">${deckCards(d.id).length?"No matches.":"No cards yet. Tap “+ Card”."}</div>`}
+  <div class="sec">Deck</div><div class="list">
+  <div class="row" onclick="act('import','${d.id}')"><div class="t">Import cards (CSV / TSV / text)</div></div>
+  <div class="row" onclick="act('exportDeck','${d.id}')"><div class="t">Export deck as CSV</div></div>
+  <div class="row" onclick="act('renameDeck','${d.id}')"><div class="t">Rename deck</div></div>
+  <div class="row" onclick="act('resetDeck','${d.id}')"><div class="t">Reset study progress</div></div>
+  <div class="row d" onclick="act('delDeck','${d.id}')"><div class="t" style="color:var(--red)">Delete deck</div></div></div>`;
+  if(view.q){const i=$("#q");i.focus();i.setSelectionRange(i.value.length,i.value.length)}
+}
+actions.home=()=>go({name:"home"});
+actions.search=v=>{view.q=v;deck()};
+actions.renameDeck=id=>{const d=db.decks.find(x=>x.id==id),n=prompt("Deck name",d.name);if(n&&n.trim()){d.name=n.trim();save();render()}};
+actions.delDeck=id=>{if(confirm("Delete this deck and all its cards?")){db.decks=db.decks.filter(d=>d.id!=id);db.cards=db.cards.filter(c=>c.deck!=id);save();go({name:"home"})}};
+actions.resetDeck=id=>{if(confirm("Mark all cards in this deck as new?")){deckCards(id).forEach(c=>{c.seen=false;c.reps=0;c.interval=0;c.ease=2.5;c.due=0});save();render()}};
+
+/* add / edit */
+actions.addCard=()=>go({name:"edit",deck:view.id,card:null});
+actions.edit=id=>go({name:"edit",deck:view.id,card:id});
+function edit(){
+  const c=view.card?db.cards.find(x=>x.id==view.card):null;
+  header(c?"Edit card":"New card",`<button onclick="act('openDeck','${view.deck}')">‹</button>`,"");
+  $("#app").innerHTML=`<label>Front</label><textarea id="f" autofocus>${esc(c?.front)}</textarea><label>Back</label><textarea id="b">${esc(c?.back)}</textarea>
+  <button class="p" style="width:100%;padding:14px" onclick="act('saveCard')">${c?"Save":"Add card"}</button>
+  ${c?`<button class="d" style="width:100%;margin-top:12px" onclick="act('delCard')">Delete card</button>`:""}`;
+}
+actions.saveCard=()=>{
+  const f=$("#f").value.trim(),b=$("#b").value.trim();if(!f||!b)return toast("Fill both sides");
+  if(view.card){const c=db.cards.find(x=>x.id==view.card);c.front=f;c.back=b;save();go({name:"deck",id:view.deck})}
+  else{db.cards.push({id:uid(),deck:view.deck,front:f,back:b,seen:false,reps:0,interval:0,ease:2.5,due:0,lapses:0});save();toast("Added");$("#f").value="";$("#b").value="";$("#f").focus()}
+};
+actions.delCard=()=>{if(confirm("Delete card?")){db.cards=db.cards.filter(c=>c.id!=view.card);save();go({name:"deck",id:view.deck})}};
+
+/* study */
+actions.study=()=>{
+  const now=Date.now(),all=deckCards(view.id);
+  const due=all.filter(c=>!isNew(c)&&c.due<=now).sort((a,b)=>a.due-b.due);
+  const nw=all.filter(isNew).slice(0,NEW_LIMIT);
+  const q=[...due,...nw].map(c=>c.id);
+  go({name:"study",deck:view.id,q,total:q.length,flip:false,done:0});
+};
+function study(){
+  header(db.decks.find(d=>d.id==view.deck)?.name||"Study",`<button onclick="act('openDeck','${view.deck}')">‹</button>`,"");
+  if(!view.q.length){$("#app").innerHTML=`<div class="empty"><div style="font-size:48px">🎉</div>Session complete<br><br><button class="p" onclick="act('openDeck','${view.deck}')">Done</button></div>`;return}
+  const c=db.cards.find(x=>x.id==view.q[0]);
+  const pct=Math.round(view.done/view.total*100);
+  $("#app").innerHTML=`<div class="bar"><i style="width:${pct}%"></i></div><div class="counts">${view.q.length} left</div>
+  <div class="study"><div class="face" onclick="act('flip')">${esc(c.front)}</div>
+  ${view.flip?`<div class="face back">${esc(c.back)}</div><div class="grades">${[1,2,3,4].map(g=>`<button class="g${g}" onclick="act('grade',${g})">${["Again","Hard","Good","Easy"][g-1]}<small>${fmt(nextInterval(c,g))}</small></button>`).join("")}</div>`
+  :`<button class="p" style="padding:16px" onclick="act('flip')">Show answer</button>`}</div>`;
+}
+actions.flip=()=>{view.flip=true;study()};
+actions.grade=g=>{
+  const id=view.q.shift(),c=db.cards.find(x=>x.id==id);grade(c,g);
+  if(g==1)view.q.splice(Math.min(3,view.q.length),0,id);else view.done++;
+  view.flip=false;study();
+};
+
+/* settings / backup */
+function settings(){
+  header("Settings",`<button onclick="act('home')">‹</button>`,"");
+  const total=db.cards.length;
+  $("#app").innerHTML=`<div class="sec">Backup (your data lives only on this phone)</div><div class="list">
+  <div class="row" onclick="act('exportAll')"><div class="t">Export full backup (JSON)</div></div>
+  <div class="row" onclick="act('importAll')"><div class="t">Restore from backup</div></div></div>
+  <div class="sec">Stats</div><div class="list"><div class="row"><div class="t">${db.decks.length} decks · ${total} cards · ${db.log.length} reviews logged</div></div></div>
+  <div class="sec">Danger</div><div class="list"><div class="row" onclick="act('wipe')"><div class="t" style="color:var(--red)">Erase everything</div></div></div>
+  <p style="color:var(--mut);font-size:14px;padding:0 14px">Tip: export a backup now and then. Clearing Safari website data deletes your cards.</p>`;
+}
+function download(name,text,type){
+  const blob=new Blob([text],{type}),file=new File([blob],name,{type});
+  if(navigator.canShare&&navigator.canShare({files:[file]}))navigator.share({files:[file]}).catch(()=>{});
+  else{const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;a.click()}
+}
+actions.exportAll=()=>download("cards-backup-"+new Date().toISOString().slice(0,10)+".json",JSON.stringify(db),"application/json");
+actions.exportDeck=id=>{const d=db.decks.find(x=>x.id==id);const q=s=>'"'+s.replace(/"/g,'""')+'"';download(d.name+".csv",deckCards(id).map(c=>q(c.front)+","+q(c.back)).join("\n"),"text/csv")};
+actions.wipe=()=>{if(confirm("Erase ALL decks and cards?")&&confirm("Really? This cannot be undone.")){db={decks:[],cards:[],log:[]};save();go({name:"home"})}};
+let importTarget=null;
+actions.importAll=()=>{importTarget="all";$("#file").click()};
+actions.import=id=>{importTarget=id;$("#file").click()};
+$("#file").onchange=async e=>{
+  const f=e.target.files[0];e.target.value="";if(!f)return;const t=await f.text();
+  try{
+    if(importTarget=="all"){const j=JSON.parse(t);if(!j.decks||!j.cards)throw 0;if(!confirm("Replace ALL current data with this backup?"))return;db=j;save();toast("Restored");go({name:"home"})}
+    else{const n=importText(t,importTarget);save();toast(n+" cards imported");render()}
+  }catch(err){toast("Could not read file")}
+};
+function parseCSV(t){ // handles quotes, commas/tabs/semicolons
+  const first=t.split("\n")[0]||"";const sep=first.includes("\t")?"\t":(first.split(";").length>first.split(",").length?";":",");
+  const rows=[];let row=[],cur="",q=false;
+  for(let i=0;i<t.length;i++){const ch=t[i];
+    if(q){if(ch=='"'){if(t[i+1]=='"'){cur+='"';i++}else q=false}else cur+=ch}
+    else if(ch=='"'&&!cur)q=true;
+    else if(ch==sep){row.push(cur);cur=""}
+    else if(ch=="\n"||ch=="\r"){if(ch=="\r"&&t[i+1]=="\n")i++;row.push(cur);cur="";if(row.some(x=>x.trim()))rows.push(row);row=[]}
+    else cur+=ch}
+  row.push(cur);if(row.some(x=>x.trim()))rows.push(row);return rows;
+}
+function importText(t,deckId){let n=0;for(const r of parseCSV(t)){const f=(r[0]||"").trim(),b=(r[1]||"").trim();if(f&&b){db.cards.push({id:uid(),deck:deckId,front:f,back:b,seen:false,reps:0,interval:0,ease:2.5,due:0,lapses:0});n++}}return n}
+
+render();
+if(db.decks.length==0){/* first run */}
+</script>
+</body>
+</html>
