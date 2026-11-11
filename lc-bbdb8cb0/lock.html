@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Lock</title>
+<style>
+body{font:17px -apple-system,system-ui,sans-serif;max-width:480px;margin:0 auto;padding:20px;line-height:1.4}
+input,button{font:inherit;width:100%;box-sizing:border-box;padding:12px;margin:6px 0 14px;border-radius:12px;border:1px solid #8886}
+button{background:#0a84ff;color:#fff;border:0;font-weight:600}
+small{color:#888}
+</style></head><body>
+<h2>Lock the app</h2>
+<p><small>Runs entirely in this browser. Nothing is sent anywhere. Open this page from a file or from your own device only.</small></p>
+<label>App file (the unlocked <b>app-unlocked.html</b>)</label>
+<input type="file" id="file" accept=".html,text/html">
+<label>Password (long passphrase, 12+ characters)</label>
+<input type="password" id="p1" autocomplete="new-password">
+<label>Repeat password</label>
+<input type="password" id="p2" autocomplete="new-password">
+<button id="go">Create app.enc</button>
+<p id="msg"></p>
+<script>
+const b64=u=>btoa(String.fromCharCode(...u));
+go.onclick=async()=>{
+  try{
+    if(!file.files[0])throw"Choose the app file";
+    if(p1.value.length<12)throw"Password too short (12+ characters)";
+    if(p1.value!==p2.value)throw"Passwords do not match";
+    msg.textContent="Encrypting…";
+    const iter=600000,salt=crypto.getRandomValues(new Uint8Array(16)),iv=crypto.getRandomValues(new Uint8Array(12));
+    const base=await crypto.subtle.importKey("raw",new TextEncoder().encode(p1.value),"PBKDF2",false,["deriveKey"]);
+    const key=await crypto.subtle.deriveKey({name:"PBKDF2",salt,iterations:iter,hash:"SHA-256"},base,{name:"AES-GCM",length:256},false,["encrypt"]);
+    const data=new Uint8Array(await crypto.subtle.encrypt({name:"AES-GCM",iv},key,new TextEncoder().encode(await file.files[0].text())));
+    const out=JSON.stringify({v:1,iter,salt:b64(salt),iv:b64(iv),data:b64(data)});
+    const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([out],{type:"application/json"}));a.download="app.enc";a.click();
+    msg.textContent="Done. Upload app.enc to the repo folder.";
+  }catch(e){msg.textContent=e}
+};
+</script></body></html>

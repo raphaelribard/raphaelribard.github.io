@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Cards">
+<meta name="theme-color" content="#f2f2f7">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<title>Cards</title>
+<style>
+:root{--bg:#f2f2f7;--card:#fff;--fg:#111;--mut:#6b6b76;--acc:#0a84ff}
+@media(prefers-color-scheme:dark){:root{--bg:#000;--card:#1c1c1e;--fg:#f2f2f7;--mut:#9a9aa5}}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font:17px -apple-system,system-ui,sans-serif}
+body{display:flex;align-items:center;justify-content:center}
+form{width:min(340px,90vw);background:var(--card);padding:24px;border-radius:18px;text-align:center}
+input[type=password]{width:100%;box-sizing:border-box;font:inherit;padding:12px;border-radius:12px;border:1px solid #8883;background:transparent;color:inherit;margin:12px 0}
+button{width:100%;font:inherit;font-weight:600;padding:13px;border:0;border-radius:12px;background:var(--acc);color:#fff}
+label{display:block;color:var(--mut);font-size:14px;margin:0 0 14px}
+#msg{color:#ff453a;min-height:22px;font-size:14px}
+</style>
+</head>
+<body>
+<form id="f" hidden>
+  <div style="font-size:40px">🗂️</div>
+  <input id="pw" type="password" placeholder="Password" autocomplete="current-password" autofocus>
+  <label><input id="keep" type="checkbox" checked> Stay unlocked on this device</label>
+  <button>Unlock</button><div id="msg"></div>
+</form>
+<script>
+"use strict";
+const b64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+const idb=(m,k,v)=>new Promise((res,rej)=>{const o=indexedDB.open("lc-lock",1);o.onupgradeneeded=()=>o.result.createObjectStore("s");
+  o.onsuccess=()=>{const s=o.result.transaction("s",m).objectStore("s");const r=m=="readonly"?s.get(k):m=="readwrite"&&v===undefined?s.delete(k):s.put(v,k);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)};o.onerror=()=>rej(o.error)});
+let enc;
+async function decrypt(key){
+  const pt=await crypto.subtle.decrypt({name:"AES-GCM",iv:b64(enc.iv)},key,b64(enc.data));
+  return new TextDecoder().decode(pt);
+}
+function run(html){document.open();document.write(html);document.close()}
+window.lockApp=async()=>{try{await idb("readwrite","key")}catch(e){}location.reload()};
+async function deriveKey(pw){
+  const base=await crypto.subtle.importKey("raw",new TextEncoder().encode(pw),"PBKDF2",false,["deriveKey"]);
+  return crypto.subtle.deriveKey({name:"PBKDF2",salt:b64(enc.salt),iterations:enc.iter,hash:"SHA-256"},base,{name:"AES-GCM",length:256},false,["decrypt"]);
+}
+(async()=>{
+  if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
+  try{enc=await (await fetch("app.enc",{cache:"no-cache"})).json()}
+  catch(e){enc=await (await caches.match("app.enc")).json()}
+  try{const st=await idb("readonly","key");if(st&&st.salt==enc.salt){return run(await decrypt(st.key))}}catch(e){}
+  const f=document.getElementById("f");f.hidden=false;
+  f.onsubmit=async ev=>{ev.preventDefault();const msg=document.getElementById("msg");msg.textContent="";
+    try{const key=await deriveKey(document.getElementById("pw").value);const html=await decrypt(key);
+      if(document.getElementById("keep").checked){try{await idb("readwrite","key",{salt:enc.salt,key})}catch(e){}}
+      run(html)}
+    catch(e){msg.textContent="Wrong password"}};
+})();
+</script>
+</body>
+</html>
