@@ -929,7 +929,7 @@ function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp
 function clsName(k){var c=CLASSES.filter(function(x){return x.k===k})[0];return c?c.n:'Other';}
 var bodyEl=document.getElementById('body'),dock=document.getElementById('dock');
 function gapOf(b,lead,i){if(b.fin)return 'Finished '+durStr(durOf(b));if(b.out)return b.st==='RET'?'Retired':'Stopped';return i===0?'Leader':'+'+f0(b.dtf-lead.dtf)+' nm \u00b7 '+f0(km(b.dtf-lead.dtf))+' km';}
-var SQ='';
+var SQ='',DET=lsGet('rdr_det')==='1';
 function nrm(x){return String(x||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();}
 function listRows(){var q=nrm(SQ).split(/\s+/).filter(Boolean),vl=boats.filter(vis),src=q.length?boats.filter(function(x){var t=nrm(x.name+' '+(x.boat||''));return q.every(function(w){return t.indexOf(w)>=0;});}):vl,h='';
   src.forEach(function(x){var i=vl.indexOf(x),inl=i>=0;h+='<button class="row" data-id="'+esc(x.id)+'" style="--c:'+colB(x)+'"><span class="p">'+(x.sim?'\u00b7':pad(inl?i+1:x.rank||0))+'</span>'+blSvg(x,22)+'<span class="n">'+esc(x.name)+'<small>'+(inl?gapOf(x,vl[0],i):esc(clsName(x.cls))+' \u00b7 P'+x.crank)+'</small></span><span class="g">'+f0(x.dtf)+' nm<br>'+f0(km(x.dtf))+' km</span><span class="s">'+f1(x.sog)+'<u>kn</u><em>'+f1(km(x.sog))+' km/h</em></span></button>';});
@@ -943,8 +943,8 @@ function renderDock(){
     var c=colB(b),vl=boats.filter(vis),pc=Math.max(0,Math.min(100,Math.round((1-b.dtf/(b.dtfO>0?3542:hav(SM.lat,SM.lon,FIN.lat,FIN.lon)))*100))),pc=b.fin?100:pc,eta=(function(){var Tn=rp?rp.t:TL.t1,w=etaWind(b,Tn);if(w)return w;var o=etaOf(b,Tn);return o?'~'+o:null;})();
     h='<div class="pad"><div class="dtl-h" style="--c:'+c+'">'+blSvg(b,32)+'<h3>'+esc(b.name)+'</h3><button class="x" id="cmp" aria-label="Compare">\u21c4</button><button class="x star" id="fav" aria-label="Favourite">'+(FAV===b.id?'\u2605':'\u2606')+'</button><button class="x" id="xs" aria-label="Close">×</button></div>'+
     '<p class="sub">'+(b.fin?'<b style="color:var(--hot)">Finished in '+durStr(durOf(b))+'</b> \u00b7 '+L2('start ','d\u00e9part ')+fmtEta(startOf(b))+' \u00b7 ':'')+(b.out?'<b style="color:var(--hot)">'+(b.st==='RET'?'Retired':'Stopped')+'</b> \u00b7 ':'')+(b.boat?esc(b.boat)+' · ':'')+(b.sim?L2('Simulation','Simulation')+' \u00b7 '+esc(clsName(b.cls)):'P'+b.rank+' overall · P'+b.crank+' '+esc(clsName(b.cls)))+(b.d24!=null?' · '+f0(b.d24)+' nm / '+f0(km(b.d24))+' km in 24 h':'')+'</p>'+
-    '<div class="pr'+(b.fin?' fin':'')+'" style="--c:'+c+'"><i><b style="width:'+pc+'%"></b></i>'+pc+'% done'+(b.fin?'<em>Finished '+fmtEta(b.fin)+'</em>':eta?'<em>ETA '+eta+'</em>':'')+'</div>'+cmpRow(b)+'<div class="hero" style="--c:'+c+'"><div class="speed"><b>'+f1(b.sog)+'</b><span>KN</span><span class="kh">'+f1(km(b.sog))+' km/h</span></div>'+dial(b,c)+'</div>'+condRows(b)+windRow(b)+toughRow(b)+
-    '<div class="stats">'+stat('Course',dg(b.cog),'°')+stat('To finish',dg(b.brgF),'°')+stat('Distance',f0(b.dtf),'nm',f0(km(b.dtf))+' km')+stat('VMG',f1(b.vmg),'kn',f1(km(b.vmg))+' km/h')+'</div></div>';
+    '<div class="pr'+(b.fin?' fin':'')+'" style="--c:'+c+'"><i><b style="width:'+pc+'%"></b></i>'+pc+'% done'+(b.fin?'':' \u00b7 '+f0(b.dtf)+' nm '+L2('to go','restants'))+(b.fin?'<em>Finished '+fmtEta(b.fin)+'</em>':eta?'<em>ETA '+eta+'</em>':'')+'</div>'+cmpRow(b)+'<div class="hero" style="--c:'+c+'"><div class="speed"><b>'+f1(b.sog)+'</b><span>KN</span><span class="kh">'+f1(km(b.sog))+' km/h</span></div>'+dial(b,c)+'</div>'+condRows(b)+'<button class="mt det" id="detB" aria-expanded="'+DET+'">'+(DET?L2('Fewer details','Moins de d\u00e9tails')+' \u25b4':L2('More details','Plus de d\u00e9tails')+' \u25be')+'</button>'+(DET?windRow(b)+toughRow(b)+
+    '<div class="stats">'+stat(L2('Heading','Cap'),dg(b.cog),'°')+stat(L2('Finish is at','Arriv\u00e9e \u00e0'),dg(b.brgF),'°')+stat(L2('To go','Reste'),f0(b.dtf),'nm',f0(km(b.dtf))+' km')+stat(L2('Speed to finish','Vitesse vers l\u2019arriv\u00e9e'),f1(b.vmg),'kn',f1(km(b.vmg))+' km/h')+'</div>':'')+'</div>';
   }else if(listOpen){
     var lr=listRows();
     h='<div class="pad dhd"><h2 id="lh">'+(cmpMode?'Compare with\u2026':'All racers \u00b7 '+lr.n)+'</h2><button class="link" id="bAll">Close</button></div><div class="pad"><input id="sq" class="sq" type="search" enterkeyhint="search" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="'+L2('Search a sailor or boat\u2026','Chercher un skipper ou un bateau\u2026')+'" value="'+esc(SQ)+'" aria-label="'+L2('Search a sailor','Chercher un skipper')+'"></div><div class="pad list" style="max-height:52vh">'+lr.h;
@@ -987,10 +987,10 @@ function toughOf(b){var H0=imp[b.id]&&imp[b.id].hist;if(!H0||H0.length<2||!WIND)
       var se=wd&&WAVE?seaAt(la,lo,T):null;if(se){var s0=seaScore(se.he,wd.spd);if(!sc||s0>sc.s)sc={s:s0,he:se.he,h:se.h,p:se.p,v:wd.spd,t:T,lat:la,lon:lo};}}}
   var r=(w||hh)?{sea:sc,wind:w,wave:hh}:null;if(Object.keys(TGH).length>60)TGH={};TGH[key]=r;return r;}
 function toughRow(b){var t=toughOf(b);if(!t)return '';var T=rp?rp.t:TL.t1,out=[];
-  if(t.sea&&t.sea.t<=T)out.push('<button class="mt tg" data-t="'+Math.round(t.sea.t)+'"><b>'+L2('Worst sea ','Pire mer ')+'</b>'+f1(t.sea.h)+' m / '+f0(t.sea.p)+' s \u00b7 '+f0(t.sea.v)+' kn \u00b7 '+dayLabel(t.sea.t)+' \u25b8</button>');
+  if(t.sea&&t.sea.t<=T)out.push('<button class="mt tg" data-t="'+Math.round(t.sea.t)+'"><b>'+L2('Roughest sea ','Mer la plus dure ')+'</b>'+f1(t.sea.h)+' m / '+f0(t.sea.p)+' s \u00b7 '+f0(t.sea.v)+' kn \u00b7 '+dayLabel(t.sea.t)+' \u25b8</button>');
   if(t.wind&&t.wind.t<=T)out.push('<button class="mt tg" data-t="'+Math.round(t.wind.t)+'">'+L2('Wind ','Vent ')+f0(t.wind.v)+' kn \u00b7 '+dayLabel(t.wind.t)+' \u25b8</button>');
   if(t.wave&&t.wave.t<=T)out.push('<button class="mt tg" data-t="'+Math.round(t.wave.t)+'">'+L2('Waves ','Vagues ')+f1(t.wave.v)+' m \u00b7 '+dayLabel(t.wave.t)+' \u25b8</button>');
-  return out.length?'<div class="sea" style="flex-wrap:wrap;gap:8px"><span><b>'+L2('Toughest','Plus dur')+'</b> <small>'+L2('(model)','(mod\u00e8le)')+'</small></span>'+out.join('')+'</div>':'';}
+  return out.length?'<div class="sea" style="flex-wrap:wrap;gap:8px"><span><b>'+L2('Roughest moment','Moment le plus dur')+'</b> <small>'+L2('(estimate)','(estim\u00e9)')+'</small></span>'+out.join('')+'</div>':'';}
 function drawTough(){if(!sel)return;var b=boats.filter(function(q){return q.id===sel.id;})[0];if(!b||!vis(b))return;var t=toughOf(b);if(!t)return;var T=rp?rp.t:TL.t1,k=0;
   [['sea',t.sea,'#FFD25A',function(m){return f1(m.h)+' m \u00b7 '+f0(m.v)+' kn';}],['wind',t.wind,css['--hot'],function(m){return f0(m.v)+' kn';}],['wave',t.wave,'#8BE6FF',function(m){return f1(m.v)+' m';}]].forEach(function(e){var m=e[1];if(!m||m.t>T)return;if(e[0]!=='sea'&&t.sea&&Math.abs(m.t-t.sea.t)<216e5)return;
     var x=X(m.lon),y=Y(m.lat);if(x<-30||y<-30||x>W+30||y>H+30)return;
@@ -1031,6 +1031,7 @@ bodyEl.addEventListener('click',function(e){
   var t=e.target.closest('button');if(!t)return;
   if(t.id==='xs'||t.id==='xsf'){select(null);return;}
   if(t.id==='fav'||t.id==='favf'){toggleFav();return;}
+  if(t.id==='detB'){DET=!DET;lsSet('rdr_det',DET?'1':'0');renderDock();return;}
   if(t.id==='bAll'){listOpen=!listOpen;cmpMode=false;SQ='';renderDock();return;}
   if(t.id==='cmp'){if(CMP){CMP='';renderDock();draw();}else{cmpMode=true;listOpen=true;renderDock();}return;}
   if(t.id==='cmpx'){CMP='';renderDock();draw();return;}
