@@ -52,6 +52,7 @@ const derive=async(pw,salt,iter,usage)=>{
 const decrypt=async(app,key)=>new TextDecoder().decode(await crypto.subtle.decrypt({name:"AES-GCM",iv:b64(app.iv)},key,b64(app.data)));
 (async()=>{
   if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
+  if(location.search.includes("reinstall")){try{await idb("readwrite","key");await idb("readwrite","app")}catch(e){}history.replaceState(null,"",location.pathname)}
   let app;try{app=await idb("readonly","app")}catch(e){lcEl("f").hidden=false;lcEl("msg").textContent="Storage unavailable in this browser mode.";return}
   if(app){try{const st=await idb("readonly","key");if(st&&st.salt==app.salt)return run(await decrypt(app,st.key))}catch(e){}}
   const f=lcEl("f");f.hidden=false;
