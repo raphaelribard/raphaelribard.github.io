@@ -25,37 +25,56 @@ label{display:block;color:var(--mut);font-size:14px;margin:0 0 14px}
 <body>
 <form id="f" hidden>
   <div style="font-size:40px">🗂️</div>
-  <input id="pw" type="password" placeholder="Password" autocomplete="current-password" autofocus>
+  <div id="setup" hidden>
+    <p style="margin:8px 0;color:var(--mut);font-size:15px">First time: choose your app file and a password. It is encrypted and stored only on this device.</p>
+    <input id="file" type="file" accept=".html,text/html">
+    <input id="pw1" type="password" placeholder="New password (12+ characters)" autocomplete="new-password">
+    <input id="pw2" type="password" placeholder="Repeat password" autocomplete="new-password">
+  </div>
+  <input id="pw" type="password" placeholder="Password" autocomplete="current-password" hidden>
   <label><input id="keep" type="checkbox" checked> Stay unlocked on this device</label>
-  <button>Unlock</button><div id="msg"></div>
+  <button id="btn">Unlock</button><div id="msg"></div>
 </form>
 <script>
 "use strict";
 const b64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+const tob64=u=>btoa(String.fromCharCode(...u));
 const idb=(m,k,v)=>new Promise((res,rej)=>{const o=indexedDB.open("lc-lock",1);o.onupgradeneeded=()=>o.result.createObjectStore("s");
-  o.onsuccess=()=>{const s=o.result.transaction("s",m).objectStore("s");const r=m=="readonly"?s.get(k):m=="readwrite"&&v===undefined?s.delete(k):s.put(v,k);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)};o.onerror=()=>rej(o.error)});
-let enc;
-async function decrypt(key){
-  const pt=await crypto.subtle.decrypt({name:"AES-GCM",iv:b64(enc.iv)},key,b64(enc.data));
-  return new TextDecoder().decode(pt);
-}
+  o.onsuccess=()=>{const s=o.result.transaction("s",m).objectStore("s");const r=m=="readonly"?s.get(k):v===undefined?s.delete(k):s.put(v,k);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)};o.onerror=()=>rej(o.error)});
+const lcEl=id=>document.getElementById(id);
 function run(html){document.open();document.write(html);document.close()}
 window.lockApp=async()=>{try{await idb("readwrite","key")}catch(e){}location.reload()};
-async function deriveKey(pw){
+window.removeApp=async()=>{try{await idb("readwrite","key");await idb("readwrite","app")}catch(e){}location.reload()};
+const derive=async(pw,salt,iter,usage)=>{
   const base=await crypto.subtle.importKey("raw",new TextEncoder().encode(pw),"PBKDF2",false,["deriveKey"]);
-  return crypto.subtle.deriveKey({name:"PBKDF2",salt:b64(enc.salt),iterations:enc.iter,hash:"SHA-256"},base,{name:"AES-GCM",length:256},false,["decrypt"]);
-}
+  return crypto.subtle.deriveKey({name:"PBKDF2",salt,iterations:iter,hash:"SHA-256"},base,{name:"AES-GCM",length:256},false,[usage]);
+};
+const decrypt=async(app,key)=>new TextDecoder().decode(await crypto.subtle.decrypt({name:"AES-GCM",iv:b64(app.iv)},key,b64(app.data)));
 (async()=>{
   if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
-  try{enc=await (await fetch("app.enc",{cache:"no-cache"})).json()}
-  catch(e){enc=await (await caches.match("app.enc")).json()}
-  try{const st=await idb("readonly","key");if(st&&st.salt==enc.salt){return run(await decrypt(st.key))}}catch(e){}
-  const f=document.getElementById("f");f.hidden=false;
-  f.onsubmit=async ev=>{ev.preventDefault();const msg=document.getElementById("msg");msg.textContent="";
-    try{const key=await deriveKey(document.getElementById("pw").value);const html=await decrypt(key);
-      if(document.getElementById("keep").checked){try{await idb("readwrite","key",{salt:enc.salt,key})}catch(e){}}
-      run(html)}
-    catch(e){msg.textContent="Wrong password"}};
+  let app;try{app=await idb("readonly","app")}catch(e){lcEl("f").hidden=false;lcEl("msg").textContent="Storage unavailable in this browser mode.";return}
+  if(app){try{const st=await idb("readonly","key");if(st&&st.salt==app.salt)return run(await decrypt(app,st.key))}catch(e){}}
+  const f=lcEl("f");f.hidden=false;
+  if(!app){lcEl("setup").hidden=false;lcEl("btn").textContent="Encrypt & install";lcEl("keep").parentNode.hidden=true}else{lcEl("pw").hidden=false;lcEl("btn").textContent="Unlock"}
+  f.onsubmit=async ev=>{ev.preventDefault();const msg=lcEl("msg");msg.textContent="";
+    try{
+      if(!app){
+        if(!lcEl("file").files[0])throw"Choose the app file";
+        if(lcEl("pw1").value.length<12)throw"Password too short (12+ characters)";
+        if(lcEl("pw1").value!==lcEl("pw2").value)throw"Passwords do not match";
+        msg.style.color="var(--mut)";msg.textContent="Encrypting…";
+        const html=await lcEl("file").files[0].text();
+        if(!html.includes("localcards.v1"))throw"This does not look like the app file";
+        const iter=600000,salt=crypto.getRandomValues(new Uint8Array(16)),iv=crypto.getRandomValues(new Uint8Array(12));
+        const key=await derive(lcEl("pw1").value,salt,iter,"encrypt");
+        const data=new Uint8Array(await crypto.subtle.encrypt({name:"AES-GCM",iv},key,new TextEncoder().encode(html)));
+        await idb("readwrite","app",{iter,salt:tob64(salt),iv:tob64(iv),data:tob64(data)});
+        location.reload();return;
+      }
+      const key=await derive(lcEl("pw").value,b64(app.salt),app.iter,"decrypt");const html=await decrypt(app,key);
+      if(lcEl("keep").checked){try{await idb("readwrite","key",{salt:app.salt,key})}catch(e){}}
+      run(html)
+    }catch(e){msg.style.color="#ff453a";msg.textContent=typeof e=="string"?e:"Wrong password"}};
 })();
 </script>
 </body>

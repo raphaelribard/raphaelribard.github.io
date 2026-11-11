@@ -1,2 +1,1 @@
-Encrypted local flashcard app. The unlocked app is NOT stored in this repo.
-Setup: open lock.html, choose your unlocked app file, pick a password, upload the resulting app.enc to this folder.
+Encrypted local flashcard app. The app is encrypted on the device with the user's password and stored only in that device's browser storage. Nothing unlocked or encrypted is stored in this repo.

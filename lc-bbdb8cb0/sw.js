@@ -1,4 +1,4 @@
-const C="lc-v1",F=["./","index.html","app.enc","manifest.webmanifest","icon-180.png"];
+const C="lc-v2",F=["./","index.html","manifest.webmanifest","icon-180.png"];
 self.addEventListener("install",e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(F).catch(()=>{})).then(()=>self.skipWaiting()))});
 self.addEventListener("activate",e=>e.waitUntil(self.clients.claim()));
 self.addEventListener("fetch",e=>{
