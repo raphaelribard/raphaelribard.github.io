@@ -957,9 +957,8 @@ function renderDock(){
     '<p class="sub"><span class="fl">● '+L2('Following','Suivi')+'</span> · '+(b.out?'<b style="color:var(--hot)">'+(b.st==='RET'?'Retired':'Stopped')+'</b> · ':'')+(b.boat?esc(b.boat)+' · ':'')+(b.sim?L2('Simulation','Simulation')+' · '+esc(clsName(b.cls)):'P'+b.rank+' overall · P'+b.crank+' '+esc(clsName(b.cls)))+'</p>'+
     '<div class="pr'+(b.fin?' fin':'')+'" style="--c:'+c+'"><i><b style="width:'+pc+'%"></b></i>'+(b.fin?L2('Finished in ','Arrivé en ')+durStr(durOf(b)):pc+'% done · '+f0(b.dtf)+' nm '+L2('to go','restants'))+(b.fin?'<em>'+fmtEta(b.fin)+'</em>':eta?'<em>ETA '+eta+'</em>':'')+'</div>'+cmpRow(b)+
     (b.fin||b.out?'':'<div class="hero" style="--c:'+c+'"><div class="speed"><b>'+f1(b.sog)+'</b><span>KN</span><span class="kh">'+f1(km(b.sog))+' km/h</span></div>'+dial(b,c)+'</div>')+
-    '<div class="ft"><button class="mt" id="condB">'+L2('Weather','Météo')+' ▸</button><button class="mt det" id="detB" aria-expanded="'+DET+'">'+(DET?L2('Fewer details','Moins de détails')+' ▴':L2('More details','Plus de détails')+' ▾')+'</button></div>'+(DET?
-    '<div class="acts"><button class="pl" id="cmp">⇄ '+L2('Compare','Comparer')+'</button><button class="pl" id="fav">'+(FAV===b.id?'★ ':'☆ ')+L2('Favourite','Favori')+'</button></div>'+seaRow(b)+windRow(b)+toughRow(b)+
-    '<div class="stats">'+stat(L2('Heading','Cap'),dg(b.cog),'°')+stat(L2('Finish is at','Arrivée à'),dg(b.brgF),'°')+stat(L2('To go','Reste'),f0(b.dtf),'nm',f0(km(b.dtf))+' km')+stat(L2('Speed to finish','Vitesse vers l’arrivée'),f1(b.vmg),'kn',f1(km(b.vmg))+' km/h')+'</div>':'')+'</div>';
+    '<div class="ft"><button class="mt" id="condB">'+L2('Weather','Météo')+' ▸</button>'+(DET?'<button class="pl" id="cmp">⇄ '+L2('Compare','Comparer')+'</button><button class="pl" id="fav">'+(FAV===b.id?'★ ':'☆ ')+L2('Favourite','Favori')+'</button>':'')+'<button class="mt det" id="detB" aria-expanded="'+DET+'">'+(DET?L2('Fewer details','Moins de détails')+' ▴':L2('More details','Plus de détails')+' ▾')+'</button></div>'+(DET?'<div class="dt">'+seaRow(b)+windRow(b)+toughRow(b)+
+    '<div class="stats">'+stat(L2('Heading','Cap'),dg(b.cog),'°')+stat(L2('To go','Reste'),f0(b.dtf),'nm')+stat(L2('Closing speed','Vit. d’approche'),f1(b.vmg),'kn')+'</div></div>':'')+'</div>';
   }else if(listOpen){
     var lr=listRows();
     h='<div class="pad dhd"><h2 id="lh">'+listTitle(lr.n)+'</h2><button class="link" id="bAll">Close</button></div><div class="pad"><input id="sq" class="sq" type="search" enterkeyhint="search" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="'+L2('Search a sailor or boat\u2026','Chercher un skipper ou un bateau\u2026')+'" value="'+esc(SQ)+'" aria-label="'+L2('Search a sailor','Chercher un skipper')+'"></div><div class="pad list" style="max-height:52vh">'+lr.h;
@@ -1006,11 +1005,11 @@ function toughOf(b){var H0=imp[b.id]&&imp[b.id].hist;if(!H0||H0.length<2||!WIND)
       var se=wd&&WAVE?seaAt(la,lo,T):null;if(se){var s0=seaScore(se.he,wd.spd);if(!sc||s0>sc.s)sc={s:s0,he:se.he,h:se.h,p:se.p,v:wd.spd,t:T,lat:la,lon:lo};}}}
   var r=(w||hh)?{sea:sc,wind:w,wave:hh}:null;if(Object.keys(TGH).length>60)TGH={};TGH[key]=r;return r;}
 function toughRow(b){var t=toughOf(b);if(!t)return '';var T=rp?rp.t:TL.t1,out=[];
-  function bt(m,lab){return '<button class="tgb tg" data-t="'+Math.round(m.t)+'">\u23ea <span><b>'+lab+'</b> \u00b7 '+dayLabel(m.t)+'</span></button>';}
-  if(t.sea&&t.sea.t<=T)out.push(bt(t.sea,L2('Roughest sea ','Mer la plus dure ')+f1(t.sea.h)+' m / '+f0(t.sea.p)+' s \u00b7 '+f0(t.sea.v)+' kn'));
-  if(t.wind&&t.wind.t<=T)out.push(bt(t.wind,L2('Strongest wind ','Vent le plus fort ')+f0(t.wind.v)+' kn'));
-  if(t.wave&&t.wave.t<=T)out.push(bt(t.wave,L2('Biggest waves ','Plus grosses vagues ')+f1(t.wave.v)+' m'));
-  return out.length?'<div class="rough"><div><b>'+L2('Roughest moments','Moments les plus durs')+'</b> <small>'+L2('(estimate)','(estim\u00e9)')+'</small></div>'+out.join('')+'<small class="rh">'+L2('Tap one to jump the replay to that moment','Touchez pour aller \u00e0 ce moment dans le rejeu')+'</small></div>':'';}
+  function bt(m,lab){return '<button class="tgb tg" data-t="'+Math.round(m.t)+'">'+lab+' · '+L2('Day ','Jour ')+dayNo(m.t)+'</button>';}
+  if(t.sea&&t.sea.t<=T)out.push(bt(t.sea,L2('Sea ','Mer ')+f1(t.sea.h)+' m'));
+  if(t.wind&&t.wind.t<=T)out.push(bt(t.wind,L2('Wind ','Vent ')+f0(t.wind.v)+' kn'));
+  if(t.wave&&t.wave.t<=T)out.push(bt(t.wave,L2('Waves ','Vagues ')+f1(t.wave.v)+' m'));
+  return out.length?'<div class="rough"><b>'+L2('Roughest moments','Moments les plus durs')+'</b> <small>'+L2('· tap one to see it in the replay','· touchez pour le voir dans le rejeu')+'</small><div class="rc">'+out.join('')+'</div></div>':'';}
 function drawTough(){if(!sel)return;var b=boats.filter(function(q){return q.id===sel.id;})[0];if(!b||!vis(b))return;var t=toughOf(b);if(!t)return;var T=rp?rp.t:TL.t1,k=0;
   [['sea',t.sea,'#FFD25A',function(m){return f1(m.h)+' m \u00b7 '+f0(m.v)+' kn';}],['wind',t.wind,css['--hot'],function(m){return f0(m.v)+' kn';}],['wave',t.wave,'#8BE6FF',function(m){return f1(m.v)+' m';}]].forEach(function(e){var m=e[1];if(!m||m.t>T)return;if(e[0]!=='sea'&&t.sea&&Math.abs(m.t-t.sea.t)<216e5)return;
     var x=X(m.lon),y=Y(m.lat);if(x<-30||y<-30||x>W+30||y>H+30)return;
