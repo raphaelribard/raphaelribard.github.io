@@ -395,8 +395,9 @@ function recapCard(){
 }
 var TIPS={bWind:['Wind, sea state, swell','Vent, \u00e9tat de la mer, houle'],bSearch:['Search a sailor','Chercher un skipper'],bShare:['More','Plus'],bData:['Import data','Importer']};
 function setTips(){Object.keys(TIPS).forEach(function(id){var e=document.getElementById(id);if(e)e.setAttribute('data-tip',TIPS[id][LANG==='fr'?1:0]);});}
-function updateRpBtn(){var b=document.getElementById('rpBtn');if(!b)return;var on=!rp&&TL.t1>TL.t0&&!listOpen&&!cmpMode;b.classList.toggle('on',on);b.style.bottom=(dockH()+12)+'px';}
-document.getElementById('rpBtn').onclick=function(){document.getElementById('tPlay').click();};
+function updateRpBtn(){var b=document.getElementById('rpBtn');if(!b)return;var back=!!(rp&&!rp.playing&&!REC),on=(!rp||back)&&TL.t1>TL.t0&&!listOpen&&!cmpMode;b.classList.toggle('on',on);b.classList.toggle('bk',back);
+  if(b.dataset.m!==(back?'b':'r')+LANG){b.dataset.m=(back?'b':'r')+LANG;b.innerHTML=back?'\u23f4 <span>'+L2('Back to live','Retour au direct')+'</span>':'\u25b6 <span>'+L2('Replay the race','Rejouer la course')+'</span>';b.setAttribute('aria-label',back?'Back to live':'Replay the race');}b.style.bottom=(dockH()+12)+'px';}
+document.getElementById('rpBtn').onclick=function(){if(rp)goLive();else document.getElementById('tPlay').click();};
 document.getElementById('mHow').onclick=function(){var a=document.getElementById('howBox');a.hidden=!a.hidden;};
 document.getElementById('mAbout').onclick=function(){var a=document.getElementById('aboutBox');a.hidden=!a.hidden;};
 document.getElementById('mRec').onclick=function(){startRec();};
@@ -903,7 +904,7 @@ function drawPin(){if(!PC)return;
     if(need){var wait=PC.busy?1500:Math.max(0,(PC.err?15000:1500)-(Date.now()-PC.lf));if(wait<=0)pcFetch(PC);else if(!PCT){PCT=setTimeout(function(){PCT=0;draw();},wait+50);}}}}
   var x=X(PC.lon),y=Y(PC.lat);ctx.save();ctx.beginPath();ctx.arc(x,y,7,0,6.2832);ctx.fillStyle='rgba(255,106,26,.25)';ctx.fill();ctx.lineWidth=2;ctx.strokeStyle='#fff';ctx.stroke();ctx.beginPath();ctx.arc(x,y,2.5,0,6.2832);ctx.fillStyle='#ff6a1a';ctx.fill();ctx.restore();
   if(PC.d){var A=PC.d.a,M=PC.d.m,k=(A?pcIdx(A):0)+'|'+(M?pcIdx(M):0);if(k!==PC.idx)pcRender();}}
-document.addEventListener('click',function(e){var t=e.target;if(t.id==='pcx'){closePC();return;}var pt=t.closest&&t.closest('#pcT');if(pt&&PC){PC.open=!PC.open;PC.idx=-9;pcRender();return;}var tgb=t.closest&&t.closest('.tg');if(tgb){var tt=+tgb.dataset.t;if(tt>0)seekTo(tt);return;}if(t.id==='condB'){var b=sel&&boats.filter(function(q){return q.id===sel.id;})[0];if(b)openPC(b.lat,b.lon,b.name,b.id);}});
+document.addEventListener('click',function(e){var t=e.target;if(t.id==='pcx'){closePC();return;}var pt=t.closest&&t.closest('#pcT');if(pt&&PC){PC.open=!PC.open;PC.idx=-9;pcRender();return;}var tgb=t.closest&&t.closest('.tg');if(tgb){var tt=+tgb.dataset.t;if(tt>0){seekTo(tt);toast(L2('Showing ','Affichage de ')+dayLabel(tt).replace(/ \u00b7 .*$/,'')+' \u00b7 '+new Date(tt).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}).replace(',','')+L2('. Tap \u201cBack to live\u201d to return.','. Touchez \u00ab Retour au direct \u00bb pour revenir.'),4200);}return;}if(t.id==='condB'){var b=sel&&boats.filter(function(q){return q.id===sel.id;})[0];if(b)openPC(b.lat,b.lon,b.name,b.id);}});
 function pick(px,py){for(var pi=0;pi<PODS.length;pi++){var P=PODS[pi];if(px>=P.x&&px<=P.x+P.w&&py>=P.y&&py<=P.y+P.h){var pb=boats.filter(function(q){return q.id===P.id;})[0];if(pb){select(pb,false);return;}}}
   var best=null,bd=30;boats.forEach(function(b){if(!vis(b))return;var d=Math.hypot(X(b.lon)-px,Y(b.lat)-py);if(d<bd){bd=d;best=b;}});if(best){closePC();select(best,false);}else{if(sel)select(null);openPC(myInv(v.my-(py-H/2)/v.k),v.lon+(px-W/2)/v.k);}}
 function select(b,center){if(PC&&(!b||PC.boatId!==b.id))closePC();if(!b)CMP='';else if(b.id===CMP)CMP='';cmpMode=false;var a0={lon:v.lon,my:v.my,k:v.k};select0(b,center);if(!rp){if(b&&center!==false){var k2=v.k;v.lon=a0.lon;v.my=a0.my;v.k=a0.k;draw();centerOn(b,k2);}return;}if(b){rp.selMode=true;rp.kSel=v.k;rp.cam={lon:v.lon,my:v.my,k:v.k};if(!rp.playing){compute();followCam(true);draw();}}else rp.selMode=false;}
@@ -984,10 +985,11 @@ function toughOf(b){var H0=imp[b.id]&&imp[b.id].hist;if(!H0||H0.length<2||!WIND)
       var se=wd&&WAVE?seaAt(la,lo,T):null;if(se){var s0=seaScore(se.he,wd.spd);if(!sc||s0>sc.s)sc={s:s0,he:se.he,h:se.h,p:se.p,v:wd.spd,t:T,lat:la,lon:lo};}}}
   var r=(w||hh)?{sea:sc,wind:w,wave:hh}:null;if(Object.keys(TGH).length>60)TGH={};TGH[key]=r;return r;}
 function toughRow(b){var t=toughOf(b);if(!t)return '';var T=rp?rp.t:TL.t1,out=[];
-  if(t.sea&&t.sea.t<=T)out.push('<button class="mt tg" data-t="'+Math.round(t.sea.t)+'"><b>'+L2('Roughest sea ','Mer la plus dure ')+'</b>'+f1(t.sea.h)+' m / '+f0(t.sea.p)+' s \u00b7 '+f0(t.sea.v)+' kn \u00b7 '+dayLabel(t.sea.t)+' \u25b8</button>');
-  if(t.wind&&t.wind.t<=T)out.push('<button class="mt tg" data-t="'+Math.round(t.wind.t)+'">'+L2('Wind ','Vent ')+f0(t.wind.v)+' kn \u00b7 '+dayLabel(t.wind.t)+' \u25b8</button>');
-  if(t.wave&&t.wave.t<=T)out.push('<button class="mt tg" data-t="'+Math.round(t.wave.t)+'">'+L2('Waves ','Vagues ')+f1(t.wave.v)+' m \u00b7 '+dayLabel(t.wave.t)+' \u25b8</button>');
-  return out.length?'<div class="sea" style="flex-wrap:wrap;gap:8px"><span><b>'+L2('Roughest moment','Moment le plus dur')+'</b> <small>'+L2('(estimate)','(estim\u00e9)')+'</small></span>'+out.join('')+'</div>':'';}
+  function bt(m,lab){return '<button class="tgb tg" data-t="'+Math.round(m.t)+'">\u23ea <span><b>'+lab+'</b> \u00b7 '+dayLabel(m.t)+'</span></button>';}
+  if(t.sea&&t.sea.t<=T)out.push(bt(t.sea,L2('Roughest sea ','Mer la plus dure ')+f1(t.sea.h)+' m / '+f0(t.sea.p)+' s \u00b7 '+f0(t.sea.v)+' kn'));
+  if(t.wind&&t.wind.t<=T)out.push(bt(t.wind,L2('Strongest wind ','Vent le plus fort ')+f0(t.wind.v)+' kn'));
+  if(t.wave&&t.wave.t<=T)out.push(bt(t.wave,L2('Biggest waves ','Plus grosses vagues ')+f1(t.wave.v)+' m'));
+  return out.length?'<div class="rough"><div><b>'+L2('Roughest moments','Moments les plus durs')+'</b> <small>'+L2('(estimate)','(estim\u00e9)')+'</small></div>'+out.join('')+'<small class="rh">'+L2('Tap one to jump the replay to that moment','Touchez pour aller \u00e0 ce moment dans le rejeu')+'</small></div>':'';}
 function drawTough(){if(!sel)return;var b=boats.filter(function(q){return q.id===sel.id;})[0];if(!b||!vis(b))return;var t=toughOf(b);if(!t)return;var T=rp?rp.t:TL.t1,k=0;
   [['sea',t.sea,'#FFD25A',function(m){return f1(m.h)+' m \u00b7 '+f0(m.v)+' kn';}],['wind',t.wind,css['--hot'],function(m){return f0(m.v)+' kn';}],['wave',t.wave,'#8BE6FF',function(m){return f1(m.v)+' m';}]].forEach(function(e){var m=e[1];if(!m||m.t>T)return;if(e[0]!=='sea'&&t.sea&&Math.abs(m.t-t.sea.t)<216e5)return;
     var x=X(m.lon),y=Y(m.lat);if(x<-30||y<-30||x>W+30||y>H+30)return;
