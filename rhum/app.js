@@ -370,6 +370,21 @@ function shareLink(){
   if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(u).then(function(){toast('Link copied');},function(){toast(u);});}else toast(u);
 }
 var mmEl=document.getElementById('mm');
+/* install banner: from the second visit, once, on a phone that can add the page to its home screen */
+var INSTP=null,VIS=(+lsGet('rdr_visits')||0)+1;lsSet('rdr_visits',String(VIS));
+window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();INSTP=e;});
+function instHide(forever){document.getElementById('inst').hidden=true;if(forever)lsSet('rdr_inst','1');}
+function instShow(){if(lsGet('rdr_inst')==='1'||VIS<2)return;
+  var sa=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;if(sa)return;
+  var ios=/iphone|ipad|ipod/i.test(navigator.userAgent),go=document.getElementById('instGo'),t=document.getElementById('instT');
+  if(INSTP){t.textContent=L2('Add the tracker to your home screen','Ajoutez le suivi \u00e0 votre \u00e9cran d\u2019accueil');go.textContent=L2('Add','Ajouter');go.hidden=false;}
+  else if(ios){t.textContent=L2('Add to your home screen: tap Share, then \u201cAdd to Home Screen\u201d','Ajoutez \u00e0 l\u2019\u00e9cran d\u2019accueil : touchez Partager, puis \u00ab Sur l\u2019\u00e9cran d\u2019accueil \u00bb');go.hidden=true;}
+  else return;
+  var ib=document.getElementById('inst');ib.style.bottom=(dockH()+72)+'px';ib.hidden=false;}
+document.getElementById('instX').onclick=function(){instHide(true);};
+document.getElementById('instGo').onclick=function(){if(INSTP){INSTP.prompt();INSTP.userChoice.then(function(){INSTP=null;instHide(true);});}else instHide(true);};
+window.addEventListener('appinstalled',function(){instHide(true);});
+function instLater(){setTimeout(function(){if(!PC&&!sel&&!listOpen)instShow();},6000);}
 function wxHintHide(){var e=document.getElementById('wxHint');if(e&&!e.hidden){e.hidden=true;}lsSet('rdr_wxh','1');}
 function wxHintShow(){if(lsGet('rdr_wxh')==='1')return;setTimeout(function(){if(lsGet('rdr_wxh')==='1'||PC||sel||listOpen)return;var e=document.getElementById('wxHint');e.querySelector('span').textContent=L2('Tap anywhere on the sea to see the weather there','Touchez la mer pour voir la m\u00e9t\u00e9o \u00e0 cet endroit');e.style.top=Math.round((170+Math.max(240,H-dockH()-60))/2)+'px';e.hidden=false;setTimeout(wxHintHide,9000);},2500);}
 document.getElementById('bWx').onclick=function(){wxHintHide();var top=120,bot=dockH()+12,py=top+Math.max(80,H-top-bot)/2,px=W/2;openPC(myInv(v.my-(py-H/2)/v.k),v.lon+(px-W/2)/v.k);draw();};
@@ -1380,7 +1395,7 @@ setInterval(function(){if(!document.hidden)sizeCheck();},1500);
 if(window.matchMedia)window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',function(){setTimeout(function(){readCss();draw();renderDock();},60);});
 new MutationObserver(function(){setTimeout(function(){readCss();draw();},60);}).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
 buildFilters();compute();readCss();resize();fit();renderDock();loadFeed(true);setInterval(function(){if(!document.hidden)loadFeed(false);},300000);document.addEventListener('visibilitychange',function(){if(!document.hidden&&Date.now()-lastOk>12e4)loadFeed(false);});
-trWatch();setLang(LANG);wxHintShow();
+trWatch();setLang(LANG);wxHintShow();instLater();
 if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost'))window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){});});
 setInterval(function(){if(mode==='demo'&&document.visibilityState==='visible'&&!Object.keys(ptrs).length)tick(false);},1000);
 })();
