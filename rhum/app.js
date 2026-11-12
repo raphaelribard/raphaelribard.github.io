@@ -128,7 +128,7 @@ function flyTo(lon,m,k,ms){cancelAnimationFrame(camAnim);var a={lon:v.lon,my:v.m
   function st(now){var f=Math.min(1,(now-t0)/ms),e=f<.5?2*f*f:1-Math.pow(-2*f+2,2)/2;v.lon=a.lon+(lon-a.lon)*e;v.my=a.my+(m-a.my)*e;v.k=Math.exp(Math.log(a.k)+(Math.log(k)-Math.log(a.k))*e);draw();if(f<1)camAnim=requestAnimationFrame(st);}
   camAnim=requestAnimationFrame(st);}
 function centerOn(b,k){k=k||v.k;var top=170,bot=dockH()+12;flyTo(b.lon,my(b.lat)-(bot-top)/2/k,k);}
-function goLive(){cancelAnimationFrame(rafId);var was=!!rp;if(REC)setTimeout(stopRec,400);setTimeout(updateFresh,0);if(rp){rp=null;}if(was){selCompact=!!sel;listOpen=false;}document.getElementById('clkL').textContent='Last position';tick(true);updateTL();}
+function goLive(){cancelAnimationFrame(rafId);var was=!!rp;if(REC)setTimeout(stopRec,400);setTimeout(updateFresh,0);if(rp){rp=null;}if(was){selCompact=false;listOpen=false;}document.getElementById('clkL').textContent='Last position';tick(true);updateTL();}
 function endReplay(){goLive();}
 function rpStep(now){if(!rp||!rp.playing)return;var dt=Math.min(50,now-rp.last);rp.last=now;rp.t+=dt*36000*SPD[spI];
   if(rp.t>=rp.t1){goLive();return;}
