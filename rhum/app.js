@@ -869,8 +869,8 @@ function pcFetch(key){var la=key.lat.toFixed(2),lo=key.lon.toFixed(2);key.busy=t
     key.busy=false;if(PC!==key)return;key.loaded=true;var A=a[0]&&a[0].hourly,M=a[1]&&a[1].hourly;if(!A&&!M){key.err=true;key.d=null;}else{key.err=false;key.d={a:A,m:M};}key.idx=-9;pcRender();draw();});}
 function openPC(lat,lon,name,boatId){var key=PC={lat:lat,lon:lon,name:name||'',boatId:boatId||null,d:null,err:false,idx:-9,loaded:false,open:false,busy:false};pcRender();pcFetch(key);}
 function closePC(){PC=null;document.getElementById('pc').hidden=true;draw();}
-function pcRender(){var e=document.getElementById('pc');if(!PC){e.hidden=true;return;}e.hidden=false;e.style.bottom=(dockH()+44)+'px';e.className='glass'+(PC.open?' ex':'');
-  var ttl=PC.name?esc(PC.name):L2('Conditions','Conditions')+' · '+Math.abs(PC.lat).toFixed(1)+'°'+(PC.lat>=0?'N':'S')+' '+Math.abs(PC.lon).toFixed(1)+'°'+(PC.lon>=0?'E':'W'),
+function pcRender(){var e=document.getElementById('pc');if(!PC){e.hidden=true;return;}e.hidden=false;e.style.bottom=(dockH()+(document.getElementById('rpBtn').classList.contains('on')?66:44))+'px';e.className='glass'+(PC.open?' ex':'');
+  var ttl=PC.name?L2('Weather at ','M\u00e9t\u00e9o de ')+esc(PC.name):L2('Weather here','M\u00e9t\u00e9o ici')+' · '+Math.abs(PC.lat).toFixed(1)+'°'+(PC.lat>=0?'N':'S')+' '+Math.abs(PC.lon).toFixed(1)+'°'+(PC.lon>=0?'E':'W'),
     h='<h4><span>'+ttl+'</span><button id="pcx" aria-label="Close">×</button></h4>';
   if(!PC.loaded){e.innerHTML=h+'<div class="nd">'+L2('Loading…','Chargement…')+'</div>';return;}
   if(PC.err||!PC.d){e.innerHTML=h+'<div class="nd">'+L2('No data here right now. Try again in a moment.','Pas de données ici pour l’instant. Réessayez dans un instant.')+'</div>';return;}
@@ -891,8 +891,8 @@ function pcRender(){var e=document.getElementById('pc');if(!PC){e.hidden=true;re
   if(pr!=null)add(L2('Pressure','Pression'),f0(pr)+' hPa');
   var cv2=pcAt(M,'ocean_current_velocity',im),cd=pcAt(M,'ocean_current_direction',im);
   if(cv2!=null&&cv2>.3)add(L2('Current','Courant'),f1(cv2/1.852)+' kn'+(cd!=null?' '+CPT[Math.round(cd/22.5)%16]:''));
-  var cs='<span>'+(ws!=null?f0(ws)+' kn'+(wd!=null?' '+CPT[Math.round(wd/22.5)%16]:''):'')+'</span>'+(wh!=null?'<span>'+f1(wh)+' m \u00b7 '+L2(SBN[seaLv(wp!=null?effH(wh,Math.max(3,wp)):wh)][1],SBN[seaLv(wp!=null?effH(wh,Math.max(3,wp)):wh)][2])+'</span>':'')+(rn!=null?'<span>'+(rn>=.1?f1(rn)+' mm/h':L2('dry','sec'))+'</span>':'');
-  if(!PC.open){e.innerHTML='<div class="cs" id="pcT"><b>'+(PC.name?esc(PC.name):L2('Here','Ici'))+'</b>'+cs+'<em>\u25b4</em><button id="pcx" aria-label="Close">\u00d7</button></div>';return;}
+  var cs='<span>'+(ws!=null?L2('Wind ','Vent ')+f0(ws)+' kn'+(wd!=null?' '+CPT[Math.round(wd/22.5)%16]:''):'')+'</span>'+(wh!=null?'<span>'+L2('Waves ','Vagues ')+f1(wh)+' m \u00b7 '+L2(SBN[seaLv(wp!=null?effH(wh,Math.max(3,wp)):wh)][1],SBN[seaLv(wp!=null?effH(wh,Math.max(3,wp)):wh)][2])+'</span>':'')+(rn!=null?'<span>'+(rn>=.1?L2('Rain ','Pluie ')+f1(rn)+' mm/h':L2('No rain','Pas de pluie'))+'</span>':'');
+  if(!PC.open){e.innerHTML='<div class="cs2" id="pcT"><div class="r1"><b>'+(PC.name?L2('Weather at ','M\u00e9t\u00e9o de ')+esc(PC.name):L2('Weather here','M\u00e9t\u00e9o ici'))+'</b><small>'+dayLabel(wtime())+'</small><button id="pcx" aria-label="Close">\u00d7</button></div><div class="r2">'+cs+'<em>'+L2('Details','D\u00e9tails')+' \u25b4</em></div></div>';return;}
   if(!it.length){e.innerHTML=h+'<div class="nd">'+L2('No data here right now.','Pas de données ici.')+'</div>';return;}
   /* 48 h strip: wind, waves, rain, marker at the time on screen */
   var svg='',N=48,Wd=300,Ht=46;
@@ -963,7 +963,7 @@ function renderDock(){
     var vl3=boats.filter(vis),vlS=vl3.slice(0,12);
     if(!b){h='<div class="pad home"><button class="sqb" id="sqB">\ud83d\udd0d '+L2('Search a sailor or boat\u2026','Chercher un skipper ou un bateau\u2026')+'</button><div class="tros"><button class="tro" data-k="ALL">\ud83c\udfc6 '+L2('Overall','G\u00e9n\u00e9ral')+'</button>';
       CLASSES.forEach(function(c){if(boats.some(function(x){return x.cls===c.k;}))h+='<button class="tro" data-k="'+c.k+'" style="--c:var('+c.v+')">\ud83c\udfc6 '+esc(c.s)+'</button>';});
-      h+='</div></div>';}else{
+      h+='</div><small class="tip">'+L2('Tip: tap anywhere on the sea to see the weather there','Astuce : touchez la mer pour voir la m\u00e9t\u00e9o \u00e0 cet endroit')+'</small></div>';}else{
     h='<div class="pad strip"><span class="sh">'+(b?'Following':'Race order')+'</span>';
     vlS.forEach(function(x,i){h+='<button class="pill'+(b&&x.id===b.id?' on':'')+(x.out?' out':'')+'" data-id="'+esc(x.id)+'" style="--c:'+colB(x)+'"><span class="p">'+(x.sim?'\u00b7':pad(i+1))+'</span>'+blSvg(x,20)+'<span class="nm">'+(x.id===FAV?'\u2605 ':'')+esc(x.name)+'</span><span class="sp">'+(x.fin?'finished':x.out?(x.st==='RET'?'retired':'stopped'):pctOf(x)+'%')+'</span></button>';});
     if(b)h+='<button class="pill all" id="favf">'+(FAV===b.id?'\u2605 Favourite':'\u2606 Favourite')+'</button><button class="pill all" id="xsf" aria-label="Stop following">Unfollow</button>';

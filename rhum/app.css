@@ -214,3 +214,11 @@ input[type=url]{width:100%;background:var(--soft);color:var(--ink);border:1px so
 .row .ch{font:300 26px/1 var(--f-body);color:var(--mute)}
 .row .s.fin{color:#1f9d57}.row .s.fin em{color:#1f9d57;font-weight:700}
 .row .bar{display:block;height:4px;margin-top:3px;border-radius:2px;background:var(--line);overflow:hidden}.row .bar b{display:block;height:100%;background:var(--c)}
+
+#pc .cs2{cursor:pointer}
+#pc .cs2 .r1{display:flex;align-items:baseline;gap:8px}
+#pc .cs2 .r1 b{font:700 14px var(--f-body)}
+#pc .cs2 .r1 small{font:600 11px var(--f-body);color:var(--mute);margin-right:auto}
+#pc .cs2 .r2{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:4px;font:600 13px var(--f-body)}
+#pc .cs2 .r2 em{font-style:normal;color:var(--hot);margin-left:auto}
+.home .tip{color:var(--mute);font:500 12px var(--f-body)}
