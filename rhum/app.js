@@ -612,6 +612,28 @@ function hlData(){
 }
 var hlTab='rank',hlCls='all';
 function hlOpen(){hlRender();document.getElementById('hl').hidden=false;if(window.T)T(document.getElementById('hl'));}
+/* Last 24 hours: who gained or lost places, who is next to arrive */
+function dtfAt(b,T){var H=imp[b.id]&&imp[b.id].hist;if(!H||!H.length)return null;var i=H.length-1;while(i>=0&&H[i].t>T)i--;return i<0?null:hav(H[i].lat,H[i].lon,FIN.lat,FIN.lon);}
+function rankAt(T){var L=[];boats.forEach(function(b){if(b.sim||b.ret||b.out)return;var key;if(b.fin&&b.fin<=T)key=b.fin-1e13;else{var d=dtfAt(b,T);if(d==null)return;key=d;}L.push({b:b,k:key});});
+  L.sort(function(p,q){return p.k-q.k;});var m={};L.forEach(function(e,i){m[e.b.id]=i+1;});return m;}
+var TDT='';
+function dayData(){var T=rp?rp.t:TL.t1,a=rankAt(T-864e5),z=rankAt(T),mv=[];
+  Object.keys(z).forEach(function(id){if(a[id]!=null)mv.push({b:boats.filter(function(x){return x.id===id;})[0],d:a[id]-z[id]});});
+  var up=mv.filter(function(e){return e.d>=2;}).sort(function(p,q){return q.d-p.d;}).slice(0,3),dn=mv.filter(function(e){return e.d<=-2;}).sort(function(p,q){return p.d-q.d;}).slice(0,3),
+    nx=boats.filter(function(b){return !b.sim&&!b.fin&&!b.out&&b.dtf>0;}).sort(function(p,q){return p.dtf-q.dtf;}).slice(0,3),
+    fast=boats.filter(function(b){return !b.sim&&!b.out&&!b.ret&&!b.fin&&b.d24>0;}).sort(function(p,q){return q.d24-p.d24;}).slice(0,3);
+  return {T:T,up:up,dn:dn,nx:nx,fast:fast};}
+function dayRender(){var d=dayData(),h='',txt=[L2('Route du Rhum · last 24 hours','Route du Rhum · dernières 24 h')];
+  function sec(t,rows){if(!rows.length)return;h+='<h3 class="tdh">'+t+'</h3>';txt.push('',t);rows.forEach(function(r){h+='<button class="row td" data-id="'+esc(r.id)+'"><span class="n">'+esc(r.n)+'<small>'+esc(r.s)+'</small></span><span class="s">'+r.v+'</span><span class="ch">›</span></button>';txt.push('• '+r.n+' '+r.v);});}
+  sec(L2('Climbing','En progression'),d.up.map(function(e){return {id:e.b.id,n:e.b.name,s:clsName(e.b.cls),v:'+'+e.d+' '+L2('places','places')};}));
+  sec(L2('Losing places','En recul'),d.dn.map(function(e){return {id:e.b.id,n:e.b.name,s:clsName(e.b.cls),v:e.d+' '+L2('places','places')};}));
+  sec(L2('Next to arrive','Prochains arrivés'),d.nx.map(function(b){return {id:b.id,n:b.name,s:clsName(b.cls),v:togoTxt(b)||f0(b.dtf)+' nm'};}));
+  sec(L2('Fastest in 24 h','Plus rapides en 24 h'),d.fast.map(function(b){return {id:b.id,n:b.name,s:clsName(b.cls),v:f0(b.d24)+' nm'};}));
+  document.getElementById('tdS').textContent=dayLabel(d.T);document.getElementById('tdB').innerHTML=h||'<div class="nd">'+L2('Not enough data yet.','Pas encore assez de données.')+'</div>';TDT=txt.join('\n');}
+document.getElementById('tdClose').onclick=function(){document.getElementById('td').hidden=true;};
+document.getElementById('td').addEventListener('click',function(e){var t=e.target;if(t.id==='td'){t.hidden=true;return;}var r=t.closest&&t.closest('.row.td');if(r){var b=boats.filter(function(x){return x.id===r.dataset.id;})[0];document.getElementById('td').hidden=true;if(b){select(b,true);}}});
+document.getElementById('tdShare').onclick=function(){try{if(navigator.share){navigator.share({text:TDT,url:location.href}).catch(function(){});return;}navigator.clipboard.writeText(TDT).then(function(){toast(L2('Copied','Copié'));},function(){toast(L2('Copy not available','Copie indisponible'));});}catch(e){toast(L2('Copy not available','Copie indisponible'));}};
+function dayOpen(){dayRender();document.getElementById('td').hidden=false;if(window.T)T(document.getElementById('td'));}
 function hlRender(){
   var el=document.getElementById('hlB'),ch=document.getElementById('hlCh');
   document.getElementById('hlS').textContent=TL.t1>0?dayLabel(rp?rp.t:TL.t1):'';
@@ -973,7 +995,7 @@ function renderDock(){
   }else{
     var vl3=boats.filter(vis),vlS=vl3.slice(0,12);
     if(!b){var TS='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4h8v5a4 4 0 0 1-8 0V4zM8 6H5v1a3 3 0 0 0 3 3M16 6h3v1a3 3 0 0 1-3 3M12 13v4M8 20h8"/></svg>';
-      h='<div class="pad home"><button class="sqb" id="sqB"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="5.5"/><path d="M15 15l5 5"/></svg>'+L2('Search a sailor or boat…','Chercher un skipper ou un bateau…')+'</button><div class="tros"><button class="tro" data-k="ALL">'+TS+L2('Overall','Général')+'</button>';
+      h='<div class="pad home"><button class="sqb" id="sqB"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="5.5"/><path d="M15 15l5 5"/></svg>'+L2('Search a sailor or boat…','Chercher un skipper ou un bateau…')+'</button><div class="tros"><button class="tro" data-k="DAY"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 7v5l3 2"/></svg>'+L2('Last 24 h','Dernières 24 h')+'</button><button class="tro" data-k="ALL">'+TS+L2('Overall','Général')+'</button>';
       CLASSES.forEach(function(c){if(boats.some(function(x){return x.cls===c.k;}))h+='<button class="tro" data-k="'+c.k+'" style="--c:var('+c.v+')">'+TS+esc(c.s)+'</button>';});
       var rn=boats.filter(function(x){return x.ret||x.out;}).length;
       if(rn)h+='<button class="tro" data-k="RET"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21V4M5 5h11l-2 4 2 4H5"/></svg>'+L2('Retired','Abandons')+' \u00b7 '+rn+'</button>';
@@ -1061,7 +1083,7 @@ bodyEl.addEventListener('click',function(e){
   if(t.id==='fav'||t.id==='favf'){toggleFav();return;}
   if(t.id==='detB'){DET=!DET;lsSet('rdr_det',DET?'1':'0');renderDock();return;}
   if(t.id==='sqB'){openSearch();return;}
-  if(t.classList.contains('tro')){var tk=t.dataset.k;RETV=tk==='RET';FC=(tk==='ALL'||RETV)?'':tk;listOpen=true;cmpMode=false;SQ='';renderDock();draw();if(RETV||FC)setTimeout(function(){fitList(boats.filter(function(x){return RETV?(x.ret||x.out):x.cls===FC;}));},80);else fit();return;}
+  if(t.classList.contains('tro')){var tk=t.dataset.k;if(tk==='DAY'){dayOpen();return;}RETV=tk==='RET';FC=(tk==='ALL'||RETV)?'':tk;listOpen=true;cmpMode=false;SQ='';renderDock();draw();if(RETV||FC)setTimeout(function(){fitList(boats.filter(function(x){return RETV?(x.ret||x.out):x.cls===FC;}));},80);else fit();return;}
   if(t.id==='bAll'){listOpen=!listOpen;cmpMode=false;SQ='';if(!listOpen){var hadF=FC||RETV;FC='';RETV=false;if(hadF)fit();else draw();}renderDock();return;}
   if(t.id==='cmp'){if(CMP){CMP='';renderDock();draw();}else{cmpMode=true;listOpen=true;renderDock();}return;}
   if(t.id==='cmpx'){CMP='';renderDock();draw();return;}
