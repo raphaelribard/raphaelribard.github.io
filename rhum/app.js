@@ -96,7 +96,7 @@ function tgt(vb,F,fr,pad,kmax){var L=vb[0],hv=Math.max(120,H-170-(rp?170:110)),g
   var sx=Math.max(a[3]-a[2],2.5)*pad,sy=Math.max(a[1]-a[0],2.5)*pad,k=Math.max(F.k,Math.min(kmax,Math.min((W-48)/sx,hv/sy)));
   return {lon:.5*((a[2]+a[3])/2)+.5*L.lon,m:.5*((a[0]+a[1])/2)+.5*my(L.lat),k:k};}
 function followCam(snap){
-  var top=170,bot=rp?170:110,F=rp.full||FULLV||{lon:v.lon,my:v.my,k:v.k},f,c;
+  var top=120,bot=rp?170:110,F=rp.full||FULLV||{lon:v.lon,my:v.my,k:v.k},f,c;
   f=snap?1:.12;
   var sb=rp.selMode&&sel?boats.filter(function(b){return b.id===sel.id;})[0]:null;
   if(sb){var kT=rp.kSel||14,T0={lon:sb.lon,my:my(sb.lat)-(bot-top)/2/kT,k:kT};
@@ -118,7 +118,7 @@ function updateSpd(){var el=document.getElementById('tSpd'),b=null;
   if(!b){el.hidden=true;return;}el.hidden=false;var k=b.sog,n=(sel&&sel.id===b.id)?b.name:'Leader \u00b7 '+b.name;
   var w=windOn?windAt(b.lat,b.lon,wtime()):null,wt=w?'<small class="wd">Wind '+w.spd.toFixed(0)+' kn \u00b7 '+(w.spd*1.852).toFixed(0)+' km/h from '+CPT[Math.round(w.dir/22.5)%16]+'</small>':'';
   el.innerHTML='<div class="sn"><b>'+n.replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</b>'+wt+'</div><span>'+(k==null?'\u2013':k.toFixed(1))+'<small>kn</small> \u00b7 '+(k==null?'\u2013':(k*1.852).toFixed(1))+'<small>km/h</small></span>';}
-function updateTL(){updateFresh();updateRpBtn();var pb=document.getElementById('tPlay'),pl=!!(rp&&rp.playing);if(pb.dataset.p!==(pl?'1':'0')){pb.dataset.p=pl?'1':'0';pb.innerHTML=pl?'&#10074;&#10074;':'&#9654;';pb.setAttribute('aria-label',pl?'Pause':'Replay the race');}document.getElementById('app').classList.toggle('mv',!!rp);updateSpd();if(!(TL.t1>TL.t0))return;var T=rp?rp.t:TL.t1;
+function updateTL(){updateSum();updateFresh();updateRpBtn();var pb=document.getElementById('tPlay'),pl=!!(rp&&rp.playing);if(pb.dataset.p!==(pl?'1':'0')){pb.dataset.p=pl?'1':'0';pb.innerHTML=pl?'&#10074;&#10074;':'&#9654;';pb.setAttribute('aria-label',pl?'Pause':'Replay the race');}document.getElementById('app').classList.toggle('mv',!!rp);updateSpd();if(!(TL.t1>TL.t0))return;var T=rp?rp.t:TL.t1;
   document.getElementById('tR').value=Math.round((T-TL.t0)/(TL.t1-TL.t0)*2000);
   document.getElementById('tD').textContent='Day '+dayNo(T)+' \u00b7 '+new Date(T).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}).replace(',','')+(ESTEND&&T<ESTEND?' \u00b7 est.':'');}
 function mkRp(t,playing,selMode){var k=14;
@@ -130,7 +130,7 @@ var camAnim=0;
 function flyTo(lon,m,k,ms){cancelAnimationFrame(camAnim);var a={lon:v.lon,my:v.my,k:v.k},t0=performance.now();ms=ms||700;
   function st(now){var f=Math.min(1,(now-t0)/ms),e=f<.5?2*f*f:1-Math.pow(-2*f+2,2)/2;v.lon=a.lon+(lon-a.lon)*e;v.my=a.my+(m-a.my)*e;v.k=Math.exp(Math.log(a.k)+(Math.log(k)-Math.log(a.k))*e);draw();if(f<1)camAnim=requestAnimationFrame(st);}
   camAnim=requestAnimationFrame(st);}
-function centerOn(b,k){k=k||v.k;var top=170,bot=dockH()+12;flyTo(b.lon,my(b.lat)-(bot-top)/2/k,k);}
+function centerOn(b,k){k=k||v.k;var top=120,bot=dockH()+12;flyTo(b.lon,my(b.lat)-(bot-top)/2/k,k);}
 function goLive(){cancelAnimationFrame(rafId);var was=!!rp;if(REC)setTimeout(stopRec,400);setTimeout(updateFresh,0);if(rp){rp=null;}if(was){selCompact=false;listOpen=false;}document.getElementById('clkL').textContent='Last position';tick(true);updateTL();}
 function endReplay(){goLive();}
 function rpStep(now){if(!rp||!rp.playing)return;var dt=Math.min(50,now-rp.last);rp.last=now;rp.t+=dt*36000*SPD[spI];
@@ -372,7 +372,7 @@ function shareLink(){
 var mmEl=document.getElementById('mm');
 function wxHintHide(){var e=document.getElementById('wxHint');if(e&&!e.hidden){e.hidden=true;}lsSet('rdr_wxh','1');}
 function wxHintShow(){if(lsGet('rdr_wxh')==='1')return;setTimeout(function(){if(lsGet('rdr_wxh')==='1'||PC||sel||listOpen)return;var e=document.getElementById('wxHint');e.querySelector('span').textContent=L2('Tap anywhere on the sea to see the weather there','Touchez la mer pour voir la m\u00e9t\u00e9o \u00e0 cet endroit');e.style.top=Math.round((170+Math.max(240,H-dockH()-60))/2)+'px';e.hidden=false;setTimeout(wxHintHide,9000);},2500);}
-document.getElementById('bWx').onclick=function(){wxHintHide();var top=170,bot=dockH()+12,py=top+Math.max(80,H-top-bot)/2,px=W/2;openPC(myInv(v.my-(py-H/2)/v.k),v.lon+(px-W/2)/v.k);draw();};
+document.getElementById('bWx').onclick=function(){wxHintHide();var top=120,bot=dockH()+12,py=top+Math.max(80,H-top-bot)/2,px=W/2;openPC(myInv(v.my-(py-H/2)/v.k),v.lon+(px-W/2)/v.k);draw();};
 function openSearch(){FC='';RETV=false;if(sel)selCompact=true;cmpMode=false;listOpen=true;SQ='';renderDock();var q=document.getElementById('sq');if(q)q.focus();}
 document.getElementById('bSearch').onclick=openSearch;
 document.getElementById('bShare').onclick=function(){mmEl.hidden=false;};
@@ -925,13 +925,13 @@ function select0(b,center){FC='';RETV=false;sel=b?{id:b.id}:null;if(b&&!WIND)loa
 function fit(){
   var l=boats.filter(vis);if(!l.length)return;
   var a=[FIN.lat,48.7,FIN.lon,-2];l.forEach(function(b){a[0]=Math.min(a[0],b.lat);a[1]=Math.max(a[1],b.lat);a[2]=Math.min(a[2],b.lon);a[3]=Math.max(a[3],b.lon);});
-  var top=170,bot=rp?170:110,hv=Math.max(120,H-top-bot),mc=(my(a[0])+my(a[1]))/2;
+  var top=120,bot=rp?170:110,hv=Math.max(120,H-top-bot),mc=(my(a[0])+my(a[1]))/2;
   var kx=(W-48)/(a[3]-a[2]||1),ky=hv/(my(a[1])-my(a[0])||1);
   v.k=Math.max(3,Math.min(60,Math.min(kx,ky)));v.lon=(a[2]+a[3])/2;v.my=mc-(bot-top)/2/v.k;FULLV={lon:v.lon,my:v.my,k:v.k};draw();
 }
 
 function fitList(l){if(!l.length)return;var a=[90,-90,180,-180];l.forEach(function(b){a[0]=Math.min(a[0],b.lat);a[1]=Math.max(a[1],b.lat);a[2]=Math.min(a[2],b.lon);a[3]=Math.max(a[3],b.lon);});
-  var top=150,bot=dockH()+16,hv=Math.max(100,H-top-bot),mc=(my(a[0])+my(a[1]))/2,kx=(W-60)/(a[3]-a[2]||.5),ky=hv/(my(a[1])-my(a[0])||.05),k=Math.max(3,Math.min(24,Math.min(kx,ky)));
+  var top=120,bot=dockH()+16,hv=Math.max(100,H-top-bot),mc=(my(a[0])+my(a[1]))/2,kx=(W-60)/(a[3]-a[2]||.5),ky=hv/(my(a[1])-my(a[0])||.05),k=Math.max(3,Math.min(24,Math.min(kx,ky)));
   flyTo((a[2]+a[3])/2,mc-(bot-top)/2/k,k,700);}
 /* dock */
 function km(n){return n==null||isNaN(n)?null:n*1.852;}
@@ -955,14 +955,14 @@ function listRows(){var q=nrm(SQ).split(/\s+/).filter(Boolean),vl=RETV?boats.fil
   if(!src.length)h='<div class="nd" style="padding:14px 4px;color:var(--mute)">'+L2('No sailor found','Aucun skipper trouv\u00e9')+'</div>';
   return {h:h,n:src.length};}
 function renderDock(){
-  var ae=document.activeElement;if(listOpen&&ae&&ae.id==='sq')return;
+  updateSum();var ae=document.activeElement;if(listOpen&&ae&&ae.id==='sq')return;
   var sc=bodyEl.querySelector('.strip'),list=bodyEl.querySelector('.list'),sl=sc?sc.scrollLeft:0,st=list?list.scrollTop:0;
   var b=sel&&boats.filter(function(x){return x.id===sel.id;})[0],h='';
   if(b&&!selCompact&&!cmpMode){
     var c=colB(b),vl=boats.filter(vis),pc=Math.max(0,Math.min(100,Math.round((1-b.dtf/(b.dtfO>0?3542:hav(SM.lat,SM.lon,FIN.lat,FIN.lon)))*100))),pc=b.fin?100:pc,eta=(function(){var Tn=rp?rp.t:TL.t1,w=etaWind(b,Tn);if(w)return w;var o=etaOf(b,Tn);return o?'~'+o:null;})();
     h='<div class="pad"><div class="dtl-h" style="--c:'+c+'">'+blSvg(b,32)+'<h3>'+esc(b.name)+'</h3><button class="x" id="xs" aria-label="Stop following">×</button></div>'+
-    '<p class="sub"><span class="fl">● '+L2('Following','Suivi')+'</span> · '+(b.out?'<b style="color:var(--hot)">'+(b.st==='RET'?'Retired':'Stopped')+'</b> · ':'')+(b.boat?esc(b.boat)+' · ':'')+(b.sim?L2('Simulation','Simulation')+' · '+esc(clsName(b.cls)):'P'+b.rank+' overall · P'+b.crank+' '+esc(clsName(b.cls)))+'</p>'+
-    '<div class="pr'+(b.fin?' fin':'')+'" style="--c:'+c+'"><i><b style="width:'+pc+'%"></b></i>'+(b.fin?L2('Finished in ','Arrivé en ')+durStr(durOf(b)):pc+'% done · '+f0(b.dtf)+' nm '+L2('to go','restants'))+(b.fin?'<em>'+fmtEta(b.fin)+'</em>':eta?'<em>ETA '+eta+'</em>':'')+'</div>'+cmpRow(b)+
+    '<p class="sub"><span class="fl">● '+L2('Following','Suivi')+'</span> · '+(b.out?'<b style="color:var(--hot)">'+(b.st==='RET'?'Retired':'Stopped')+'</b> · ':'')+(b.boat?esc(b.boat)+' · ':'')+(b.sim?L2('Simulation','Simulation')+' · '+esc(clsName(b.cls)):'P'+b.rank+' overall · P'+b.crank+' '+esc(clsName(b.cls)))+(gapTxt(b)?' · '+gapTxt(b):'')+'</p>'+
+    '<div class="pr'+(b.fin?' fin':'')+'" style="--c:'+c+'"><i><b style="width:'+pc+'%"></b></i>'+(b.fin?L2('Finished in ','Arrivé en ')+durStr(durOf(b)):pc+'% done'+(togoTxt(b)?' · '+togoTxt(b)+' '+L2('to go','restants'):' · '+f0(b.dtf)+' nm '+L2('to go','restants')))+(b.fin?'<em>'+fmtEta(b.fin)+'</em>':eta?'<em>ETA '+eta+'</em>':'')+'</div>'+cmpRow(b)+
     (b.fin||b.out?'':'<div class="hero" style="--c:'+c+'"><div class="speed"><b>'+f1(b.sog)+'</b><span>KN</span><span class="kh">'+f1(km(b.sog))+' km/h</span></div>'+dial(b,c)+'</div>')+
     '<div class="ft"><button class="mt" id="condB">'+L2('Weather','Météo')+' ▸</button>'+(DET?'<button class="pl" id="cmp">⇄ '+L2('Compare','Comparer')+'</button><button class="pl" id="fav">'+(FAV===b.id?'★ ':'☆ ')+L2('Favourite','Favori')+'</button>':'')+'<button class="mt det" id="detB" aria-expanded="'+DET+'">'+(DET?L2('Fewer details','Moins de détails')+' ▴':L2('More details','Plus de détails')+' ▾')+'</button></div>'+(DET?'<div class="dt">'+seaRow(b)+windRow(b)+toughRow(b)+
     '<div class="stats">'+stat(L2('Heading','Cap'),dg(b.cog),'°')+stat(L2('To go','Reste'),f0(b.dtf),'nm')+stat(L2('Closing speed','Vit. d’approche'),f1(b.vmg),'kn')+'</div></div>':'')+'</div>';
@@ -1072,10 +1072,11 @@ bodyEl.addEventListener('click',function(e){
 /* controls */
 var fEl=document.getElementById('filters');
 function buildFilters(){
+  if(!fEl)return;
   var all=[{k:'ALL',s:'All',v:null}].concat(CLASSES);
   fEl.innerHTML=all.map(function(c){return '<button class="chip glass" data-k="'+c.k+'" aria-pressed="'+(filter===c.k)+'" style="'+(c.v?'--c:var('+c.v+')':'')+'">'+(c.v?'<i></i>':'')+c.s+'</button>';}).join('');
 }
-fEl.addEventListener('click',function(e){var b=e.target.closest('.chip');if(!b)return;filter=b.dataset.k;TRF=false;if(sel){var s=boats.filter(function(x){return x.id===sel.id;})[0];if(s&&!vis(s))sel=null;}buildFilters();renderDock();draw();});
+if(fEl)fEl.addEventListener('click',function(e){var b=e.target.closest('.chip');if(!b)return;filter=b.dataset.k;TRF=false;if(sel){var s=boats.filter(function(x){return x.id===sel.id;})[0];if(s&&!vis(s))sel=null;}buildFilters();renderDock();draw();});
 ['wLc','sLc'].forEach(function(i){document.getElementById(i).onclick=function(){document.getElementById('bWind').click();};});
 document.getElementById('bWind').onclick=function(){
   var st=windOn?1:SEA?2:SWL?3:0,nx=[1,2,3,0][st===0?3:st-1]; nx=st===0?1:st===1?2:st===2?3:0;
@@ -1282,10 +1283,22 @@ function announceArrivals(){if(rp)return;var f=boats.filter(function(b){return b
   if(ARRSEEN)nw=f.filter(function(b){return !ARRSEEN[b.id];});
   ARRSEEN={};f.forEach(function(b){ARRSEEN[b.id]=1;});
   if(nw.length){nw.sort(cmpB);toast(nw.slice(0,2).map(function(b){return b.name+' \u00b7 '+durStr(durOf(b));}).join('  |  ')+(nw.length>2?' +'+(nw.length-2):'')+L2(' finished',' arriv\u00e9'),6000);}}
+function spanTxt(h){if(h<1.5)return L2('about an hour','environ une heure');if(h<36)return L2('about '+Math.round(h)+' h','environ '+Math.round(h)+' h');var d=h/24;return L2('about '+(d<4?d.toFixed(1):Math.round(d))+' days','environ '+(d<4?d.toFixed(1).replace('.',','):Math.round(d))+' jours');}
+function togoTxt(b){if(b.fin||b.out||!(b.d24>60)||!(b.dtf>0))return '';return spanTxt(b.dtf/(b.d24/24));}
+function gapTxt(b){if(b.fin||b.out||!(b.d24>60))return '';var lead=boats.filter(function(x){return x.cls===b.cls&&!x.fin&&!x.out&&!x.sim;}).sort(function(p,q){return p.dtf-q.dtf;})[0];if(!lead||lead.id===b.id)return b.crank===1?L2('leading its class','en t\u00eate de sa cat\u00e9gorie'):'';var h=(b.dtf-lead.dtf)/(b.d24/24);return h<1?'':spanTxt(h)+' '+L2('behind the class leader','derri\u00e8re le leader');}
+var SUMT='';
+function updateSum(){var e=document.getElementById('sub');if(!e||mode!=='imp')return;var real=boats.filter(function(x){return !x.sim;});if(!real.length)return;
+  var fin=real.filter(function(x){return x.fin;}),out=real.filter(function(x){return x.ret||x.out;}).length,sea=real.length-fin.length-out,t;
+  if(fin.length){var w=fin.slice().sort(function(p,q){return p.fin-q.fin;})[0];t=w.name+L2(' won in ',' a gagn\u00e9 en ')+durStr(durOf(w)).replace(/ \d+m$/,'')+' \u00b7 '+fin.length+L2(' finished',' arriv\u00e9s')+' \u00b7 '+sea+L2(' racing',' en course')+' \u00b7 '+out+L2(' retired',' abandons');}
+  else{var ld=real.slice().sort(cmpB)[0];t=ld.name+L2(' leads',' m\u00e8ne')+' \u00b7 '+sea+L2(' racing',' en course')+' \u00b7 '+out+L2(' retired',' abandons');}
+  if(t!==SUMT){SUMT=t;e.textContent=t;}}
 function updateFresh(){var e=document.getElementById('fresh');if(!e)return;
   if(mode!=='imp'||rp||!(TL.t1>0)){if(e.textContent){e.textContent='';e.__t=null;}e.className='';return;}
-  var a=Date.now()-TL.t1,m=Math.max(0,Math.round(a/6e4)),t=m<2?'Updated just now':m<90?'Live \u00b7 '+m+' min ago':'Updated '+Math.round(m/60)+' h ago';
-  var late=a>135*6e4,stale=late||feedErr;if(late&&!feedErr)t=L2('Delayed \u00b7 last position '+Math.round(m/60)+' h ago','Retard \u00b7 derni\u00e8re position il y a '+Math.round(m/60)+' h');if(feedErr)t='Feed unreachable \u00b7 '+t.replace('Updated','last data');
+  var a=Date.now()-TL.t1,hm=new Date(TL.t1).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}),
+    t=L2('Updated hourly','Mis \u00e0 jour chaque heure'),stale=false;
+  if(a>3*36e5)t=L2('Waiting for the next update','En attente de la mise \u00e0 jour');
+  if(a>8*36e5)stale=true;
+  if(feedErr){t=L2('Offline \u00b7 showing the last positions ('+hm+')','Hors ligne \u00b7 derni\u00e8res positions ('+hm+')');stale=true;}
   if(e.__t!==t||e.className!==(stale?'stale':'')){e.__t=t;e.textContent=t;e.className=stale?'stale':'';if(window.T)T(e);}}
 setInterval(function(){if(!document.hidden)updateFresh();},30000);
 function loadFeed(force){
