@@ -48,7 +48,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-acti
 .chip i{width:8px;height:8px;border-radius:50%;background:var(--c);box-shadow:inset 0 0 0 1px rgba(0,0,0,.18)}
 .chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
 .chip[aria-pressed="true"] i{background:var(--c);box-shadow:0 0 0 2px var(--bg)}
-.tools{top:126px;left:auto;display:flex;flex-direction:column;gap:6px}
+.tools{top:96px;left:auto;display:flex;flex-direction:column;gap:6px}
 .tbtn{width:38px;height:38px;border-radius:50%;display:grid;place-items:center}
 .tbtn svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .tbtn[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
@@ -248,3 +248,4 @@ input[type=url]{width:100%;background:var(--soft);color:var(--ink);border:1px so
 .rough .rc{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
 .tgb{display:inline-flex;width:auto;margin:0;padding:5px 10px;font-size:12px;border-radius:999px}
 .stats{grid-template-columns:repeat(3,minmax(0,1fr))}
+.title p#sub{font:600 12.5px var(--f-body);color:var(--ink);text-shadow:0 0 6px var(--bg),0 0 2px var(--bg);white-space:normal;max-width:300px;line-height:1.3}
