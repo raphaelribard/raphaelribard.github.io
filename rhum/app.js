@@ -934,10 +934,14 @@ function clsName(k){var c=CLASSES.filter(function(x){return x.k===k})[0];return 
 var bodyEl=document.getElementById('body'),dock=document.getElementById('dock');
 function gapOf(b,lead,i){if(b.fin)return 'Finished '+durStr(durOf(b));if(b.out)return b.st==='RET'?'Retired':'Stopped';return i===0?'Leader':'+'+f0(b.dtf-lead.dtf)+' nm \u00b7 '+f0(km(b.dtf-lead.dtf))+' km';}
 var TRF=false;function listTitle(n){return cmpMode?'Compare with\u2026':(filter!=='ALL'?clsName(filter)+' \u00b7 '+L2('ranking','classement')+' \u00b7 '+n:'All racers \u00b7 '+n);}
+function pctOf(b){if(b.fin)return 100;var tot=b.dtfO>0?3542:hav(SM.lat,SM.lon,FIN.lat,FIN.lon);return Math.max(0,Math.min(100,Math.round((1-b.dtf/tot)*100)));}
+function progCell(x){if(x.fin)return '<span class="s fin">'+L2('Finished','Arriv\u00e9')+'<em>'+durStr(durOf(x))+'</em></span>';
+  if(x.out)return '<span class="s">'+(x.st==='RET'?L2('Retired','Abandon'):L2('Stopped','Arr\u00eat\u00e9'))+'</span>';
+  var p=pctOf(x);return '<span class="s">'+p+'%<i class="bar"><b style="width:'+p+'%"></b></i></span>';}
 var SQ='',DET=lsGet('rdr_det')==='1';
 function nrm(x){return String(x||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();}
 function listRows(){var q=nrm(SQ).split(/\s+/).filter(Boolean),vl=boats.filter(vis),src=q.length?boats.filter(function(x){var t=nrm(x.name+' '+(x.boat||''));return q.every(function(w){return t.indexOf(w)>=0;});}):vl,h='';
-  src.forEach(function(x){var i=vl.indexOf(x),inl=i>=0;h+='<button class="row" data-id="'+esc(x.id)+'" style="--c:'+colB(x)+'"><span class="p">'+(x.sim?'\u00b7':pad(inl?i+1:x.rank||0))+'</span>'+blSvg(x,22)+'<span class="n">'+esc(x.name)+'<small>'+(inl?gapOf(x,vl[0],i):esc(clsName(x.cls))+' \u00b7 P'+x.crank)+'</small></span><span class="g">'+f0(x.dtf)+' nm<br>'+f0(km(x.dtf))+' km</span><span class="s">'+f1(x.sog)+'<u>kn</u><em>'+f1(km(x.sog))+' km/h</em></span></button>';});
+  src.forEach(function(x){var i=vl.indexOf(x),inl=i>=0;h+='<button class="row" data-id="'+esc(x.id)+'" style="--c:'+colB(x)+'"><span class="p">'+(x.sim?'\u00b7':pad(inl?i+1:x.rank||0))+'</span>'+blSvg(x,22)+'<span class="n">'+esc(x.name)+'<small>'+esc((x.boat?x.boat+' \u00b7 ':'')+clsName(x.cls))+'</small></span>'+progCell(x)+'<span class="ch">\u203a</span></button>';});
   if(!src.length)h='<div class="nd" style="padding:14px 4px;color:var(--mute)">'+L2('No sailor found','Aucun skipper trouv\u00e9')+'</div>';
   return {h:h,n:src.length};}
 function renderDock(){
@@ -961,7 +965,7 @@ function renderDock(){
       CLASSES.forEach(function(c){if(boats.some(function(x){return x.cls===c.k;}))h+='<button class="tro" data-k="'+c.k+'" style="--c:var('+c.v+')">\ud83c\udfc6 '+esc(c.s)+'</button>';});
       h+='</div></div>';}else{
     h='<div class="pad strip"><span class="sh">'+(b?'Following':'Race order')+'</span>';
-    vlS.forEach(function(x,i){h+='<button class="pill'+(b&&x.id===b.id?' on':'')+(x.out?' out':'')+'" data-id="'+esc(x.id)+'" style="--c:'+colB(x)+'"><span class="p">'+(x.sim?'\u00b7':pad(i+1))+'</span>'+blSvg(x,20)+'<span class="nm">'+(x.id===FAV?'\u2605 ':'')+esc(x.name)+'</span><span class="sp">'+(x.fin?'finished':x.out?(x.st==='RET'?'retired':'stopped'):f1(x.sog)+'<u>kn</u>')+'</span></button>';});
+    vlS.forEach(function(x,i){h+='<button class="pill'+(b&&x.id===b.id?' on':'')+(x.out?' out':'')+'" data-id="'+esc(x.id)+'" style="--c:'+colB(x)+'"><span class="p">'+(x.sim?'\u00b7':pad(i+1))+'</span>'+blSvg(x,20)+'<span class="nm">'+(x.id===FAV?'\u2605 ':'')+esc(x.name)+'</span><span class="sp">'+(x.fin?'finished':x.out?(x.st==='RET'?'retired':'stopped'):pctOf(x)+'%')+'</span></button>';});
     if(b)h+='<button class="pill all" id="favf">'+(FAV===b.id?'\u2605 Favourite':'\u2606 Favourite')+'</button><button class="pill all" id="xsf" aria-label="Stop following">Unfollow</button>';
     h+='<button class="pill all" id="bAll">All '+vl3.length+'</button></div>';}
   }
