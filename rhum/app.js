@@ -81,6 +81,9 @@ function drawBl(b,x,y,w){var q=bl(b),sc=w/24;ctx.save();ctx.translate(x,y);ctx.s
 function blSvg(b,w){var q=bl(b),id='bc'+(++bid);return '<svg class="bl" width="'+w+'" height="'+Math.round(w*28/24)+'" viewBox="0 0 24 28" aria-hidden="true"><defs><clipPath id="'+id+'"><path d="'+SHIELD+'"/></clipPath></defs><path d="'+SHIELD+'" fill="'+q.f+'"/><g clip-path="url(#'+id+')"><path d="'+DIV[q.d]+'" fill="'+q.t+'"/></g><path d="'+SHIELD+'" fill="none" stroke="var(--ink)" stroke-width="1.2"/></svg>';}
 function pad(n){return (n<10?'0':'')+n;}
 function vis(b){return filter==='ALL'||b.cls===filter;}
+var FC='',RETV=false;
+function shown(b){return vis(b)&&(!b.ret||RETV||(sel&&sel.id===b.id));}
+function farB(b){return (!!FC&&b.cls!==FC)||(RETV&&!b.ret);}
 
 var SPD=[.5,1,2,4,8],spI=1,rp=null,FULLV=null,rafId=0,TL={t0:0,t1:0};
 function cutHist(H,T){var n=H.length,i=0;if(H[0].t>=T)return [H[0]];while(i<n&&H[i].t<=T)i++;var a=H.slice(0,i);if(i>=n)return a;
@@ -284,7 +287,7 @@ function seaBuild(T,cs){var cw=Math.ceil(W/cs)+1,ch=Math.ceil(H/cs)+1,G=[],i,j,k
     for(x=0;x<tw;x++){var gx=x/up,i0=Math.min(cw-1,Math.floor(gx)),fx=gx-i0,a=G[j0][i0],b=G[j0][i0+1],c=G[j0+1][i0],d=G[j0+1][i0+1];if(isNaN(a+b+c+d))continue;
       var q=(a*(1-fx)+b*fx)*(1-fy)+(c*(1-fx)+d*fx)*fy,l=seaLv(q);if(!l)continue;var cc=SBC[l],o=(y*tw+x)*4;dd[o]=cc[0];dd[o+1]=cc[1];dd[o+2]=cc[2];dd[o+3]=Math.round(255*(.13+.03*l));}}
   tx.putImageData(im,0,0);SEAC.segs=segs;SEAC.tint=tc;SEAC.ps=ps;
-  var stp=[1,2,4,8,16,32].filter(function(d){return d*v.k>=75;})[0]||32,lb=[],la0=Math.floor(myInv(v.my-H/2/v.k)/stp)*stp,lo0=Math.floor((v.lon-W/2/v.k)/stp)*stp,la1,lo1;
+  var stp=[1,2,4,8,16,32].filter(function(d){return d*v.k>=170;})[0]||32,lb=[],la0=Math.floor(myInv(v.my-H/2/v.k)/stp)*stp,lo0=Math.floor((v.lon-W/2/v.k)/stp)*stp,la1,lo1;
   for(la1=la0;la1<=myInv(v.my+H/2/v.k)+stp;la1+=stp)for(lo1=lo0;lo1<=v.lon+W/2/v.k+stp;lo1+=stp){var px=X(lo1),py=Y(la1);if(px<50||px>W-80||py<150||py>H-180)continue;var q=seaAt(la1,lo1,T);if(q&&q.lv)lb.push([px,py,q.lv]);}
   SEAC.labels=lb;}
 function drawSea(){if(!SEA||!WAVE)return;var T=Math.floor(wtime()/18e5)*18e5,cs=12,key=T+'|'+W+'|'+H+'|'+v.lon.toFixed(3)+'|'+v.my.toFixed(4)+'|'+v.k.toFixed(2)+'|'+WAVE.t0+'|'+WAVE.n;
@@ -370,7 +373,7 @@ var mmEl=document.getElementById('mm');
 function wxHintHide(){var e=document.getElementById('wxHint');if(e&&!e.hidden){e.hidden=true;}lsSet('rdr_wxh','1');}
 function wxHintShow(){if(lsGet('rdr_wxh')==='1')return;setTimeout(function(){if(lsGet('rdr_wxh')==='1'||PC||sel||listOpen)return;var e=document.getElementById('wxHint');e.querySelector('span').textContent=L2('Tap anywhere on the sea to see the weather there','Touchez la mer pour voir la m\u00e9t\u00e9o \u00e0 cet endroit');e.style.top=Math.round((170+Math.max(240,H-dockH()-60))/2)+'px';e.hidden=false;setTimeout(wxHintHide,9000);},2500);}
 document.getElementById('bWx').onclick=function(){wxHintHide();var top=170,bot=dockH()+12,py=top+Math.max(80,H-top-bot)/2,px=W/2;openPC(myInv(v.my-(py-H/2)/v.k),v.lon+(px-W/2)/v.k);draw();};
-function openSearch(){if(sel)selCompact=true;cmpMode=false;listOpen=true;SQ='';renderDock();var q=document.getElementById('sq');if(q)q.focus();}
+function openSearch(){FC='';RETV=false;if(sel)selCompact=true;cmpMode=false;listOpen=true;SQ='';renderDock();var q=document.getElementById('sq');if(q)q.focus();}
 document.getElementById('bSearch').onclick=openSearch;
 document.getElementById('bShare').onclick=function(){mmEl.hidden=false;};
 document.getElementById('mmClose').onclick=function(){mmEl.hidden=true;};
@@ -777,11 +780,11 @@ function draw00(){if((WIND&&windOn)||SEA||SWL)setLeg();
   /* trails */
   var hasSel=!!sel;
   if(trails){boats.forEach(function(b){
-    if(!vis(b)||b.trail.length<2)return;var on=hasSel&&sel.id===b.id,c=colB(b),n=b.trail.length,ch=Math.max(2,Math.ceil(n/10)),base=hasSel&&!on?.3:1;
+    if(!vis(b)||b.trail.length<2)return;var on=hasSel&&sel.id===b.id,c=colB(b),n=b.trail.length,ch=Math.max(2,Math.ceil(n/10)),base=on?1:(hasSel?.15:(b.ret&&!RETV?.1:farB(b)?.1:(b.crank===1?1:.3)));
     ctx.lineCap='round';
     for(var s=0;s<n-1;s+=ch){
       var e=Math.min(n-1,s+ch),f=e/(n-1);
-      ctx.strokeStyle=hexA(c,Math.pow(f,1.6)*(on?.95:.7)*base);ctx.lineWidth=(on?1.6:1)+f*(on?2:1.2);
+      ctx.strokeStyle=hexA(c,Math.pow(f,1.6)*(on?.95:.7)*base);ctx.lineWidth=on||(!hasSel&&b.crank===1&&!farB(b))?(on?1.6:1)+f*(on?2:1.2):.8+f*.6;
       ctx.beginPath();for(var j=s;j<=e;j++){var p=b.trail[j],px=X(p.lon),py=Y(p.lat);j===s?ctx.moveTo(px,py):ctx.lineTo(px,py);}ctx.stroke();
     }
   });}
@@ -792,20 +795,21 @@ function draw00(){if((WIND&&windOn)||SEA||SWL)setLeg();
   var sb0=hasSel?boats.filter(function(q){return q.id===sel.id;})[0]:null,sbx=sb0?X(sb0.lon):-999,sby=sb0?Y(sb0.lat):-999,LB=[];
   vl.forEach(function(b,i){
     var x=X(b.lon),y=Y(b.lat);if(x<-60||y<-60||x>W+60||y>H+60)return;
-    var on=hasSel&&sel.id===b.id,c=colB(b),a=(b.cog==null?0:b.cog)*D2R,dx=Math.sin(a),dy=-Math.cos(a),dim=!on&&b.id!==CMP&&(hasSel||b.out);
-    if(b.ret){/* retired / stopped: dark marker with a cross at the last known position */
+    var on=hasSel&&sel.id===b.id,c=colB(b),a=(b.cog==null?0:b.cog)*D2R,dx=Math.sin(a),dy=-Math.cos(a),dim=!on&&b.id!==CMP&&(hasSel||b.out||farB(b));
+    if(b.ret){if(!on&&!RETV)return;/* retired / stopped: dark marker with a cross at the last known position */
       var rr=on?8:6;ctx.globalAlpha=dim&&!on?.75:1;ctx.fillStyle='#161d2b';ctx.strokeStyle=on?css['--sel']:'#8d99ad';ctx.lineWidth=on?2:1.5;
       ctx.beginPath();ctx.arc(x,y,rr,0,6.3);ctx.fill();ctx.stroke();
       ctx.strokeStyle='#c9d2e0';ctx.lineWidth=1.6;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(x-rr*.45,y-rr*.45);ctx.lineTo(x+rr*.45,y+rr*.45);ctx.moveTo(x+rr*.45,y-rr*.45);ctx.lineTo(x-rr*.45,y+rr*.45);ctx.stroke();
       if(on||v.k>=9){ctx.globalAlpha=on?1:.8;blabel(b,b.name,x+rr+4,y+4,on?13:11,'#c9d2e0');}
       ctx.globalAlpha=1;return;}
+    if(!on&&v.k<10&&b.crank!==1&&b.id!==CMP){var dc=colB(b);ctx.globalAlpha=(hasSel||farB(b))?.3:.9;ctx.fillStyle=dc;ctx.strokeStyle='rgba(255,255,255,.85)';ctx.lineWidth=.8;ctx.beginPath();ctx.arc(x,y,3.2,0,6.3);ctx.fill();ctx.stroke();ctx.globalAlpha=1;return;}
     if(!on&&v.k<10){
       var bw0=hasSel?9:11,wl0=8+Math.min(1,(b.sog||0)/30)*14,cc=colB(b);ctx.globalAlpha=dim?.45:1;
       var g0=ctx.createLinearGradient(x,y,x-dx*wl0,y-dy*wl0);g0.addColorStop(0,hexA(cc,.9));g0.addColorStop(1,hexA(cc,0));
       ctx.strokeStyle=g0;ctx.lineWidth=3;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x-dx*wl0,y-dy*wl0);ctx.stroke();
       drawBl(b,x-bw0/2,y-bw0*28/48,bw0);
       var tx=x+dx*(bw0*.75+3),ty=y+dy*(bw0*.75+3);ctx.fillStyle=css['--lab'];ctx.beginPath();ctx.moveTo(tx+dx*4,ty+dy*4);ctx.lineTo(tx-dx*2+dy*3.2,ty-dy*2-dx*3.2);ctx.lineTo(tx-dx*2-dy*3.2,ty-dy*2+dx*3.2);ctx.closePath();ctx.fill();
-      ctx.globalAlpha=1;if(!hasSel&&i<3)blabel(b,b.name,x+bw0*.7+4,y-bw0*.5,12,css['--lab']);return;
+      ctx.globalAlpha=1;if(!hasSel&&!farB(b))blabel(b,b.name,x+bw0*.7+4,y-bw0*.5,12,css['--lab']);return;
     }
     var bt=BOATP[b.cls]||BOATP.IMO,len=bt.len*zf*.46*(on?1.25:1),sc=len/100,sp=Math.min(1,(b.sog||0)/30);
     ctx.globalAlpha=dim?.4:1;
@@ -852,7 +856,7 @@ var PODS=[],LT={t:0,x:0,y:0,h:0};
 /* double tap = zoom in on that spot; a single tap on empty sea waits a moment before it deselects the boat */
 function hitAt(px,py){var i;for(i=0;i<PODS.length;i++){var P=PODS[i];if(px>=P.x&&px<=P.x+P.w&&py>=P.y&&py<=P.y+P.h)return true;}
   for(i=0;i<LBLS.length;i++){var Lb=LBLS[i];if(px>=Lb.x&&px<=Lb.x+Lb.w&&py>=Lb.y&&py<=Lb.y+Lb.h)return true;}
-  for(i=0;i<boats.length;i++){var b=boats[i];if(vis(b)&&Math.hypot(X(b.lon)-px,Y(b.lat)-py)<30)return true;}return false;}
+  for(i=0;i<boats.length;i++){var b=boats[i];if(shown(b)&&Math.hypot(X(b.lon)-px,Y(b.lat)-py)<30)return true;}return false;}
 function dblZoom(px,py){var n=9,f=Math.pow(2.2,1/n),i=0;cancelAnimationFrame(camAnim);
   (function step(){zoomAt(px,py,f);draw();if(++i<n)camAnim=requestAnimationFrame(step);})();}
 function tapAt(px,py){var now=Date.now();
@@ -914,10 +918,10 @@ function drawPin(){if(!PC)return;
   if(PC.d){var A=PC.d.a,M=PC.d.m,k=(A?pcIdx(A):0)+'|'+(M?pcIdx(M):0);if(k!==PC.idx)pcRender();}}
 document.addEventListener('click',function(e){var t=e.target;if(t.id==='pcx'){closePC();return;}var pt=t.closest&&t.closest('#pcT');if(pt&&PC){PC.open=!PC.open;PC.idx=-9;pcRender();return;}var tgb=t.closest&&t.closest('.tg');if(tgb){var tt=+tgb.dataset.t;if(tt>0){seekTo(tt);toast(L2('Showing ','Affichage de ')+dayLabel(tt).replace(/ \u00b7 .*$/,'')+' \u00b7 '+new Date(tt).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}).replace(',','')+L2('. Tap \u201cBack to live\u201d to return.','. Touchez \u00ab Retour au direct \u00bb pour revenir.'),4200);}return;}if(t.id==='condB'){var b=sel&&boats.filter(function(q){return q.id===sel.id;})[0];if(b)openPC(b.lat,b.lon,b.name,b.id);}});
 function pick(px,py){for(var pi=0;pi<PODS.length;pi++){var P=PODS[pi];if(px>=P.x&&px<=P.x+P.w&&py>=P.y&&py<=P.y+P.h){if(P.id==='__more'){hlOpen();return;}var pb=boats.filter(function(q){return q.id===P.id;})[0];if(pb){select(pb,false);return;}}}
-  for(var li=LBLS.length-1;li>=0;li--){var Lb=LBLS[li];if(px>=Lb.x&&px<=Lb.x+Lb.w&&py>=Lb.y&&py<=Lb.y+Lb.h){var lb=boats.filter(function(q){return q.id===Lb.id;})[0];if(lb&&vis(lb)){closePC();select(lb,false);return;}}}
-  var best=null,bd=30;boats.forEach(function(b){if(!vis(b))return;var d=Math.hypot(X(b.lon)-px,Y(b.lat)-py);if(d<bd){bd=d;best=b;}});if(best){closePC();select(best,false);}else{if(sel)select(null);openPC(myInv(v.my-(py-H/2)/v.k),v.lon+(px-W/2)/v.k);}}
+  for(var li=LBLS.length-1;li>=0;li--){var Lb=LBLS[li];if(px>=Lb.x&&px<=Lb.x+Lb.w&&py>=Lb.y&&py<=Lb.y+Lb.h){var lb=boats.filter(function(q){return q.id===Lb.id;})[0];if(lb&&shown(lb)){closePC();select(lb,false);return;}}}
+  var best=null,bd=30;boats.forEach(function(b){if(!shown(b))return;var d=Math.hypot(X(b.lon)-px,Y(b.lat)-py);if(d<bd){bd=d;best=b;}});if(best){closePC();select(best,false);}else{if(sel)select(null);openPC(myInv(v.my-(py-H/2)/v.k),v.lon+(px-W/2)/v.k);}}
 function select(b,center){if(PC&&(!b||PC.boatId!==b.id))closePC();if(!b)CMP='';else if(b.id===CMP)CMP='';cmpMode=false;var a0={lon:v.lon,my:v.my,k:v.k};select0(b,center);if(!rp){if(b&&center!==false){var k2=v.k;v.lon=a0.lon;v.my=a0.my;v.k=a0.k;draw();centerOn(b,k2);}return;}if(b){rp.selMode=true;rp.kSel=v.k;rp.cam={lon:v.lon,my:v.my,k:v.k};if(!rp.playing){compute();followCam(true);draw();}}else rp.selMode=false;}
-function select0(b,center){sel=b?{id:b.id}:null;if(b&&!WIND)loadWind();listOpen=false;selCompact=false;if(b&&center!==false){v.k=Math.max(v.k,11);v.lon=b.lon;v.my=my(b.lat)-110/v.k;}renderDock();draw();}
+function select0(b,center){FC='';RETV=false;sel=b?{id:b.id}:null;if(b&&!WIND)loadWind();listOpen=false;selCompact=false;if(b&&center!==false){v.k=Math.max(v.k,11);v.lon=b.lon;v.my=my(b.lat)-110/v.k;}renderDock();draw();}
 function fit(){
   var l=boats.filter(vis);if(!l.length)return;
   var a=[FIN.lat,48.7,FIN.lon,-2];l.forEach(function(b){a[0]=Math.min(a[0],b.lat);a[1]=Math.max(a[1],b.lat);a[2]=Math.min(a[2],b.lon);a[3]=Math.max(a[3],b.lon);});
@@ -926,6 +930,9 @@ function fit(){
   v.k=Math.max(3,Math.min(60,Math.min(kx,ky)));v.lon=(a[2]+a[3])/2;v.my=mc-(bot-top)/2/v.k;FULLV={lon:v.lon,my:v.my,k:v.k};draw();
 }
 
+function fitList(l){if(!l.length)return;var a=[90,-90,180,-180];l.forEach(function(b){a[0]=Math.min(a[0],b.lat);a[1]=Math.max(a[1],b.lat);a[2]=Math.min(a[2],b.lon);a[3]=Math.max(a[3],b.lon);});
+  var top=150,bot=dockH()+16,hv=Math.max(100,H-top-bot),mc=(my(a[0])+my(a[1]))/2,kx=(W-60)/(a[3]-a[2]||.5),ky=hv/(my(a[1])-my(a[0])||.05),k=Math.max(3,Math.min(24,Math.min(kx,ky)));
+  flyTo((a[2]+a[3])/2,mc-(bot-top)/2/k,k,700);}
 /* dock */
 function km(n){return n==null||isNaN(n)?null:n*1.852;}
 function f1(n){return n==null||isNaN(n)?'--':n.toFixed(1);}
@@ -936,15 +943,15 @@ function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp
 function clsName(k){var c=CLASSES.filter(function(x){return x.k===k})[0];return c?c.n:'Other';}
 var bodyEl=document.getElementById('body'),dock=document.getElementById('dock');
 function gapOf(b,lead,i){if(b.fin)return 'Finished '+durStr(durOf(b));if(b.out)return b.st==='RET'?'Retired':'Stopped';return i===0?'Leader':'+'+f0(b.dtf-lead.dtf)+' nm \u00b7 '+f0(km(b.dtf-lead.dtf))+' km';}
-var TRF=false;function listTitle(n){return cmpMode?'Compare with\u2026':(filter!=='ALL'?clsName(filter)+' \u00b7 '+L2('ranking','classement')+' \u00b7 '+n:'All racers \u00b7 '+n);}
+var TRF=false;function listTitle(n){return cmpMode?'Compare with\u2026':(RETV?L2('Retired','Abandons')+' \u00b7 '+n:FC?clsName(FC)+' \u00b7 '+L2('ranking','classement')+' \u00b7 '+n:filter!=='ALL'?clsName(filter)+' \u00b7 '+L2('ranking','classement')+' \u00b7 '+n:'All racers \u00b7 '+n);}
 function pctOf(b){if(b.fin)return 100;var tot=b.dtfO>0?3542:hav(SM.lat,SM.lon,FIN.lat,FIN.lon);return Math.max(0,Math.min(100,Math.round((1-b.dtf/tot)*100)));}
 function progCell(x){if(x.fin)return '<span class="s fin">'+L2('Finished','Arriv\u00e9')+'<em>'+durStr(durOf(x))+'</em></span>';
   if(x.out)return '<span class="s">'+(x.st==='RET'?L2('Retired','Abandon'):L2('Stopped','Arr\u00eat\u00e9'))+'</span>';
   var p=pctOf(x);return '<span class="s">'+p+'%<i class="bar"><b style="width:'+p+'%"></b></i></span>';}
 var SQ='',DET=lsGet('rdr_det')==='1';
 function nrm(x){return String(x||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();}
-function listRows(){var q=nrm(SQ).split(/\s+/).filter(Boolean),vl=boats.filter(vis),src=q.length?boats.filter(function(x){var t=nrm(x.name+' '+(x.boat||''));return q.every(function(w){return t.indexOf(w)>=0;});}):vl,h='';
-  src.forEach(function(x){var i=vl.indexOf(x),inl=i>=0;h+='<button class="row" data-id="'+esc(x.id)+'" style="--c:'+colB(x)+'"><span class="p">'+(x.sim?'\u00b7':pad(inl?i+1:x.rank||0))+'</span>'+blSvg(x,22)+'<span class="n">'+esc(x.name)+'<small>'+esc((x.boat?x.boat+' \u00b7 ':'')+clsName(x.cls))+'</small></span>'+progCell(x)+'<span class="ch">\u203a</span></button>';});
+function listRows(){var q=nrm(SQ).split(/\s+/).filter(Boolean),vl=RETV?boats.filter(function(x){return x.ret||x.out;}):FC?boats.filter(function(x){return x.cls===FC;}):boats.filter(vis),src=q.length?boats.filter(function(x){var t=nrm(x.name+' '+(x.boat||''));return q.every(function(w){return t.indexOf(w)>=0;});}):vl,h='';
+  src.forEach(function(x){var i=vl.indexOf(x),inl=i>=0;h+='<button class="row" data-id="'+esc(x.id)+'" style="--c:'+colB(x)+'"><span class="p">'+(x.sim?'\u00b7':pad(inl&&!RETV?i+1:x.rank||0))+'</span>'+blSvg(x,22)+'<span class="n">'+esc(x.name)+'<small>'+esc((x.boat?x.boat+' \u00b7 ':'')+clsName(x.cls))+'</small></span>'+progCell(x)+'<span class="ch">\u203a</span></button>';});
   if(!src.length)h='<div class="nd" style="padding:14px 4px;color:var(--mute)">'+L2('No sailor found','Aucun skipper trouv\u00e9')+'</div>';
   return {h:h,n:src.length};}
 function renderDock(){
@@ -961,13 +968,15 @@ function renderDock(){
     '<div class="stats">'+stat(L2('Heading','Cap'),dg(b.cog),'°')+stat(L2('To go','Reste'),f0(b.dtf),'nm')+stat(L2('Closing speed','Vit. d’approche'),f1(b.vmg),'kn')+'</div></div>':'')+'</div>';
   }else if(listOpen){
     var lr=listRows();
-    h='<div class="pad dhd"><h2 id="lh">'+listTitle(lr.n)+'</h2><button class="link" id="bAll">Close</button></div><div class="pad"><input id="sq" class="sq" type="search" enterkeyhint="search" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="'+L2('Search a sailor or boat\u2026','Chercher un skipper ou un bateau\u2026')+'" value="'+esc(SQ)+'" aria-label="'+L2('Search a sailor','Chercher un skipper')+'"></div><div class="pad list" style="max-height:52vh">'+lr.h;
+    h='<div class="pad dhd"><h2 id="lh">'+listTitle(lr.n)+'</h2><button class="link" id="bAll">Close</button></div><div class="pad"><input id="sq" class="sq" type="search" enterkeyhint="search" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="'+L2('Search a sailor or boat\u2026','Chercher un skipper ou un bateau\u2026')+'" value="'+esc(SQ)+'" aria-label="'+L2('Search a sailor','Chercher un skipper')+'"></div><div class="pad list" style="max-height:'+((FC||RETV)?'30':'52')+'vh">'+lr.h;
     h+='</div>';
   }else{
     var vl3=boats.filter(vis),vlS=vl3.slice(0,12);
     if(!b){var TS='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4h8v5a4 4 0 0 1-8 0V4zM8 6H5v1a3 3 0 0 0 3 3M16 6h3v1a3 3 0 0 1-3 3M12 13v4M8 20h8"/></svg>';
       h='<div class="pad home"><button class="sqb" id="sqB"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="5.5"/><path d="M15 15l5 5"/></svg>'+L2('Search a sailor or boat…','Chercher un skipper ou un bateau…')+'</button><div class="tros"><button class="tro" data-k="ALL">'+TS+L2('Overall','Général')+'</button>';
       CLASSES.forEach(function(c){if(boats.some(function(x){return x.cls===c.k;}))h+='<button class="tro" data-k="'+c.k+'" style="--c:var('+c.v+')">'+TS+esc(c.s)+'</button>';});
+      var rn=boats.filter(function(x){return x.ret||x.out;}).length;
+      if(rn)h+='<button class="tro" data-k="RET"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21V4M5 5h11l-2 4 2 4H5"/></svg>'+L2('Retired','Abandons')+' \u00b7 '+rn+'</button>';
       h+='</div></div>';}else{
     h='<div class="pad strip"><span class="sh">'+(b?'Following':'Race order')+'</span>';
     vlS.forEach(function(x,i){h+='<button class="pill'+(b&&x.id===b.id?' on':'')+(x.out?' out':'')+'" data-id="'+esc(x.id)+'" style="--c:'+colB(x)+'"><span class="p">'+(x.sim?'\u00b7':pad(i+1))+'</span>'+blSvg(x,20)+'<span class="nm">'+(x.id===FAV?'\u2605 ':'')+esc(x.name)+'</span><span class="sp">'+(x.fin?'finished':x.out?(x.st==='RET'?'retired':'stopped'):pctOf(x)+'%')+'</span></button>';});
@@ -1052,8 +1061,8 @@ bodyEl.addEventListener('click',function(e){
   if(t.id==='fav'||t.id==='favf'){toggleFav();return;}
   if(t.id==='detB'){DET=!DET;lsSet('rdr_det',DET?'1':'0');renderDock();return;}
   if(t.id==='sqB'){openSearch();return;}
-  if(t.classList.contains('tro')){filter=t.dataset.k;TRF=filter!=='ALL';listOpen=true;cmpMode=false;SQ='';buildFilters();renderDock();draw();return;}
-  if(t.id==='bAll'){listOpen=!listOpen;cmpMode=false;SQ='';if(!listOpen&&TRF){TRF=false;filter='ALL';buildFilters();draw();}renderDock();return;}
+  if(t.classList.contains('tro')){var tk=t.dataset.k;RETV=tk==='RET';FC=(tk==='ALL'||RETV)?'':tk;listOpen=true;cmpMode=false;SQ='';renderDock();draw();if(RETV||FC)setTimeout(function(){fitList(boats.filter(function(x){return RETV?(x.ret||x.out):x.cls===FC;}));},80);else fit();return;}
+  if(t.id==='bAll'){listOpen=!listOpen;cmpMode=false;SQ='';if(!listOpen){var hadF=FC||RETV;FC='';RETV=false;if(hadF)fit();else draw();}renderDock();return;}
   if(t.id==='cmp'){if(CMP){CMP='';renderDock();draw();}else{cmpMode=true;listOpen=true;renderDock();}return;}
   if(t.id==='cmpx'){CMP='';renderDock();draw();return;}
   if(t.id==='more'){MORE=!MORE;lsSet('rdr_more',MORE?'1':'0');renderDock();return;}
