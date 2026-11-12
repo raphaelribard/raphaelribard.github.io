@@ -218,7 +218,7 @@ function loadWind(force){
 var DOCKH=0;function toolsFit(){updateRpBtn();var d=document.getElementById('dock'),t=document.querySelector('.tools'),a=document.getElementById('app');if(!d||!t||!a)return;a.classList.toggle('tlh',d.getBoundingClientRect().top<t.getBoundingClientRect().bottom+6);}
 function dockH(){return document.getElementById('dock').offsetHeight||DOCKH;}
 if(window.ResizeObserver)new ResizeObserver(function(){DOCKH=document.getElementById('dock').offsetHeight;toolsFit();setLeg();}).observe(document.getElementById('dock'));
-function setLeg(){var l=document.getElementById('wLeg'),m=document.getElementById('sLeg'),bt=(dockH()+8)+'px';l.hidden=!(windOn&&WIND);m.hidden=!((SEA||SWL)&&WAVE);l.style.bottom=bt;m.style.bottom=bt;}
+function setLeg(){var wc=document.getElementById('wLc'),sc=document.getElementById('sLc');if(wc)wc.textContent=L2('Wind','Vent')+' \u25b8';if(sc)sc.textContent=(SWL?L2('Swell','Houle'):L2('Sea state','\u00c9tat de la mer'))+' \u25b8';var l=document.getElementById('wLeg'),m=document.getElementById('sLeg'),bt=(dockH()+8)+'px';l.hidden=!(windOn&&WIND);m.hidden=!((SEA||SWL)&&WAVE);l.style.bottom=bt;m.style.bottom=bt;}
 function setWindBtn(){setLeg();var b=document.getElementById('bWind');b.setAttribute('aria-pressed',windOn||SEA||SWL);b.style.opacity=(WBAD&&!WIND)?.45:1;b.setAttribute('aria-label',(WBAD&&!WIND)?'Wind data unavailable':'Toggle wind');}
 function windAt(lat,lon,T){
   if(!WIND||WIND.n<3)return null;
@@ -712,7 +712,7 @@ function T(el){if(!el)return;var w=document.createTreeWalker(el,NodeFilter.SHOW_
 var TRO=['body','clkL','mode','tD','toast','fresh','tSpd','msg','hlB','hlS','filters','mm','tl'];
 function trWatch(){var mo=new MutationObserver(function(recs){if(LANG!=='fr'&&!trWatch.on)return;var seen=[];recs.forEach(function(r){var t=r.target.nodeType===3?r.target.parentNode:r.target;if(t&&seen.indexOf(t)<0){seen.push(t);}});seen.forEach(T);});
   TRO.forEach(function(id){var e=document.getElementById(id);if(e)mo.observe(e,{childList:true,subtree:true,characterData:true});});}
-function setLang(l){LANG=l;setTips();lsSet('rdr_lang',l);document.documentElement.lang=l;trWatch.on=true;
+function setLang(l){LANG=l;setTips();setLeg();lsSet('rdr_lang',l);document.documentElement.lang=l;trWatch.on=true;
   document.getElementById('mLangT').textContent=l==='fr'?'Langue : Français':'Language: English';
   T(document.getElementById('app'));renderDock();updateTL();updateFresh();if(!document.getElementById('hl').hidden)hlOpen();}
 function setLite(on){LITE=on;lsSet('rdr_lite',on?'1':'0');var e=document.getElementById('mLiteT');e.firstChild.textContent=on?'Lite mode: on':'Lite mode: off';if(window.T)T(e);PT.length=0;draw();}
@@ -939,7 +939,8 @@ function renderDock(){
   var b=sel&&boats.filter(function(x){return x.id===sel.id;})[0],h='';
   if(b&&!selCompact&&!cmpMode){
     var c=colB(b),vl=boats.filter(vis),pc=Math.max(0,Math.min(100,Math.round((1-b.dtf/(b.dtfO>0?3542:hav(SM.lat,SM.lon,FIN.lat,FIN.lon)))*100))),pc=b.fin?100:pc,eta=(function(){var Tn=rp?rp.t:TL.t1,w=etaWind(b,Tn);if(w)return w;var o=etaOf(b,Tn);return o?'~'+o:null;})();
-    h='<div class="pad"><div class="dtl-h" style="--c:'+c+'">'+blSvg(b,32)+'<h3>'+esc(b.name)+'</h3><button class="x" id="cmp" aria-label="Compare">\u21c4</button><button class="x star" id="fav" aria-label="Favourite">'+(FAV===b.id?'\u2605':'\u2606')+'</button><button class="x" id="xs" aria-label="Close">×</button></div>'+
+    h='<div class="pad"><div class="dtl-h" style="--c:'+c+'">'+blSvg(b,32)+'<h3>'+esc(b.name)+'</h3><button class="x" id="xs" aria-label="Stop following">×</button></div>'+
+    '<div class="acts"><span class="fl">\u25cf '+L2('Following','Suivi')+'</span><button class="pl" id="cmp">\u21c4 '+L2('Compare','Comparer')+'</button><button class="pl" id="fav">'+(FAV===b.id?'\u2605 ':'\u2606 ')+L2('Favourite','Favori')+'</button></div>'+
     '<p class="sub">'+(b.fin?'<b style="color:var(--hot)">Finished in '+durStr(durOf(b))+'</b> \u00b7 '+L2('start ','d\u00e9part ')+fmtEta(startOf(b))+' \u00b7 ':'')+(b.out?'<b style="color:var(--hot)">'+(b.st==='RET'?'Retired':'Stopped')+'</b> \u00b7 ':'')+(b.boat?esc(b.boat)+' · ':'')+(b.sim?L2('Simulation','Simulation')+' \u00b7 '+esc(clsName(b.cls)):'P'+b.rank+' overall · P'+b.crank+' '+esc(clsName(b.cls)))+(b.d24!=null?' · '+f0(b.d24)+' nm / '+f0(km(b.d24))+' km in 24 h':'')+'</p>'+
     '<div class="pr'+(b.fin?' fin':'')+'" style="--c:'+c+'"><i><b style="width:'+pc+'%"></b></i>'+pc+'% done'+(b.fin?'':' \u00b7 '+f0(b.dtf)+' nm '+L2('to go','restants'))+(b.fin?'<em>Finished '+fmtEta(b.fin)+'</em>':eta?'<em>ETA '+eta+'</em>':'')+'</div>'+cmpRow(b)+'<div class="hero" style="--c:'+c+'"><div class="speed"><b>'+f1(b.sog)+'</b><span>KN</span><span class="kh">'+f1(km(b.sog))+' km/h</span></div>'+dial(b,c)+'</div>'+condRows(b)+'<button class="mt det" id="detB" aria-expanded="'+DET+'">'+(DET?L2('Fewer details','Moins de d\u00e9tails')+' \u25b4':L2('More details','Plus de d\u00e9tails')+' \u25be')+'</button>'+(DET?windRow(b)+toughRow(b)+
     '<div class="stats">'+stat(L2('Heading','Cap'),dg(b.cog),'°')+stat(L2('Finish is at','Arriv\u00e9e \u00e0'),dg(b.brgF),'°')+stat(L2('To go','Reste'),f0(b.dtf),'nm',f0(km(b.dtf))+' km')+stat(L2('Speed to finish','Vitesse vers l\u2019arriv\u00e9e'),f1(b.vmg),'kn',f1(km(b.vmg))+' km/h')+'</div>':'')+'</div>';
@@ -1045,11 +1046,12 @@ function buildFilters(){
   fEl.innerHTML=all.map(function(c){return '<button class="chip glass" data-k="'+c.k+'" aria-pressed="'+(filter===c.k)+'" style="'+(c.v?'--c:var('+c.v+')':'')+'">'+(c.v?'<i></i>':'')+c.s+'</button>';}).join('');
 }
 fEl.addEventListener('click',function(e){var b=e.target.closest('.chip');if(!b)return;filter=b.dataset.k;if(sel){var s=boats.filter(function(x){return x.id===sel.id;})[0];if(s&&!vis(s))sel=null;}buildFilters();renderDock();draw();});
+['wLc','sLc'].forEach(function(i){document.getElementById(i).onclick=function(){document.getElementById('bWind').click();};});
 document.getElementById('bWind').onclick=function(){
   var st=windOn?1:SEA?2:SWL?3:0,nx=[1,2,3,0][st===0?3:st-1]; nx=st===0?1:st===1?2:st===2?3:0;
   if(WBAD&&!WIND&&nx===1){toast(L2('Wind service unavailable ('+(WERR||'?')+'). Trying again\u2026','Service vent indisponible ('+(WERR||'?')+'). Nouvel essai\u2026'));loadWind(true);return;}
   function go(n){windOn=n===1;SEA=n===2;SWL=n===3;lsSet('rdr_wind',windOn?'1':'0');lsSet('rdr_sea',SEA?'1':'0');lsSet('rdr_swell',SWL?'1':'0');SWP.length=0;setWindBtn();if(windOn&&!WIND)loadWind();wStart();draw();
-    toast([L2('Layers off','Calques masqu\u00e9s'),L2('Wind','Vent'),L2('Sea state','\u00c9tat de la mer'),L2('Swell','Houle')][n],1600);}
+    toast([L2('Layers off','Calques masqu\u00e9s'),L2('Wind \u00b7 tap again for sea state','Vent \u00b7 touchez pour l\u2019\u00e9tat de la mer'),L2('Sea state \u00b7 tap again for swell','\u00c9tat de la mer \u00b7 touchez pour la houle'),L2('Swell \u00b7 tap again to turn off','Houle \u00b7 touchez pour masquer')][n],2200);}
   if(nx>=2&&!WAVE){var pw=loadWave(true);if(pw)pw.then(function(){if(WAVE)go(nx);else{toast(L2('Sea data not available yet. Update the GitHub job and run it once.','Donn\u00e9es de mer indisponibles. Mettez \u00e0 jour le job GitHub et lancez-le une fois.'),4500);go(0);}});return;}
   go(nx);};
 document.getElementById('mTrail').onclick=function(){trails=!trails;document.getElementById('mTrailT').firstChild.textContent=trails?'Trails: on':'Trails: off';if(window.T)T(document.getElementById('mTrailT'));draw();};
