@@ -966,9 +966,10 @@ function renderDock(){
     h+='</div>';
   }else{
     var vl3=boats.filter(vis),vlS=vl3.slice(0,12);
-    if(!b){h='<div class="pad home"><button class="sqb" id="sqB">\ud83d\udd0d '+L2('Search a sailor or boat\u2026','Chercher un skipper ou un bateau\u2026')+'</button><div class="tros"><button class="tro" data-k="ALL">\ud83c\udfc6 '+L2('Overall','G\u00e9n\u00e9ral')+'</button>';
-      CLASSES.forEach(function(c){if(boats.some(function(x){return x.cls===c.k;}))h+='<button class="tro" data-k="'+c.k+'" style="--c:var('+c.v+')">\ud83c\udfc6 '+esc(c.s)+'</button>';});
-      h+='</div><small class="tip">'+L2('Tip: tap anywhere on the sea to see the weather there','Astuce : touchez la mer pour voir la m\u00e9t\u00e9o \u00e0 cet endroit')+'</small></div>';}else{
+    if(!b){var TS='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4h8v5a4 4 0 0 1-8 0V4zM8 6H5v1a3 3 0 0 0 3 3M16 6h3v1a3 3 0 0 1-3 3M12 13v4M8 20h8"/></svg>';
+      h='<div class="pad home"><button class="sqb" id="sqB"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="5.5"/><path d="M15 15l5 5"/></svg>'+L2('Search a sailor or boat…','Chercher un skipper ou un bateau…')+'</button><div class="tros"><button class="tro" data-k="ALL">'+TS+L2('Overall','Général')+'</button>';
+      CLASSES.forEach(function(c){if(boats.some(function(x){return x.cls===c.k;}))h+='<button class="tro" data-k="'+c.k+'" style="--c:var('+c.v+')">'+TS+esc(c.s)+'</button>';});
+      h+='</div></div>';}else{
     h='<div class="pad strip"><span class="sh">'+(b?'Following':'Race order')+'</span>';
     vlS.forEach(function(x,i){h+='<button class="pill'+(b&&x.id===b.id?' on':'')+(x.out?' out':'')+'" data-id="'+esc(x.id)+'" style="--c:'+colB(x)+'"><span class="p">'+(x.sim?'\u00b7':pad(i+1))+'</span>'+blSvg(x,20)+'<span class="nm">'+(x.id===FAV?'\u2605 ':'')+esc(x.name)+'</span><span class="sp">'+(x.fin?'finished':x.out?(x.st==='RET'?'retired':'stopped'):pctOf(x)+'%')+'</span></button>';});
     if(b)h+='<button class="pill all" id="favf">'+(FAV===b.id?'\u2605 Favourite':'\u2606 Favourite')+'</button><button class="pill all" id="xsf" aria-label="Stop following">Unfollow</button>';
