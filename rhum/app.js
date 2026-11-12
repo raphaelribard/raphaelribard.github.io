@@ -367,7 +367,8 @@ function shareLink(){
   if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(u).then(function(){toast('Link copied');},function(){toast(u);});}else toast(u);
 }
 var mmEl=document.getElementById('mm');
-document.getElementById('bSearch').onclick=function(){if(sel)selCompact=true;cmpMode=false;listOpen=true;SQ='';renderDock();var q=document.getElementById('sq');if(q)q.focus();};
+function openSearch(){if(sel)selCompact=true;cmpMode=false;listOpen=true;SQ='';renderDock();var q=document.getElementById('sq');if(q)q.focus();}
+document.getElementById('bSearch').onclick=openSearch;
 document.getElementById('bShare').onclick=function(){mmEl.hidden=false;};
 document.getElementById('mmClose').onclick=function(){mmEl.hidden=true;};
 mmEl.addEventListener('click',function(e){if(e.target===mmEl)mmEl.hidden=true;});
@@ -932,6 +933,7 @@ function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp
 function clsName(k){var c=CLASSES.filter(function(x){return x.k===k})[0];return c?c.n:'Other';}
 var bodyEl=document.getElementById('body'),dock=document.getElementById('dock');
 function gapOf(b,lead,i){if(b.fin)return 'Finished '+durStr(durOf(b));if(b.out)return b.st==='RET'?'Retired':'Stopped';return i===0?'Leader':'+'+f0(b.dtf-lead.dtf)+' nm \u00b7 '+f0(km(b.dtf-lead.dtf))+' km';}
+var TRF=false;function listTitle(n){return cmpMode?'Compare with\u2026':(filter!=='ALL'?clsName(filter)+' \u00b7 '+L2('ranking','classement')+' \u00b7 '+n:'All racers \u00b7 '+n);}
 var SQ='',DET=lsGet('rdr_det')==='1';
 function nrm(x){return String(x||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();}
 function listRows(){var q=nrm(SQ).split(/\s+/).filter(Boolean),vl=boats.filter(vis),src=q.length?boats.filter(function(x){var t=nrm(x.name+' '+(x.boat||''));return q.every(function(w){return t.indexOf(w)>=0;});}):vl,h='';
@@ -951,14 +953,17 @@ function renderDock(){
     '<div class="stats">'+stat(L2('Heading','Cap'),dg(b.cog),'°')+stat(L2('Finish is at','Arriv\u00e9e \u00e0'),dg(b.brgF),'°')+stat(L2('To go','Reste'),f0(b.dtf),'nm',f0(km(b.dtf))+' km')+stat(L2('Speed to finish','Vitesse vers l\u2019arriv\u00e9e'),f1(b.vmg),'kn',f1(km(b.vmg))+' km/h')+'</div>':'')+'</div>';
   }else if(listOpen){
     var lr=listRows();
-    h='<div class="pad dhd"><h2 id="lh">'+(cmpMode?'Compare with\u2026':'All racers \u00b7 '+lr.n)+'</h2><button class="link" id="bAll">Close</button></div><div class="pad"><input id="sq" class="sq" type="search" enterkeyhint="search" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="'+L2('Search a sailor or boat\u2026','Chercher un skipper ou un bateau\u2026')+'" value="'+esc(SQ)+'" aria-label="'+L2('Search a sailor','Chercher un skipper')+'"></div><div class="pad list" style="max-height:52vh">'+lr.h;
+    h='<div class="pad dhd"><h2 id="lh">'+listTitle(lr.n)+'</h2><button class="link" id="bAll">Close</button></div><div class="pad"><input id="sq" class="sq" type="search" enterkeyhint="search" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="'+L2('Search a sailor or boat\u2026','Chercher un skipper ou un bateau\u2026')+'" value="'+esc(SQ)+'" aria-label="'+L2('Search a sailor','Chercher un skipper')+'"></div><div class="pad list" style="max-height:52vh">'+lr.h;
     h+='</div>';
   }else{
     var vl3=boats.filter(vis),vlS=vl3.slice(0,12);
+    if(!b){h='<div class="pad home"><button class="sqb" id="sqB">\ud83d\udd0d '+L2('Search a sailor or boat\u2026','Chercher un skipper ou un bateau\u2026')+'</button><div class="tros"><button class="tro" data-k="ALL">\ud83c\udfc6 '+L2('Overall','G\u00e9n\u00e9ral')+'</button>';
+      CLASSES.forEach(function(c){if(boats.some(function(x){return x.cls===c.k;}))h+='<button class="tro" data-k="'+c.k+'" style="--c:var('+c.v+')">\ud83c\udfc6 '+esc(c.s)+'</button>';});
+      h+='</div></div>';}else{
     h='<div class="pad strip"><span class="sh">'+(b?'Following':'Race order')+'</span>';
     vlS.forEach(function(x,i){h+='<button class="pill'+(b&&x.id===b.id?' on':'')+(x.out?' out':'')+'" data-id="'+esc(x.id)+'" style="--c:'+colB(x)+'"><span class="p">'+(x.sim?'\u00b7':pad(i+1))+'</span>'+blSvg(x,20)+'<span class="nm">'+(x.id===FAV?'\u2605 ':'')+esc(x.name)+'</span><span class="sp">'+(x.fin?'finished':x.out?(x.st==='RET'?'retired':'stopped'):f1(x.sog)+'<u>kn</u>')+'</span></button>';});
     if(b)h+='<button class="pill all" id="favf">'+(FAV===b.id?'\u2605 Favourite':'\u2606 Favourite')+'</button><button class="pill all" id="xsf" aria-label="Stop following">Unfollow</button>';
-    h+='<button class="pill all" id="bAll">All '+vl3.length+'</button></div>';
+    h+='<button class="pill all" id="bAll">All '+vl3.length+'</button></div>';}
   }
   bodyEl.innerHTML=h;
   var sc2=bodyEl.querySelector('.strip'),l2=bodyEl.querySelector('.list');if(sc2)sc2.scrollLeft=sl;if(l2)l2.scrollTop=st;toolsFit();
@@ -1030,14 +1035,16 @@ function dial(b,c){
   '<g transform="rotate('+(b.cog||0)+' 50 50)"><g transform="translate(50 50) scale(.4)">'+boatSvg(b.cls,c)+'</g></g></svg>';
 }
 bodyEl.addEventListener('focusout',function(e){if(e.target.id==='sq')setTimeout(renderDock,0);});
-bodyEl.addEventListener('input',function(e){if(e.target.id!=='sq')return;SQ=e.target.value;var l=bodyEl.querySelector('.list'),lr=listRows();if(l){l.innerHTML=lr.h;l.scrollTop=0;}var hh=document.getElementById('lh');if(hh&&!cmpMode)hh.textContent='All racers \u00b7 '+lr.n;});
+bodyEl.addEventListener('input',function(e){if(e.target.id!=='sq')return;SQ=e.target.value;var l=bodyEl.querySelector('.list'),lr=listRows();if(l){l.innerHTML=lr.h;l.scrollTop=0;}var hh=document.getElementById('lh');if(hh)hh.textContent=listTitle(lr.n);});
 bodyEl.addEventListener('click',function(e){
   var ae=document.activeElement;if(ae&&ae.id==='sq'&&e.target!==ae)ae.blur();
   var t=e.target.closest('button');if(!t)return;
   if(t.id==='xs'||t.id==='xsf'){select(null);return;}
   if(t.id==='fav'||t.id==='favf'){toggleFav();return;}
   if(t.id==='detB'){DET=!DET;lsSet('rdr_det',DET?'1':'0');renderDock();return;}
-  if(t.id==='bAll'){listOpen=!listOpen;cmpMode=false;SQ='';renderDock();return;}
+  if(t.id==='sqB'){openSearch();return;}
+  if(t.classList.contains('tro')){filter=t.dataset.k;TRF=filter!=='ALL';listOpen=true;cmpMode=false;SQ='';buildFilters();renderDock();draw();return;}
+  if(t.id==='bAll'){listOpen=!listOpen;cmpMode=false;SQ='';if(!listOpen&&TRF){TRF=false;filter='ALL';buildFilters();draw();}renderDock();return;}
   if(t.id==='cmp'){if(CMP){CMP='';renderDock();draw();}else{cmpMode=true;listOpen=true;renderDock();}return;}
   if(t.id==='cmpx'){CMP='';renderDock();draw();return;}
   if(t.id==='more'){MORE=!MORE;lsSet('rdr_more',MORE?'1':'0');renderDock();return;}
@@ -1050,7 +1057,7 @@ function buildFilters(){
   var all=[{k:'ALL',s:'All',v:null}].concat(CLASSES);
   fEl.innerHTML=all.map(function(c){return '<button class="chip glass" data-k="'+c.k+'" aria-pressed="'+(filter===c.k)+'" style="'+(c.v?'--c:var('+c.v+')':'')+'">'+(c.v?'<i></i>':'')+c.s+'</button>';}).join('');
 }
-fEl.addEventListener('click',function(e){var b=e.target.closest('.chip');if(!b)return;filter=b.dataset.k;if(sel){var s=boats.filter(function(x){return x.id===sel.id;})[0];if(s&&!vis(s))sel=null;}buildFilters();renderDock();draw();});
+fEl.addEventListener('click',function(e){var b=e.target.closest('.chip');if(!b)return;filter=b.dataset.k;TRF=false;if(sel){var s=boats.filter(function(x){return x.id===sel.id;})[0];if(s&&!vis(s))sel=null;}buildFilters();renderDock();draw();});
 ['wLc','sLc'].forEach(function(i){document.getElementById(i).onclick=function(){document.getElementById('bWind').click();};});
 document.getElementById('bWind').onclick=function(){
   var st=windOn?1:SEA?2:SWL?3:0,nx=[1,2,3,0][st===0?3:st-1]; nx=st===0?1:st===1?2:st===2?3:0;

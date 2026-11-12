@@ -205,3 +205,8 @@ input[type=url]{width:100%;background:var(--soft);color:var(--ink);border:1px so
 .acts .fl{font:700 11px var(--f-body);letter-spacing:.06em;text-transform:uppercase;color:var(--hot);margin-right:auto}
 .pl{padding:6px 12px;border-radius:999px;border:1px solid var(--line);background:var(--soft);color:var(--ink);font:700 12px var(--f-body)}
 .lc{grid-column:1/-1;pointer-events:auto;cursor:pointer;font:700 10px var(--f-body);letter-spacing:.08em;text-transform:uppercase;margin-bottom:3px;white-space:nowrap}
+
+.home{display:flex;flex-direction:column;gap:10px}
+.sqb{width:100%;text-align:left;padding:12px 14px;border-radius:14px;border:1px solid var(--line);background:var(--soft);color:var(--mute);font:600 15px var(--f-body)}
+.tros{display:flex;flex-wrap:wrap;gap:8px}
+.tro{padding:8px 12px;border-radius:999px;border:1px solid var(--line);border-bottom:3px solid var(--c,var(--hot));background:var(--soft);color:var(--ink);font:700 13px var(--f-body)}
